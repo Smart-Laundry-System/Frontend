@@ -10,10 +10,15 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-navigation/native": "^7.0.13",
+    "@react-navigation/stack": "^7.0.18",
     "expo": "~52.0.17",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
-    "react-native": "0.76.3"
+    "react-native": "^0.76.4",
+    "react-native-linear-gradient": "^2.8.3",
+    "smartlaundry": "file:",
+    "expo-linear-gradient": "~14.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
