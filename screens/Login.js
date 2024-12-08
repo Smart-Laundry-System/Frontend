@@ -7,19 +7,21 @@ import imageLoginBack from '../assets/imageLoginBack.png'
 function Login({ navigation }) {
 
     const backtoback = () => {
-        navigation.navigate('Login');
+        navigation.navigate('StartPage');
     }
     return (
         <View
             style={styles.container}
         >
-            <TouchableOpacity onPress={backtoback}>
-                <Image source={backLogin} style={styles.imageBack} />
-                <Text>hiiijhuyhyugyuhuyguyhygubgyg</Text>
-            </TouchableOpacity>
+            <Image source={backLogin} style={styles.imageBack} />
+            {/* <Text>hiiijhuyhyugyuhuyguyhygubgyg</Text> */}
+
             <View style={styles.backtop}></View>
 
-            <Image style={styles.image} source={Vector} />
+            <TouchableOpacity onPress={backtoback}>
+                <Image style={styles.image} source={Vector} />
+            </TouchableOpacity>
+
             <Text style={styles.title}>
                 The Smart Laundry.
             </Text>
@@ -58,7 +60,6 @@ function Login({ navigation }) {
 
             <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
                 <Text style={styles.linedecl}></Text>
-
                 <Text style={{ marginTop: '6.5', position: 'absolute' }}>or</Text>
                 <Text style={styles.linedecr}></Text>
             </View>
@@ -77,8 +78,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         borderBottomWidth: 1,
         // paddingBottom: 1,
-        marginRight: '12.5%',
-        marginLeft: '25%',
+        // marginRight: '21%',
+        marginLeft: '2.5%',
+        width: '34%'
         // position:'absolute'
     },
     linedecl: {
@@ -87,8 +89,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         borderBottomWidth: 1,
         // paddingBottom: 1,
-        marginLeft: '12.5%',
-        marginRight: '25%',
+        // marginLeft: '21%',
+        marginRight: '2.5%',
+        width: '34%'
         // position: 'relative'
     },
     forgetfont: {
@@ -137,9 +140,10 @@ const styles = StyleSheet.create({
     createac: {
         width: '75%',
         height: 45,
-        backgroundColor: '#ffff', // Green color
+        // backgroundColor: 'red',
         borderRadius: 10,
-        borderColor: 'rgba(0,0,0,0.53)',
+        borderColor: 'black', // Set the border color to black
+        borderWidth: 1,       // Add border width to make the line visible
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 20,
