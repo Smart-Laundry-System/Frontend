@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient'; // Uncomment if using Exp
 
 const { width, height } = Dimensions.get("window");
 
-function StartPage({navigation}) {
+function StartPage({ navigation }) {
 
     const tologin = () => {
         navigation.navigate('Login')
@@ -16,6 +16,9 @@ function StartPage({navigation}) {
 
     return (
         <View style={styles.container}>
+            {/* <View clsx="flex-1 justify-center items-center bg-blue-500">
+                <Text clsx="text-white text-lg font-bold">Hello, Tailwind CSS!</Text>
+            </View> */}
             <Image style={styles.image} source={background} />
             {/* <View style={styles.overlayr}></View>
             <View style={styles.overlayl}></View> */}
