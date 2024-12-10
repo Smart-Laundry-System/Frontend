@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Image, StyleSheet, Keyboard, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView } from 'react-native';
+import { ScrollView, Image, StyleSheet, Keyboard, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
 import registeroverlay from '../../assets/backReg.png';
 import inerbutton from '../../assets/Vector1.png';
 import overlap from '../../assets/registeroverlay.png';
 import { BlurView } from 'expo-blur'
-import { Icon, Switch } from 'react-native-paper';
-import RNPickerSelect from 'react-native-picker-select';
-import { Picker } from '@react-native-picker/picker';
+import { Button, Switch } from 'react-native-paper';
 import IconOpen from '../../assets/icon.png'
-import IconClose from '../../assets/iconopen.png'
+import IconClose from '../../assets/iconopen.png';
+import CreateAc from '../../components/Button/CreateAc';
+import Or from '../../components/Button/Or';
+import upload from '../../assets/upload.png';
+import * as ImagePicker from 'expo-image-picker';
+
 
 function HotelRegister2({ navigation }) {
 
-
-    // const [selectedValue, setSelectedValue] = React.useState("java");
-    // const [selectedValue, setSelectedValue] = React.useState(null);
     const [isSwitchOn, setIsSwitchOn] = React.useState(false);
     const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 
@@ -24,17 +24,42 @@ function HotelRegister2({ navigation }) {
     const [isDropdownVisible, setDropdownVisible] = React.useState(false);
     const [isDropdownVisiblet, setDropdownVisiblet] = React.useState(false);
 
-    const options = ['Ironing', 'Dry Clean', 'Detergent Wash'];
-    const clothes = ['Jackets', 'Veshti', 'Others(Upload an image)'];
+    const [selectedImage, setSelectedImage] = useState(null);
 
-    const types = ['Carpet', 'Curtain']
-    const toggleOption = (option) => {
-        setSelectedOptions((prev) =>
-            prev.includes(option)
-                ? prev.filter((item) => item !== option)
-                : [...prev, option]
+    const pickImage = async () => {
+        // Request permission to access media library
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+            Alert.alert("Permission required", "You need to enable permission to access the image library.");
+            return;
+        }
+
+        // Launch the image picker
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setSelectedImage(result.assets[0].uri); // Save the selected image URI
+        }
+    };
+
+    const removeImage = () => {
+        Alert.alert(
+            "Remove Image",
+            "Are you sure you want to remove the selected image?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Remove", style: "destructive", onPress: () => setSelectedImage(null) },
+            ]
         );
     };
+
+    const clothes = ['Jackets', 'Veshti', 'Others(Upload an image)'];
+
+    const types = ['Carpet', 'Curtain'];
 
     const toggleCloths = (option) => {
         setSelectedCloths((prev) =>
@@ -71,12 +96,6 @@ function HotelRegister2({ navigation }) {
 
     const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
 
-
-
-    // const handleValueChange = (value) => {
-    //     setSelectedValue(value);
-    // };
-
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
             'keyboardDidShow',
@@ -93,322 +112,232 @@ function HotelRegister2({ navigation }) {
         };
     }, []);
 
-    // const customTheme = {
-    //     ...PaperProvider,
-    //     colors: {
-    //         ...PaperProvider.colors,
-    //         accent: '#F2EBBC', // Customize theme accent color
-    //     },
-    // };
-
     return (
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContainertop}>
+            <View style={styles.container}>
 
-            <Image source={registeroverlay} style={styles.image} />
-            <View style={styles.switchset}>
-                <Text style={styles.switchText}>
-                    {!isSwitchOn && "Hotel Admin"}
-                    {isSwitchOn && "Personal"}
-                </Text>
-                <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
-                    <Switch
-                        trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
-                        thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
-                        value={isSwitchOn}
-                        onValueChange={onToggleSwitch}
-                    />
+                <Image source={registeroverlay} style={styles.image} />
+                <View style={styles.switchset}>
+                    <Text style={styles.switchText}>
+                        {!isSwitchOn && "Hotel Admin"}
+                        {isSwitchOn && "Personal"}
+                    </Text>
+                    <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
+                        <Switch
+                            trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
+                            thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
+                            value={isSwitchOn}
+                            onValueChange={onToggleSwitch}
+                        />
 
+                    </View>
                 </View>
-            </View>
-            <View style={styles.backtop}></View>
+                <View style={styles.backtop}></View>
 
-            <TouchableOpacity onPress={() => navigation.navigate("UserRegistration")}>
-                <Image source={inerbutton} style={styles.imagein} />
-            </TouchableOpacity>
-            <Image source={overlap} style={styles.regback} />
-            <Text style={styles.text}>
-                The Smart Laundry.
-            </Text>
-            <Text style={styles.textsub}>
-                Create Account
-            </Text>
+                <TouchableOpacity onPress={() => navigation.navigate("UserRegistration")}>
+                    <Image source={inerbutton} style={styles.imagein} />
+                </TouchableOpacity>
+                <Image source={overlap} style={styles.regback} />
+                <Text style={styles.text}>
+                    The Smart Laundry.
+                </Text>
+                <Text style={styles.textsub}>
+                    Create Account
+                </Text>
 
-            <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
-                {/* <KeyboardAvoidingView> */}
-                <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-                    {isSwitchOn && <ScrollView
-                        contentContainerStyle={styles.scrollContainer}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={styles.fields}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="First Name"
-                                // keyboardType="email-address"
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Last Name"
-                                // secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Address"
-                                // secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Phone"
-                                // secureTextEntry={true}
-                                keyboardType='phone-pad'
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Email"
-                                keyboardType="email-address"
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                        </View>
-                    </ScrollView>}
-
-                    {!isSwitchOn && <ScrollView
-                        contentContainerStyle={styles.scrollContainer}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={styles.fields}>
-
-                            {/* <View style={{ flexDirection: 'row' }}>
-                                <Icon name="washing-machine" size={100} color="red" style={styles.icon} /> */}
-
-                            <TextInput
-                                style={styles.input}
-
-                                placeholder="Available Item"
-                                keyboardType="default"
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {/* </View> */}
-                            <View style={styles.dropdownContainer}>
-                                {/* <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}> */}
-                                {/* <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                                        
-                                        Services Type
-                                    </Text> */}
-                                {/* </TouchableOpacity> */}
-
-                                {/* {isDropdownVisible && ( */}
-                                <View style={styles.dropdownMenu}>
-                                    {types.map((option) => (
-                                        <TouchableOpacity
-                                            key={option}
-                                            style={styles.dropdownItem}
-                                            onPress={() => toggleTypes(option)}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.checkbox,
-                                                    selectedTypes.includes(option) && styles.checked,
-                                                ]}
-                                            >
-                                                {selectedTypes.includes(option) ? '✓' : ' '}
-                                            </Text>
-                                            <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
-                                        </TouchableOpacity>
-
-                                    ))}
-                                    <TouchableOpacity onPress={toggleDropdownt} style={[styles.dropdownItem, { flexDirection: 'row' }]}>
-                                        <Text style={{ color: keyboardVisible ? 'black' : '#999' }}>Clothes Item (KG)</Text>
-                                        <Image source={IconOpen} style={{ marginLeft: '30%', opacity: '0.6', display: isDropdownVisiblet ? 'none' : 'flex' }} />
-                                        <Image source={IconClose} style={{ marginLeft: '30%', display: isDropdownVisiblet ? 'flex' : 'none' }} />
-                                    </TouchableOpacity>
+                <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
+                    <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
+                        {isSwitchOn &&
+                            <ScrollView
+                                contentContainerStyle={styles.scrollContainer}
+                                keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator={false}
+                            >
+                                <View style={styles.fields}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="First Name"
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Last Name"
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Address"
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Phone"
+                                        keyboardType='phone-pad'
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Email"
+                                        keyboardType="email-address"
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Password"
+                                        secureTextEntry={true}
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
                                 </View>
+                            </ScrollView>}
 
-                                {isDropdownVisiblet && (
-                                    <View style={styles.dropdownMenuc}>
-                                        {clothes.map((optionc) => (
-                                            <TouchableOpacity
-                                                key={optionc}
-                                                style={styles.dropdownItem}
-                                                onPress={() => toggleCloths(optionc)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.checkbox,
-                                                        selectedOptions.includes(optionc) && styles.checked,
-                                                    ]}
-                                                >
-                                                    {selectedOptions.includes(optionc) ? '✓' : ' '}
-                                                </Text>
-                                                <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{optionc}</Text>
-
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                )}
-
-                                {/* )} */}
-                            </View>
-
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Phone"
-                                keyboardType='phone-pad'
-                                // secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Email"
-                                keyboardType='email-address'
-                                // secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                secureTextEntry={true}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {/* <TextInput
-                            style={styles.input}
-                            placeholder="Services Type"
-                            secureTextEntry={true}
-                            placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        /> */}
-                            {/* <View style={{ padding: 20 }}>
-                            <RNPickerSelect
-                                placeholder={{
-                                    label: 'Select a service type...',
-                                    value: null,
-                                }}
-                                value={selectedValue}
-                                onValueChange={handleValueChange}
-                                items={[
-                                    { label: 'Cleaning', value: 'cleaning' },
-                                    { label: 'Laundry', value: 'laundry' },
-                                    { label: 'Ironing', value: 'ironing' },
-                                    { label: 'Dry Cleaning', value: 'dry_cleaning' },
-                                ]}
-                                style={{
-                                    inputIOS: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                    inputAndroid: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                }}
-                            />
-                        </View> */}
-                            {/* <Picker
-                            selectedValue={selectedValue}
-                            style={styles.picker}
-                            onValueChange={(itemValue, itemIndex) => setSelectedValue(itemValue)}
+                        {!isSwitchOn && <ScrollView
+                            contentContainerStyle={styles.scrollContainer}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
                         >
-                            <Picker.Item label="Java" value="java" />
-                            <Picker.Item label="JavaScript" value="js" />
-                            <Picker.Item label="Python" value="python" />
-                        </Picker> */}
+                            <View style={[styles.fields,{marginTop: selectedImage ? "62%" : "45%"}]}>
 
-                            <View style={styles.dropdownContainer}>
-                                <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}>
-                                    <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                                        {/* {selectedOptions.length > 0
-                                            ? selectedOptions.join(', ')
-                                            : 'Select Options'} */}
-                                        Services Type
-                                    </Text>
-                                </TouchableOpacity>
+                                <TextInput
+                                    style={styles.input}
 
-                                {isDropdownVisible && (
+                                    placeholder="Available Item"
+                                    keyboardType="default"
+                                    placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    editable={false}
+                                />
+
+                                <View style={styles.dropdownContainer}>
+
                                     <View style={styles.dropdownMenu}>
-                                        {options.map((option) => (
+                                        {types.map((option) => (
                                             <TouchableOpacity
                                                 key={option}
                                                 style={styles.dropdownItem}
-                                                onPress={() => toggleOption(option)}
+                                                activeOpacity={1}
+                                                onPress={() => toggleTypes(option)}
                                             >
                                                 <Text
                                                     style={[
                                                         styles.checkbox,
-                                                        selectedOptions.includes(option) && styles.checked,
+                                                        selectedTypes.includes(option) && styles.checked,
                                                     ]}
                                                 >
-                                                    {selectedOptions.includes(option) ? '✓' : ' '}
+                                                    {selectedTypes.includes(option) ? '✓' : ' '}
                                                 </Text>
                                                 <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
-
                                             </TouchableOpacity>
+
                                         ))}
+                                        <TouchableOpacity activeOpacity={1} onPress={toggleDropdownt} style={[styles.dropdownItem, { flexDirection: 'row' }]}>
+                                            <Text style={{ color: keyboardVisible ? 'black' : '#999' }}>Clothes Item (KG)</Text>
+                                            <Image source={IconOpen} style={{ marginLeft: '30%', opacity: '0.6', display: isDropdownVisiblet ? 'none' : 'flex' }} />
+                                            <Image source={IconClose} style={{ marginLeft: '30%', display: isDropdownVisiblet ? 'flex' : 'none' }} />
+                                        </TouchableOpacity>
                                     </View>
-                                )}
+
+                                    {isDropdownVisiblet && (
+                                        <View style={styles.dropdownMenuc}>
+                                            {clothes.map((optionc) => (
+                                                <>
+                                                    <TouchableOpacity
+                                                        key={optionc}
+                                                        style={styles.dropdownItem}
+                                                        activeOpacity={1}
+                                                        onPress={() => toggleCloths(optionc)}
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.checkbox,
+                                                                selectedCloths.includes(optionc) && styles.checked,
+                                                            ]}
+                                                        >
+                                                            {selectedCloths.includes(optionc) ? '✓' : ' '}
+                                                        </Text>
+                                                        <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>
+                                                            {optionc}
+                                                        </Text>
+                                                        {optionc === "Others(Upload an image)" && selectedCloths.includes(optionc) && (
+                                                            <TouchableOpacity onPress={pickImage}>
+                                                                <Image source={upload} style={{ width: 25, height: 25, right: '-10' }} />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </>
+                                            ))}
+
+                                            {selectedImage ? (<>
+                                                <View style={{ alignItems: 'center', height: '100%', width: '100%' }}>
+                                                    <Image source={{ uri: selectedImage }} style={{ width: "50%", height: "50%", padding: '10' }} />
+                                                    <TouchableOpacity onPress={removeImage} style={styles.removeButton}>
+                                                        <Text style={styles.removeText}>Remove Image</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </>
+                                            ) : (
+                                                <Text></Text>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+
+
                             </View>
-                        </View>
-                    </ScrollView>}
+                        </ScrollView>}
+                    </TouchableOpacity>
+                </BlurView>
+
+
+                <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
+                    <Text style={styles.loginButtonText}>
+                        {!isSwitchOn && 'Next'}
+                        {isSwitchOn && 'Sign up'}
+                    </Text>
                 </TouchableOpacity>
-                {/* </KeyboardAvoidingView> */}
-            </BlurView>
 
+                <Or />
 
-            <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
-                <Text style={styles.loginButtonText}>
-                    {!isSwitchOn && 'Next'}
-                    {isSwitchOn && 'Sign up'}
-                </Text>
-            </TouchableOpacity>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                <Text style={styles.linedecl}></Text>
-                <Text style={{ marginTop: '6.5', position: 'absolute' }}>or</Text>
-                <Text style={styles.linedecr}></Text>
-            </View>
-
-            <TouchableOpacity style={styles.createac} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.loginButtonText}>For login</Text>
-            </TouchableOpacity>
-
-        </View >
+                <CreateAc butname="Login" navigation={navigation} path="Login" />
+{/* <View style={{height:'40'}}></View> */}
+            </View >
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
+    scrollContainertop: {
+        flexGrow: 1, // Ensures content grows and is scrollable
+        // width:'100%'
+    },
+    // container: {
+    //     flex: 1,
+        // justifyContent: 'center',
+    // },
+    removeButton: {
+        backgroundColor: '#A3AE95', // Button background color
+        padding: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginBottom: '10'
+    },
+    removeText: {
+        color: '#3C4234', // Button text color
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
     icon: {
         margin: '100%',
     },
@@ -438,18 +367,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         maxHeight: 150,
         overflow: 'scroll',
-        // zIndex: 1010
     },
     dropdownMenuc: {
         borderWidth: 0.3,
         borderColor: '#ccc',
         borderRadius: 5,
         marginTop: 20,
-        marginBottom: '-15',
         backgroundColor: '#fff',
-        maxHeight: 150,
+        maxHeight: 350,
         overflow: 'scroll',
-        // zIndex: 1010
     },
     dropdownItem: {
         flexDirection: 'row',
@@ -458,15 +384,10 @@ const styles = StyleSheet.create({
     },
     dropdownItemText: {
         fontSize: 16,
-        // color: '#999',
         marginLeft: 10,
     },
     dropdownHeader: {
-        // borderWidth: 1,
-        // borderColor: '#ccc',
-        // borderRadius: 5,
         padding: 15,
-        // backgroundColor: '#f9f9f9',
         height: 50,
         width: '100%',
         borderBottomWidth: 1, // Thickness of the underline
@@ -496,7 +417,6 @@ const styles = StyleSheet.create({
     },
     switchset: {
         flexDirection: 'row',
-        // position:'absolute'
     },
     loginButton: {
         width: '75%',
@@ -515,30 +435,21 @@ const styles = StyleSheet.create({
     },
     linedecr: {
         textDecorationLine: "underline",
-        // justifyContent:'center',
         textAlign: 'center',
         borderBottomWidth: 1,
-        // paddingBottom: 1,
-        // marginRight: '21%',
         marginLeft: '2.5%',
         width: '34%'
-        // position:'absolute'
     },
     linedecl: {
         textDecorationLine: "underline",
-        // justifyContent:'center',
         textAlign: 'center',
         borderBottomWidth: 1,
-        // paddingBottom: 1,
-        // marginLeft: '21%',
         marginRight: '2.5%',
         width: '34%'
-        // position: 'relative'
     },
     createac: {
         width: '75%',
         height: 42,
-        // backgroundColor: 'red',
         borderRadius: 10,
         borderColor: 'black', // Set the border color to black
         borderWidth: 1,       // Add border width to make the line visible
@@ -551,7 +462,6 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: '10%',
-        // marginTop:'35%'
     },
     regback: {
         bottom: 0,
@@ -562,22 +472,16 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        // justifyContent: 'center',
-        // alignItems: 'center',
         backgroundColor: '#ffff', // Light background
     },
     image: {
         position: 'absolute',
         width: '100%',
         height: '40%',
-        // opacity: '0.9'
     },
     imagein: {
         marginTop: '15%',
         marginLeft: '5%',
-        // width: '10%',
-        // height: '20%',
-        // resizeMode: 'contain', // Maintain aspect ratio
     },
     text: {
         fontSize: 35,
@@ -610,9 +514,6 @@ const styles = StyleSheet.create({
         width: '100%',
         borderBottomWidth: 1, // Thickness of the underline
         borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
-        // borderWidth: 1,
-        // borderRadius: 15,
-        // borderColor: 'rgba(0,0,0,0.3)',
         marginBottom: 15,
         paddingLeft: 15,
         fontSize: 16,

@@ -7,6 +7,8 @@ import { BlurView } from 'expo-blur'
 import { Icon, Switch } from 'react-native-paper';
 import RNPickerSelect from 'react-native-picker-select';
 import { Picker } from '@react-native-picker/picker';
+import Or from '../../components/Button/Or';
+import CreateAc from '../../components/Button/CreateAc';
 
 
 function UserRegistre({ navigation }) {
@@ -94,7 +96,7 @@ function UserRegistre({ navigation }) {
                 </View>
             </View>
             <View style={styles.backtop}></View>
-            <TouchableOpacity onPress={()=>navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                 <Image source={inerbutton} style={styles.imagein} />
             </TouchableOpacity>
             <Image source={overlap} style={styles.regback} />
@@ -312,15 +314,8 @@ function UserRegistre({ navigation }) {
                 </Text>
             </TouchableOpacity>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                <Text style={styles.linedecl}></Text>
-                <Text style={{ marginTop: '6.5', position: 'absolute' }}>or</Text>
-                <Text style={styles.linedecr}></Text>
-            </View>
-
-            <TouchableOpacity style={styles.createac} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.loginButtonText}>For login</Text>
-            </TouchableOpacity>
+            <Or />
+            <CreateAc butname="Login" navigation={navigation} path="Login" />
 
         </View >
     );
@@ -328,8 +323,8 @@ function UserRegistre({ navigation }) {
 
 const styles = StyleSheet.create({
     icon: {
-        width:100,
-        height:100,
+        width: 100,
+        height: 100,
         // margin: '100%',
     },
     dropdownContainer: {

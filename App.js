@@ -7,6 +7,7 @@ import Login from './screens/Login';
 import UserRegistre from './screens/HotelUser/UserRegistre';
 import { PaperProvider } from 'react-native-paper';
 import HotelRegister2 from './screens/HotelAdmin/HotelRegister2';
+import HotelRegFinal from './screens/HotelAdmin/HotelRegFinal';
 
 const Stack = createStackNavigator();
 
@@ -19,6 +20,7 @@ export default function App() {
           <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
           <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
           <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
+          <Stack.Screen name='HotelRegFinal' component={HotelRegFinal} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>
