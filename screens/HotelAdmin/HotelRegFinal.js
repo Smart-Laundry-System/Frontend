@@ -11,6 +11,7 @@ import IconOpen from '../../assets/icon.png'
 import IconClose from '../../assets/iconopen.png'
 import CreateAc from '../../components/Button/CreateAc';
 import Or from '../../components/Button/Or';
+import RegistreTop from '../../components/UserTop/RegistreTop';
 
 function HotelRegFinal({ navigation }) {
 
@@ -120,64 +121,7 @@ function HotelRegFinal({ navigation }) {
 
       <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
         <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-          {isSwitchOn &&
-            <ScrollView
-              contentContainerStyle={styles.scrollContainer}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.fields}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="First Name"
-                  // keyboardType="email-address"
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Last Name"
-                  // secureTextEntry={true}
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Address"
-                  // secureTextEntry={true}
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Phone"
-                  // secureTextEntry={true}
-                  keyboardType='phone-pad'
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  keyboardType="email-address"
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  secureTextEntry={true}
-                  placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </ScrollView>}
+        {isSwitchOn && <RegistreTop navigation={navigation} />}
 
           {!isSwitchOn && <ScrollView
             contentContainerStyle={styles.scrollContainer}

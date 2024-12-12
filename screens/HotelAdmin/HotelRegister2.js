@@ -11,6 +11,7 @@ import CreateAc from '../../components/Button/CreateAc';
 import Or from '../../components/Button/Or';
 import upload from '../../assets/upload.png';
 import * as ImagePicker from 'expo-image-picker';
+import RegistreTop from '../../components/UserTop/RegistreTop';
 
 
 function HotelRegister2({ navigation }) {
@@ -18,7 +19,7 @@ function HotelRegister2({ navigation }) {
     const [isSwitchOn, setIsSwitchOn] = React.useState(false);
     const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 
-    const [selectedOptions, setSelectedOptions] = React.useState([]);
+    // const [selectedOptions, setSelectedOptions] = React.useState([]);
     const [selectedTypes, setSelectedTypes] = React.useState([]);
     const [selectedCloths, setSelectedCloths] = React.useState([]);
     const [isDropdownVisible, setDropdownVisible] = React.useState(false);
@@ -37,7 +38,7 @@ function HotelRegister2({ navigation }) {
         // Launch the image picker
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            allowsEditing: false,
             quality: 1,
         });
 
@@ -147,67 +148,14 @@ function HotelRegister2({ navigation }) {
 
                 <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
                     <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-                        {isSwitchOn &&
-                            <ScrollView
-                                contentContainerStyle={styles.scrollContainer}
-                                keyboardShouldPersistTaps="handled"
-                                showsVerticalScrollIndicator={false}
-                            >
-                                <View style={styles.fields}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="First Name"
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Last Name"
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Address"
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Phone"
-                                        keyboardType='phone-pad'
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Email"
-                                        keyboardType="email-address"
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Password"
-                                        secureTextEntry={true}
-                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                </View>
-                            </ScrollView>}
+                        {isSwitchOn && <RegistreTop navigation={navigation} />}
 
                         {!isSwitchOn && <ScrollView
                             contentContainerStyle={styles.scrollContainer}
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={false}
                         >
-                            <View style={[styles.fields,{marginTop: selectedImage ? "62%" : "45%"}]}>
+                            <View style={[styles.fields, { marginTop: selectedImage ? "62%" : "45%" }]}>
 
                                 <TextInput
                                     style={styles.input}
@@ -311,7 +259,7 @@ function HotelRegister2({ navigation }) {
                 <Or />
 
                 <CreateAc butname="Login" navigation={navigation} path="Login" />
-{/* <View style={{height:'40'}}></View> */}
+                {/* <View style={{height:'40'}}></View> */}
             </View >
         </ScrollView>
     );
@@ -324,7 +272,7 @@ const styles = StyleSheet.create({
     },
     // container: {
     //     flex: 1,
-        // justifyContent: 'center',
+    // justifyContent: 'center',
     // },
     removeButton: {
         backgroundColor: '#A3AE95', // Button background color
