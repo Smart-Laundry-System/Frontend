@@ -13,9 +13,11 @@ import RegistreTop from '../../components/UserTop/RegistreTop'
 
 function UserRegistre({ navigation }) {
 
-
-    // const [selectedValue, setSelectedValue] = React.useState("java");
-    // const [selectedValue, setSelectedValue] = React.useState(null);
+    const [laundryName, setLaundryName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [address, setAddress] = useState("");
     const [isSwitchOn, setIsSwitchOn] = React.useState(true);
     const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 
@@ -109,7 +111,6 @@ function UserRegistre({ navigation }) {
             </Text>
 
             <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
-                {/* <KeyboardAvoidingView> */}
                 <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
                     {isSwitchOn && <RegistreTop navigation={navigation} />}
 
@@ -125,9 +126,10 @@ function UserRegistre({ navigation }) {
 
                                 <TextInput
                                     style={styles.input}
-
                                     placeholder="Name of the laundry"
-                                    keyboardType="default"
+                                    keyboardType="default" 
+                                    value={laundryName}
+                                    onChange={(e) => setLaundryName(e)}
                                     placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -136,7 +138,8 @@ function UserRegistre({ navigation }) {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Address"
-                                // secureTextEntry={true}
+                                value={address}
+                                onChange={(e) => setAddress(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -145,7 +148,8 @@ function UserRegistre({ navigation }) {
                                 style={styles.input}
                                 placeholder="Phone"
                                 keyboardType='phone-pad'
-                                // secureTextEntry={true}
+                                value={phone}
+                                onChange={(e) => setPhone(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -154,7 +158,8 @@ function UserRegistre({ navigation }) {
                                 style={styles.input}
                                 placeholder="Email"
                                 keyboardType='email-address'
-                                // secureTextEntry={true}
+                                value={email}
+                                onChange={(e) => setEmail(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -163,55 +168,12 @@ function UserRegistre({ navigation }) {
                                 style={styles.input}
                                 placeholder="Password"
                                 secureTextEntry={true}
+                                value={password}
+                                onChange={(e) => setPassword(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
-                            {/* <TextInput
-                            style={styles.input}
-                            placeholder="Services Type"
-                            secureTextEntry={true}
-                            placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        /> */}
-                            {/* <View style={{ padding: 20 }}>
-                            <RNPickerSelect
-                                placeholder={{
-                                    label: 'Select a service type...',
-                                    value: null,
-                                }}
-                                value={selectedValue}
-                                onValueChange={handleValueChange}
-                                items={[
-                                    { label: 'Cleaning', value: 'cleaning' },
-                                    { label: 'Laundry', value: 'laundry' },
-                                    { label: 'Ironing', value: 'ironing' },
-                                    { label: 'Dry Cleaning', value: 'dry_cleaning' },
-                                ]}
-                                style={{
-                                    inputIOS: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                    inputAndroid: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                }}
-                            />
-                        </View> */}
-                            {/* <Picker
-                            selectedValue={selectedValue}
-                            style={styles.picker}
-                            onValueChange={(itemValue, itemIndex) => setSelectedValue(itemValue)}
-                        >
-                            <Picker.Item label="Java" value="java" />
-                            <Picker.Item label="JavaScript" value="js" />
-                            <Picker.Item label="Python" value="python" />
-                        </Picker> */}
 
                             <View style={styles.dropdownContainer}>
                                 <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}>

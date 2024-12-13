@@ -80,16 +80,12 @@ function HotelRegister2({ navigation }) {
 
 
     const controlLogin = () => {
-        if (isSwitchOn) {
-            navigation.navigate('Login');
-        } else if (!isSwitchOn) {
-            navigation.navigate('HotelRegister2');
-        }
+        // if (isSwitchOn) {
+        //     navigation.navigate('Login');
+        // } else if (!isSwitchOn) {
+            navigation.navigate('HotelRegisterFinal');
+        // }
     }
-
-    const toggleDropdown = () => {
-        setDropdownVisible(!isDropdownVisible);
-    };
 
     const toggleDropdownt = () => {
         setDropdownVisiblet(!isDropdownVisiblet);
@@ -249,16 +245,15 @@ function HotelRegister2({ navigation }) {
                 </BlurView>
 
 
-                <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
+                <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("HotelRegisterFinal")}>
                     <Text style={styles.loginButtonText}>
-                        {!isSwitchOn && 'Next'}
-                        {isSwitchOn && 'Sign up'}
+                        Next
                     </Text>
                 </TouchableOpacity>
 
                 <Or />
 
-                <CreateAc butname="Login" navigation={navigation} path="Login" />
+                <CreateAc butname="For Login" navigation={navigation} path="Login" />
                 {/* <View style={{height:'40'}}></View> */}
             </View >
         </ScrollView>

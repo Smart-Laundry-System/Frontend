@@ -5,8 +5,6 @@ import inerbutton from '../../assets/Vector1.png';
 import overlap from '../../assets/registeroverlay.png';
 import { BlurView } from 'expo-blur'
 import { Icon, Switch } from 'react-native-paper';
-import RNPickerSelect from 'react-native-picker-select';
-import { Picker } from '@react-native-picker/picker';
 import IconOpen from '../../assets/icon.png'
 import IconClose from '../../assets/iconopen.png'
 import CreateAc from '../../components/Button/CreateAc';
@@ -54,11 +52,11 @@ function HotelRegFinal({ navigation }) {
 
 
   const controlLogin = () => {
-    if (isSwitchOn) {
-      navigation.navigate('Login');
-    } else if (!isSwitchOn) {
-      navigation.navigate('HotelRegister2');
-    }
+    // if (isSwitchOn) {
+    //   navigation.navigate('Login');
+    // } else if (!isSwitchOn) {
+      navigation.navigate('HotelRegisterFinal');
+    // }
   }
 
   const toggleDropdown = () => {
@@ -121,7 +119,7 @@ function HotelRegFinal({ navigation }) {
 
       <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
         <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-        {isSwitchOn && <RegistreTop navigation={navigation} />}
+          {isSwitchOn && <RegistreTop navigation={navigation} />}
 
           {!isSwitchOn && <ScrollView
             contentContainerStyle={styles.scrollContainer}
@@ -139,16 +137,8 @@ function HotelRegFinal({ navigation }) {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {/* </View> */}
-              <View style={styles.dropdownContainer}>
-                {/* <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}> */}
-                {/* <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                                        
-                                        Services Type
-                                    </Text> */}
-                {/* </TouchableOpacity> */}
 
-                {/* {isDropdownVisible && ( */}
+              <View style={styles.dropdownContainer}>
                 <View style={styles.dropdownMenu}>
                   {types.map((option) => (
                     <TouchableOpacity
@@ -198,7 +188,6 @@ function HotelRegFinal({ navigation }) {
                   </View>
                 )}
 
-                {/* )} */}
               </View>
 
               <TextInput
@@ -227,58 +216,10 @@ function HotelRegFinal({ navigation }) {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {/* <TextInput
-                            style={styles.input}
-                            placeholder="Services Type"
-                            secureTextEntry={true}
-                            placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        /> */}
-              {/* <View style={{ padding: 20 }}>
-                            <RNPickerSelect
-                                placeholder={{
-                                    label: 'Select a service type...',
-                                    value: null,
-                                }}
-                                value={selectedValue}
-                                onValueChange={handleValueChange}
-                                items={[
-                                    { label: 'Cleaning', value: 'cleaning' },
-                                    { label: 'Laundry', value: 'laundry' },
-                                    { label: 'Ironing', value: 'ironing' },
-                                    { label: 'Dry Cleaning', value: 'dry_cleaning' },
-                                ]}
-                                style={{
-                                    inputIOS: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                    inputAndroid: {
-                                        ...styles.input,
-                                        color: keyboardVisible ? 'black' : '#999',
-                                        backgroundColor: 'transparent'
-                                    },
-                                }}
-                            />
-                        </View> */}
-              {/* <Picker
-                            selectedValue={selectedValue}
-                            style={styles.picker}
-                            onValueChange={(itemValue, itemIndex) => setSelectedValue(itemValue)}
-                        >
-                            <Picker.Item label="Java" value="java" />
-                            <Picker.Item label="JavaScript" value="js" />
-                            <Picker.Item label="Python" value="python" />
-                        </Picker> */}
 
               <View style={styles.dropdownContainer}>
                 <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}>
                   <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                    {/* {selectedOptions.length > 0
-                                            ? selectedOptions.join(', ')
-                                            : 'Select Options'} */}
                     Services Type
                   </Text>
                 </TouchableOpacity>
@@ -309,19 +250,17 @@ function HotelRegFinal({ navigation }) {
             </View>
           </ScrollView>}
         </TouchableOpacity>
-        {/* </KeyboardAvoidingView> */}
       </BlurView>
 
 
       <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
         <Text style={styles.loginButtonText}>
-          {!isSwitchOn && 'Next'}
-          {isSwitchOn && 'Sign up'}
+          Next
         </Text>
       </TouchableOpacity>
 
       <Or />
-      <CreateAc butname="Login" navigation={navigation} path="Login" />
+      <CreateAc butname="For Login" navigation={navigation} path="Login" />
 
     </View >
   );
@@ -481,8 +420,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    // justifyContent: 'center',
-    // alignItems: 'center',
     backgroundColor: '#ffff', // Light background
   },
   image: {
