@@ -18,7 +18,7 @@ function HotelRegFinal({ navigation }) {
 
   const [selectedOptions, setSelectedOptions] = React.useState([]);
   const [selectedTypes, setSelectedTypes] = React.useState([]);
-  const [selectedCloths, setSelectedCloths] = React.useState([]);
+  // const [selectedCloths, setSelectedCloths] = React.useState([]);
   const [isDropdownVisible, setDropdownVisible] = React.useState(false);
   const [isDropdownVisiblet, setDropdownVisiblet] = React.useState(false);
 
@@ -34,13 +34,13 @@ function HotelRegFinal({ navigation }) {
     );
   };
 
-  const toggleCloths = (option) => {
-    setSelectedCloths((prev) =>
-      prev.includes(option)
-        ? prev.filter((item) => item !== option)
-        : [...prev, option]
-    );
-  };
+  // const toggleCloths = (option) => {
+  //   setSelectedCloths((prev) =>
+  //     prev.includes(option)
+  //       ? prev.filter((item) => item !== option)
+  //       : [...prev, option]
+  //   );
+  // };
 
   const toggleTypes = (option) => {
     setSelectedTypes((prev) =>

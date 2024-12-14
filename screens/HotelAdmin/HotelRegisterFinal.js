@@ -16,11 +16,11 @@ function HotelRegisterFinal({ navigation }) {
     const [message, setMessage] = React.useState("");
 
     const controlLogin = () => {
-        if (isSwitchOn) {
+        // if (isSwitchOn) {
             navigation.navigate('Login');
-        } else if (!isSwitchOn) {
-            navigation.navigate('HotelRegister2');
-        }
+        // } else if (!isSwitchOn) {
+        //     navigation.navigate('HotelRegister2');
+        // }
     }
 
     const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
@@ -94,9 +94,11 @@ function HotelRegisterFinal({ navigation }) {
                             />
 
                             <TextInput
-                                style={styles.input}
+                                style={styles.inputin}
                                 placeholder="Message"
                                 keyboardType='default'
+                                multiline={true} // Enable multiline input
+                                numberOfLines={4} // Specify default number of visible lines
                                 value={message}
                                 onChange={(e) => setMessage(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
@@ -216,6 +218,17 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         paddingLeft: 15,
         fontSize: 16,
+    },
+    inputin: {
+        height: 150,
+        width: '100%',
+        marginBottom: 15,
+        paddingLeft: 15,
+        fontSize: 16,
+        borderColor: 'rgba(0,0,0,0.3)',
+        borderWidth: '1',
+        borderRadius: 10,
+        textAlignVertical: 'top'
     }
 });
 

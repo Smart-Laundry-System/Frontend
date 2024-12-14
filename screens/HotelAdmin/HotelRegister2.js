@@ -22,7 +22,7 @@ function HotelRegister2({ navigation }) {
     // const [selectedOptions, setSelectedOptions] = React.useState([]);
     const [selectedTypes, setSelectedTypes] = React.useState([]);
     const [selectedCloths, setSelectedCloths] = React.useState([]);
-    const [isDropdownVisible, setDropdownVisible] = React.useState(false);
+    // const [isDropdownVisible, setDropdownVisible] = React.useState(false);
     const [isDropdownVisiblet, setDropdownVisiblet] = React.useState(false);
 
     const [selectedImage, setSelectedImage] = useState(null);
@@ -143,7 +143,7 @@ function HotelRegister2({ navigation }) {
                 </Text>
 
                 <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
-                    <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
+                    <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisiblet(false)}>
                         {isSwitchOn && <RegistreTop navigation={navigation} />}
 
                         {!isSwitchOn && <ScrollView
@@ -245,7 +245,8 @@ function HotelRegister2({ navigation }) {
                 </BlurView>
 
 
-                <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("HotelRegisterFinal")}>
+                {/* <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("HotelRegisterFinal")}> */}
+                <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
                     <Text style={styles.loginButtonText}>
                         Next
                     </Text>
