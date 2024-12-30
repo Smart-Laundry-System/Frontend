@@ -19,23 +19,21 @@ function HotelRegister2({ navigation }) {
     const [isSwitchOn, setIsSwitchOn] = React.useState(false);
     const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 
-    // const [selectedOptions, setSelectedOptions] = React.useState([]);
     const [selectedTypes, setSelectedTypes] = React.useState([]);
     const [selectedCloths, setSelectedCloths] = React.useState([]);
-    // const [isDropdownVisible, setDropdownVisible] = React.useState(false);
     const [isDropdownVisiblet, setDropdownVisiblet] = React.useState(false);
-
+    const [selectedImageL, setSelectedImageL] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [images, setImages] = useState([]); // Define images state
+
 
     const pickImage = async () => {
-        // Request permission to access media library
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
             Alert.alert("Permission required", "You need to enable permission to access the image library.");
             return;
         }
 
-        // Launch the image picker
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: false,
@@ -43,7 +41,7 @@ function HotelRegister2({ navigation }) {
         });
 
         if (!result.canceled) {
-            setSelectedImage(result.assets[0].uri); // Save the selected image URI
+            setSelectedImage(result.assets[0].uri);
         }
     };
 
@@ -56,6 +54,29 @@ function HotelRegister2({ navigation }) {
                 { text: "Remove", style: "destructive", onPress: () => setSelectedImage(null) },
             ]
         );
+    };
+
+    const removeImageL = () => {
+        Alert.alert(
+            "Remove Image",
+            "Are you sure you want to remove the selected image?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Remove", style: "destructive", onPress: () => setSelectedImageL(null) },
+            ]
+        );
+    };
+
+    const pickImageL = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImages((prevImages) => [...prevImages, result.assets[0]]);
+        }
     };
 
     const clothes = ['Jackets', 'Veshti', 'Others(Upload an image)'];
@@ -80,11 +101,7 @@ function HotelRegister2({ navigation }) {
 
 
     const controlLogin = () => {
-        // if (isSwitchOn) {
-        //     navigation.navigate('Login');
-        // } else if (!isSwitchOn) {
-            navigation.navigate('HotelRegisterFinal');
-        // }
+        navigation.navigate('HotelRegisterFinal');
     }
 
     const toggleDropdownt = () => {
@@ -151,7 +168,9 @@ function HotelRegister2({ navigation }) {
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={false}
                         >
-                            <View style={[styles.fields, { marginTop: selectedImage ? "62%" : "45%" }]}>
+                            <View style={[styles.fields, {
+                                marginTop: selectedImage ? "62%" : "45%", top: selectedImageL && selectedImage ? "25%" : selectedImageL ? "100%" : "0%"
+                            }]}>
 
                                 <TextInput
                                     style={styles.input}
@@ -237,16 +256,48 @@ function HotelRegister2({ navigation }) {
                                         </View>
                                     )}
                                 </View>
+                                <TouchableOpacity onPress={pickImageL}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Upload a Laundry Image"
+                                        keyboardType="default"
+                                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        editable={false}
+                                    />
+                                    <Image
+                                        source={upload}
+                                        style={{ position: 'absolute', width: 25, height: 25, right: 15, top: 15 }}
+                                    />
+                                </TouchableOpacity>
+
+                                {images.length > 0 ? (
+                                    images.map((image, index) => (
+                                        <>
+                                            <Image
+                                                key={index} // Use key prop for each child
+                                                source={{ uri: image.uri }}
+                                                style={{ width: 100, height: 100 }}
+                                            />
+                                            <TouchableOpacity onPress={removeImageL} style={styles.removeButtonL}>
+                                                <Text style={styles.removeText}>Remove Image</Text>
+                                            </TouchableOpacity>
+                                        </>
+                                    ))
+                                ) : (
+                                    <Text>No images selected</Text>
+                                )}
 
 
                             </View>
-                        </ScrollView>}
+                        </ScrollView>
+                        }
                     </TouchableOpacity>
                 </BlurView>
 
 
-                {/* <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("HotelRegisterFinal")}> */}
-                <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
+                <TouchableOpacity style={[styles.loginButton, { marginTop: selectedImageL ? "30%" : "0%" }]} onPress={controlLogin}>
                     <Text style={styles.loginButtonText}>
                         Next
                     </Text>
@@ -255,32 +306,57 @@ function HotelRegister2({ navigation }) {
                 <Or />
 
                 <CreateAc butname="For Login" navigation={navigation} path="Login" />
-                {/* <View style={{height:'40'}}></View> */}
             </View >
         </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    scrollContainertop: {
-        flexGrow: 1, // Ensures content grows and is scrollable
-        // width:'100%'
+    imageWrapperL: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        padding: 10,
     },
-    // container: {
-    //     flex: 1,
-    // justifyContent: 'center',
+    imagePreviewL: {
+        width: '100%',
+        height: 200,
+        resizeMode: 'contain',
+    },
+    removeButtonL: {
+        marginTop: 10,
+        backgroundColor: '#ff4d4d',
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        borderRadius: 5,
+    },
+    // removeText: {
+    //     color: '#fff',
+    //     fontWeight: 'bold',
     // },
+
+    scrollContainertop: {
+        flexGrow: 1,
+    },
     removeButton: {
-        backgroundColor: '#A3AE95', // Button background color
+        backgroundColor: '#A3AE95',
         padding: 10,
         borderRadius: 5,
         alignItems: 'center',
-        marginBottom: '10'
     },
+    // removeButtonL: {
+    //     backgroundColor: '#A3AE95',
+    //     padding: 10,
+    //     borderRadius: 5,
+    //     alignItems: 'center',
+    //     position: 'absolute',
+    //     marginTop: 250
+    // },
     removeText: {
-        color: '#3C4234', // Button text color
+        color: '#3C4234',
         fontWeight: 'bold',
-        fontSize: 16,
+        // fontSize: 16,
     },
     icon: {
         margin: '100%',
@@ -334,15 +410,15 @@ const styles = StyleSheet.create({
         padding: 15,
         height: 50,
         width: '100%',
-        borderBottomWidth: 1, // Thickness of the underline
-        borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.3)'
     },
     dropdownHeaderText: {
         fontSize: 16,
     },
     textArea: {
-        height: 80,  // Adjusted height for multi-line text box
-        textAlignVertical: 'top',  // Ensures the text starts from the top
+        height: 80,
+        textAlignVertical: 'top'
     },
     switch: {
         position: 'absolute',
@@ -360,17 +436,17 @@ const styles = StyleSheet.create({
         color: '#F2EBBC'
     },
     switchset: {
-        flexDirection: 'row',
+        flexDirection: 'row'
     },
     loginButton: {
         width: '75%',
         height: 42,
-        backgroundColor: '#A3AE95', // Green color
+        backgroundColor: '#A3AE95',
         borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: '35',
-        alignSelf: 'center',
+        alignSelf: 'center'
     },
     loginButtonText: {
         fontSize: 15,
@@ -395,8 +471,8 @@ const styles = StyleSheet.create({
         width: '75%',
         height: 42,
         borderRadius: 10,
-        borderColor: 'black', // Set the border color to black
-        borderWidth: 1,       // Add border width to make the line visible
+        borderColor: 'black',
+        borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 20,
@@ -416,7 +492,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        backgroundColor: '#ffff', // Light background
+        backgroundColor: '#ffff'
     },
     image: {
         position: 'absolute',
@@ -432,7 +508,7 @@ const styles = StyleSheet.create({
         color: '#F2EBBC',
         fontWeight: 'bold',
         top: '8%',
-        marginLeft: '10%' // Adds space between text and other elements
+        marginLeft: '10%'
     },
     backtop: {
         position: 'absolute',
@@ -451,16 +527,20 @@ const styles = StyleSheet.create({
     fields: {
         width: '80%',
         alignSelf: 'center',
-        marginTop: '45%',
+        marginTop: '45%'
+    },
+    fieldsL: {
+        width: '80%',
+        alignSelf: 'center'
     },
     input: {
         height: 50,
         width: '100%',
-        borderBottomWidth: 1, // Thickness of the underline
-        borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.3)',
         marginBottom: 15,
         paddingLeft: 15,
-        fontSize: 16,
+        fontSize: 16
     },
     forget: {
         flexDirection: 'row',

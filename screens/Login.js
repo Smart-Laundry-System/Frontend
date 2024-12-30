@@ -28,8 +28,8 @@ function Login({ navigation }) {
   };
 
   const sendemail = () => {
+    setModalVisible(false);
     setModalVisiblenext(true);
-    // setModalVisible(false);
   };
 
   useEffect(() => {
