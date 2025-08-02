@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { jwtDecode } from "jwt-decode";
+import axios from 'axios';
+import Toast from 'react-native-toast-message';
 import {
+  Alert,
   Animated,
   Image,
   Keyboard,
@@ -22,9 +26,13 @@ function Login({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisiblenext, setModalVisiblenext] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState(null);
+  const [decoded, setDecoded] = useState(null);
 
   const backtoback = () => {
-    navigation.navigate('StartPage');
+    navigation.navigate('Home');
   };
 
   const sendemail = () => {
@@ -32,7 +40,14 @@ function Login({ navigation }) {
     setModalVisiblenext(true);
   };
 
+
   useEffect(() => {
+
+
+    // axios.get("http://172.20.10.2:8082/auth/v1/health")
+    //   .then(() => console.log("Backend reachable"))
+    //   .catch(err => console.log("Backend not reachable: ", err.message));
+
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       () => setKeyboardVisible(true)
@@ -48,11 +63,105 @@ function Login({ navigation }) {
     };
   }, []);
 
+  // const submitCredantial = () => {
+  //   console.log('Submitting:', { userName, password });
+
+  //   const dataSet = {
+  //     userName,
+  //     password
+  //   };
+
+  //   axios.post("http://172.20.10.2:8082/auth/v1/login", dataSet)
+  //     .then((response) => {
+  //       setToken(response.data.token);
+  //       console.log(response.data)
+  //       console.log('Token:', response.data.token);
+  //       console.log('Response:', response.data);
+  //       if (response.data.token) {
+  //         navigation.navigate("UserHome");
+  //       }
+  //     })
+  //     .catch((error) => {
+  //       console.log("Login error: ", JSON.stringify(error.toJSON()));
+  //     });
+  // };
+
+  const resetDate = () => {
+    setPassword("");
+    setUserName("");
+    setDecoded("");
+    setToken("");
+  }
+
+  const submitCredantial = async () => {
+    if (!userName.trim() || !password.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Credentials',
+        text2: 'Please enter both email and password',
+        position: 'bottom',
+        visibilityTime: 2000
+      });
+      return;
+    }
+
+    const dataSet = {
+      username: userName,
+      password: password
+    };
+
+    try {
+      const response = await axios.post("http://172.20.10.2:8082/auth/v1/login", dataSet);
+      const receivedToken = response.data;
+      setToken(receivedToken);
+
+      if (receivedToken) {
+        const decodedToken = jwtDecode(receivedToken);
+        setDecoded(decodedToken);
+        console.log("Decoded role:", decodedToken.role);
+
+        resetDate();
+
+        if (decodedToken.role === "CUSTOMER") {
+          // navigation.navigate("UserHome");
+
+          navigation.navigate("LaundryHome");
+          Toast.show({
+            type: 'success',
+            text1: 'Welcome to smart laundry',
+            text2: 'Check your notifications first',
+            position: 'top',
+            visibilityTime: 2000
+          })
+        } else if (decodedToken.role === "LAUNDRY") {
+          navigation.navigate("LaundryHome");
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Login Failed',
+            text2: 'Unknown user role',
+            position: 'bottom',
+            visibilityTime: 2000
+          });
+        }
+      }
+    } catch (error) {
+      console.log("Login error: ", error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Login Error',
+        text2: 'Invalid credentials or server error',
+        position: 'bottom',
+        visibilityTime: 2000
+      });
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Image source={backLogin} style={styles.imageBack} />
       <View style={styles.backtop}></View>
-      <TouchableOpacity onPress={backtoback}>
+      <TouchableOpacity onPress={backtoback} style={styles.forback}>
         <Image style={styles.image} source={Vector} />
       </TouchableOpacity>
 
@@ -71,6 +180,8 @@ function Login({ navigation }) {
               placeholderTextColor={keyboardVisible ? 'black' : ''}
               autoCapitalize="none"
               autoCorrect={false}
+              value={userName}
+              onChangeText={setUserName}
             />
 
             <TextInput
@@ -80,6 +191,8 @@ function Login({ navigation }) {
               placeholderTextColor={keyboardVisible ? 'black' : ''}
               autoCapitalize="none"
               autoCorrect={false}
+              value={password}
+              onChangeText={setPassword}
             />
           </View>
           <View style={styles.forget}>
@@ -94,7 +207,10 @@ function Login({ navigation }) {
         </View>
       </BlurView>
 
-      <LoginBut login="Login" navigation={navigation} />
+      {/* <LoginBut login="Login" onPress={submitCredantial} /> */}
+      <TouchableOpacity style={styles.loginButton} onPress={submitCredantial}>
+        <Text style={styles.loginButtonText}>Login</Text>
+      </TouchableOpacity>
       <Or />
       <CreateAc butname="Create an account" navigation={navigation} path="UserRegistration" />
 
@@ -201,6 +317,28 @@ function Login({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffff' },
+  forback: {
+    top: "6.5%",
+    left: "6%",
+    width: '8%',
+    aspectRatio: 1,
+    overflow: 'hidden'
+  },
+  loginButton: {
+    width: '75%',
+    height: 42,
+    backgroundColor: '#A3AE95', // Green color
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 35,
+    alignSelf: 'center',
+  },
+  loginButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#3C4234',
+  },
   imageLoginBack: {
     position: 'absolute',
     top: "41%",
@@ -210,7 +348,9 @@ const styles = StyleSheet.create({
   },
   imageBack: { position: 'absolute', width: '100%', height: '60%', opacity: 0.9 },
   backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(163, 174, 149,0.6)', width: '100%', height: '70%' },
-  image: { marginTop: '15%', marginLeft: '5%' },
+  image: {
+    resizeMode: 'cover'
+  },
   title: { fontSize: 35, color: '#3C4234', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
   subTit: { fontSize: 15, color: '#3C4234', fontWeight: '500', top: '8%', marginLeft: '10%' },
   fields: { width: '80%', alignSelf: 'center', marginTop: '80%' },

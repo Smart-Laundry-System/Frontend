@@ -1,11 +1,14 @@
+import axios from 'axios';
 import React, { useEffect, useState } from 'react'
-import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import Toast from 'react-native-toast-message';
 
 function RegistreTop({ navigation }) {
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [phone, setPhone] = useState("");
+    const [phone2, setPhone2] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [address, setAddress] = useState("");
@@ -26,8 +29,76 @@ function RegistreTop({ navigation }) {
         };
     }, []);
 
-    const controlLogin = () => {
-        navigation.navigate('HotelRegister2');
+    const controlLogin = async () => {
+        if (!email.trim() || !firstName.trim() || !lastName.trim()
+            || !password.trim() || !phone.trim() || !address.trim()) {
+            Toast.show({
+                type: 'error',
+                text1: 'Register filed',
+                text2: 'Please fill all the requered credantial',
+                position: 'bottom',
+                visibilityTime: 2000
+            });
+        }
+        const data = {
+            email: email,
+            name: firstName + " " + lastName,
+            password: password,
+            role: "CUSTOMER",
+            phone: phone,
+            phone_2: phone2,
+            address: address
+        }
+
+        try {
+            const response = await axios.post("http://172.20.10.2:8082/auth/v1/addUser", data);
+
+            if (response.status === 200 && response.data) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Registered success',
+                    text2: 'Use yore credantial for login',
+                    position: 'top',
+                    visibilityTime: 2000
+                });
+                navigation.navigate('Login');
+            } else {
+                console.log("Error on adding user");
+                // Alert.alert(
+                //     "Registration Failed",
+                //     "Do you want to re-enter your details?",
+                //     [
+                //         { text: "Yes", style: "cancel" },
+                //         { text: "No", onPress: () => navigation.navigate("Login") },
+                //     ]
+                // );
+                Toast.show({
+                    type: 'error',
+                    text1: 'Register filed',
+                    text2: 'Server error',
+                    position: 'bottom',
+                    visibilityTime: 2000
+                });
+            }
+
+        } catch (error) {
+            console.log("User register error: ", error.message);
+            // Alert.alert(
+            //     "Registration Failed",
+            //     "Do you want to re-enter your details?",
+            //     [
+            //         { text: "Yes", style: "cancel" },
+            //         { text: "No", onPress: () => navigation.navigate("Login") },
+            //     ]
+            // );
+            Toast.show({
+                type: 'error',
+                text1: 'Register filed',
+                text2: 'Check your internet',
+                position: 'bottom',
+                visibilityTime: 2000
+            });
+        }
     }
 
     return (
@@ -43,7 +114,7 @@ function RegistreTop({ navigation }) {
                         placeholder="First Name"
                         // keyboardType="email-address"
                         value={firstName}
-                        onChange={(e) => setFirstName(e)}
+                        onChangeText={(e) => setFirstName(e)}
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -52,7 +123,7 @@ function RegistreTop({ navigation }) {
                         style={styles.input}
                         placeholder="Last Name"
                         // secureTextEntry={true}
-                        onChange={(e) => setLastName(e)}
+                        onChangeText={(e) => setLastName(e)}
                         value={lastName}
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
@@ -62,7 +133,7 @@ function RegistreTop({ navigation }) {
                         style={styles.input}
                         placeholder="Address"
                         // secureTextEntry={true}
-                        onChange={(e) => setAddress(e)}
+                        onChangeText={(e) => setAddress(e)}
                         value={address}
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
@@ -72,8 +143,19 @@ function RegistreTop({ navigation }) {
                         style={styles.input}
                         placeholder="Phone"
                         // secureTextEntry={true}
-                        onChange={(e) => setPhone(e)}
+                        onChangeText={(e) => setPhone(e)}
                         value={phone}
+                        keyboardType='phone-pad'
+                        placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="LAN Phone(Optional)"
+                        // secureTextEntry={true}
+                        onChangeText={(e) => setPhone2(e)}
+                        value={phone2}
                         keyboardType='phone-pad'
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
@@ -83,7 +165,7 @@ function RegistreTop({ navigation }) {
                         style={styles.input}
                         placeholder="Email"
                         keyboardType="email-address"
-                        onChange={(e) => setEmail(e)}
+                        onChangeText={(e) => setEmail(e)}
                         value={email}
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
@@ -93,7 +175,7 @@ function RegistreTop({ navigation }) {
                         style={styles.input}
                         placeholder="Password"
                         secureTextEntry={true}
-                        onChange={(e) => setPassword(e)}
+                        onChangeText={(e) => setPassword(e)}
                         value={password}
                         placeholderTextColor={keyboardVisible ? "black" : '#999'}
                         autoCapitalize="none"
@@ -116,7 +198,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: '10%',
-        // marginTop:'35%'
+        // marginTop:'-10%'
     },
     loginButton: {
         width: '75%',
@@ -136,10 +218,10 @@ const styles = StyleSheet.create({
     fields: {
         width: '80%',
         alignSelf: 'center',
-        marginTop: '45%',
+        marginTop: '58%',
     },
     input: {
-        height: 50,
+        height: 40,
         width: '100%',
         borderBottomWidth: 1, // Thickness of the underline
         borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline

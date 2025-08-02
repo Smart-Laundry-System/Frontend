@@ -15,6 +15,7 @@ function UserRegistre({ navigation }) {
 
     const [laundryName, setLaundryName] = useState("");
     const [phone, setPhone] = useState("");
+    const [phone2, setPhone2] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [address, setAddress] = useState("");
@@ -99,7 +100,7 @@ function UserRegistre({ navigation }) {
                 </View>
             </View>
             <View style={styles.backtop}></View>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.forback}>
                 <Image source={inerbutton} style={styles.imagein} />
             </TouchableOpacity>
             <Image source={overlap} style={styles.regback} />
@@ -127,7 +128,7 @@ function UserRegistre({ navigation }) {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Name of the laundry"
-                                    keyboardType="default" 
+                                    keyboardType="default"
                                     value={laundryName}
                                     onChange={(e) => setLaundryName(e)}
                                     placeholderTextColor={keyboardVisible ? "black" : '#999'}
@@ -150,6 +151,16 @@ function UserRegistre({ navigation }) {
                                 keyboardType='phone-pad'
                                 value={phone}
                                 onChange={(e) => setPhone(e)}
+                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="LAN Phone"
+                                keyboardType='phone-pad'
+                                value={phone2}
+                                onChange={(e) => setPhone2(e)}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -382,9 +393,17 @@ const styles = StyleSheet.create({
         height: '40%',
         // opacity: '0.9'
     },
+    forback: {
+        top: "6.5%",
+        left: "6%",
+        width: '8%',
+        aspectRatio: 1,
+        overflow: 'hidden'
+    },
     imagein: {
-        marginTop: '15%',
-        marginLeft: '5%',
+        resizeMode: 'cover'
+        // marginTop: '15%',
+        // marginLeft: '5%',
         // width: '10%',
         // height: '20%',
         // resizeMode: 'contain', // Maintain aspect ratio
@@ -413,10 +432,10 @@ const styles = StyleSheet.create({
     fields: {
         width: '80%',
         alignSelf: 'center',
-        marginTop: '45%',
+        marginTop: '58%',
     },
     input: {
-        height: 50,
+        height: 40,
         width: '100%',
         borderBottomWidth: 1, // Thickness of the underline
         borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline

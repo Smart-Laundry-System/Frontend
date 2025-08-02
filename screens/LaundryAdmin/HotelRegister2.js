@@ -126,6 +126,71 @@ function HotelRegister2({ navigation }) {
         };
     }, []);
 
+    const uploadImageToBackend = async (uri) => {
+        const fileName = uri.split('/').pop();
+        const formData = new FormData();
+
+        formData.append('image', {
+            uri,
+            name: fileName,
+            type: 'image/jpeg', // make sure the image you're uploading is JPEG
+        });
+
+        try {
+            const response = await fetch('http://172.20.10.2:8082/auth/v1/upload-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Image upload failed: ${response.status}`);
+            }
+
+            const imageUrl = await response.text(); // The backend returns plain text URL
+            return imageUrl;
+        } catch (error) {
+            console.error("Image Upload Error:", error);
+            return null;
+        }
+    };
+
+    const handleRegister = async () => {
+        const imageUrl = await uploadImageToBackend(selectedImage);
+
+        if (!imageUrl) {
+            console.error("Image URL is missing. Registration aborted.");
+            return;
+        }
+
+        try {
+            const userData = {
+                name: "Hotel ABC",
+                email: "hotel@smart.com",
+                password: "securepass",
+                address: "123 Street",
+                phone: "0771234567",
+                role: "LAUNDRY",
+                image: imageUrl,
+                cloths: selectedCloths,
+                types: selectedTypes
+            };
+
+            const response = await axios.post("http://172.20.10.2:8082/auth/v1/addLaundry", userData);
+
+            if (response.status === 200) {
+                navigation.navigate("Login");
+            } else {
+                console.error("User registration failed:", response.status);
+            }
+        } catch (error) {
+            console.error("Registration Error:", error);
+        }
+    };
+
+
     return (
         <ScrollView contentContainerStyle={styles.scrollContainertop}>
             <View style={styles.container}>
@@ -297,7 +362,7 @@ function HotelRegister2({ navigation }) {
                 </BlurView>
 
 
-                <TouchableOpacity style={[styles.loginButton, { marginTop: selectedImageL ? "30%" : "0%" }]} onPress={controlLogin}>
+                <TouchableOpacity style={[styles.loginButton, { marginTop: selectedImageL ? "30%" : "0%" }]} onPress={handleRegister}>
                     <Text style={styles.loginButtonText}>
                         Next
                     </Text>

@@ -4,11 +4,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
 import StartPage from './screens/StartPage'; // Correct import
 import Login from './screens/Login';
-import UserRegistre from './screens/HotelUser/UserRegistre';
+import UserRegistre from './screens/LaundryUsers/UserRegistre';
 import { PaperProvider } from 'react-native-paper';
-import HotelRegister2 from './screens/HotelAdmin/HotelRegister2';
+import HotelRegister2 from './screens/LaundryAdmin/HotelRegister2';
 // import HotelRegFinal from './screens/HotelAdmin/HotelRegFinal';
-import HotelRegisterFinal from './screens/HotelAdmin/HotelRegisterFinal';
+import HotelRegisterFinal from './screens/LaundryAdmin/HotelRegisterFinal';
+import LaundryHome from './screens/LaundryAdmin/LaundryHome';
+import UserHome from './screens/LaundryUsers/UserHome';
+import Toast from 'react-native-toast-message';
 
 const Stack = createStackNavigator();
 
@@ -16,8 +19,8 @@ export default function App() {
   return (
     <PaperProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="StartPage">
-          <Stack.Screen name="StartPage" component={StartPage} options={{ headerShown: false }} />
+        <Stack.Navigator initialRouteName="Home">
+          <Stack.Screen name="Home" component={StartPage} options={{ headerShown: false }} />
           <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
           <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
           <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
@@ -29,8 +32,11 @@ export default function App() {
           {/* <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ title:'HotelRegister2' }} /> */}
           {/* <Stack.Screen name='HotelRegFinal' component={HotelRegFinal} options={{ title:'HotelRegFinal' }} /> */}
           {/* <Stack.Screen name=' HotelRegisterFinal' component={ HotelRegisterFinal} options={{ title:'HotelRegisterFinal' }} /> */}
+          <Stack.Screen name="UserHome" component={UserHome} options={{headerShown: false}}/>
+          <Stack.Screen name='LaundryHome' component={LaundryHome} options={{headerShown: false}}/>
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast />
     </PaperProvider>
   );
 }
