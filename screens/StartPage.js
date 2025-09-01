@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import background from '../assets/startimage.png'
 import backPart from '../assets/backPart.png'
-import Buttoncom from '../components/Button/Buttoncom';
-
-// const { width, height } = Dimensions.get("window");
+import Buttoncom from '../components/Button/Buttoncom'
 
 function StartPage({ navigation }) {
 

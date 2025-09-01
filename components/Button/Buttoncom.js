@@ -3,7 +3,8 @@ import React from 'react'
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native'
 import inerbutton from '../../assets/inerbutton.png'
 
-function Button({ statenav, navigation }) {
+
+export default function Button({ statenav, navigation }) {
     return (
         <View style={styles.container}>
             <TouchableOpacity onPress={() => navigation.navigate(statenav)}>
@@ -62,5 +63,3 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
     },
 })
-
-export default Button;

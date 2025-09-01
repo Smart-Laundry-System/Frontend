@@ -8,8 +8,8 @@ import { Icon, Switch } from 'react-native-paper';
 import IconOpen from '../../assets/icon.png'
 import IconClose from '../../assets/iconopen.png'
 import CreateAc from '../../components/Button/CreateAc';
-import Or from '../../components/Button/Or';
 import RegistreTop from '../../components/UserTop/RegistreTop';
+import Or from '../../components/Button/Or';
 
 function HotelRegFinal({ navigation }) {
 
@@ -55,7 +55,7 @@ function HotelRegFinal({ navigation }) {
     // if (isSwitchOn) {
     //   navigation.navigate('Login');
     // } else if (!isSwitchOn) {
-      navigation.navigate('HotelRegisterFinal');
+    navigation.navigate('HotelRegisterFinal');
     // }
   }
 

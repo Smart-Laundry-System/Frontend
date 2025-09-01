@@ -5,11 +5,9 @@ import inerbutton from '../../assets/Vector1.png';
 import overlap from '../../assets/registeroverlay.png';
 import { BlurView } from 'expo-blur'
 import { Icon, Switch } from 'react-native-paper';
-// import RNPickerSelect from 'react-native-picker-select';
-// import { Picker } from '@react-native-picker/picker';
-import Or from '../../components/Button/Or';
-import CreateAc from '../../components/Button/CreateAc';
 import RegistreTop from '../../components/UserTop/RegistreTop'
+import Or from '../../components/Button/Or'
+import CreateAc from '../../components/Button/CreateAc';
 
 function UserRegistre({ navigation }) {
 

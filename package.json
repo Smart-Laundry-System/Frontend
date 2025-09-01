@@ -12,13 +12,16 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.848.0",
     "@react-native-community/checkbox": "^0.5.17",
+    "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-community/masked-view": "^0.1.11",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/native": "^7.0.13",
     "@react-navigation/stack": "^7.0.18",
     "axios": "^1.10.0",
+    "dotenv": "^17.2.1",
     "expo": "^53.0.17",
     "expo-blur": "~14.1.5",
+    "expo-env": "^1.1.1",
     "expo-image-picker": "16.1.4",
     "expo-linear-gradient": "14.1.5",
     "expo-status-bar": "2.2.3",
@@ -42,7 +45,10 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "metro-react-native-babel-preset": "^0.77.0"
+    "@types/react": "~19.0.10",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "react-native-dotenv": "^3.4.11",
+    "typescript": "~5.8.3"
   },
   "private": true
 }

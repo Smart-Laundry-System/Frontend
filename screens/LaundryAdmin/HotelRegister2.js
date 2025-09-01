@@ -8,11 +8,10 @@ import { Button, Switch } from 'react-native-paper';
 import IconOpen from '../../assets/icon.png'
 import IconClose from '../../assets/iconopen.png';
 import CreateAc from '../../components/Button/CreateAc';
-import Or from '../../components/Button/Or';
 import upload from '../../assets/upload.png';
 import * as ImagePicker from 'expo-image-picker';
 import RegistreTop from '../../components/UserTop/RegistreTop';
-
+import Or from '../../components/Button/Or';
 
 function HotelRegister2({ navigation }) {
 
@@ -623,3 +622,522 @@ const styles = StyleSheet.create({
 });
 
 export default HotelRegister2;
+
+// import React, { useEffect, useState } from 'react';
+// import {
+//   ScrollView, Image, StyleSheet, Keyboard, View, Text,
+//   TouchableOpacity, TextInput, Alert, Platform
+// } from 'react-native';
+// import registeroverlay from '../../assets/backReg.png';
+// import inerbutton from '../../assets/Vector1.png';
+// import overlap from '../../assets/registeroverlay.png';
+// import { BlurView } from 'expo-blur'
+// import { Switch } from 'react-native-paper';
+// import IconOpen from '../../assets/icon.png'
+// import IconClose from '../../assets/iconopen.png';
+// import CreateAc from '../../components/Button/CreateAc';
+// import Or from '../../components/Button/Or';
+// import upload from '../../assets/upload.png';
+// import * as ImagePicker from 'expo-image-picker';
+// import RegistreTop from '../../components/UserTop/RegistreTop';
+// import axios from 'axios';
+
+// /**
+//  * ---- IMPORTANT ----
+//  * Set your image server base URL:
+//  * - Android emulator: http://10.0.2.2:3000
+//  * - iOS simulator:   http://localhost:3000
+//  * - Physical device: http://<YOUR_PC_LAN_IP>:3000 (and start server with HOST set to this)
+//  */
+// const BASE_URL =
+//   Platform.OS === 'android'
+//     ? 'http://10.0.2.2:3000'
+//     : 'http://localhost:3000';
+
+// const UPLOAD_ENDPOINT = `${BASE_URL}/upload`; // expects { url, filename }
+
+// function HotelRegister2({ navigation }) {
+//   const [isSwitchOn, setIsSwitchOn] = useState(false);
+//   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+//   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+//   const [selectedCloths, setSelectedCloths] = useState<string[]>([]);
+//   const [isDropdownVisiblet, setDropdownVisiblet] = useState(false);
+
+//   // Single “Others(Upload an image)” picker
+//   const [selectedImageLocal, setSelectedImageLocal] = useState<string | null>(null);
+//   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+//   // Multiple laundry images
+//   const [imagesLocal, setImagesLocal] = useState<{ uri: string }[]>([]);
+//   const [imagesUploadedUrls, setImagesUploadedUrls] = useState<string[]>([]);
+
+//   const clothes = ['Jackets', 'Veshti', 'Others(Upload an image)'];
+//   const types = ['Carpet', 'Curtain'];
+
+//   // ---------- Helpers ----------
+//   const uploadToImageServer = async (localUri: string) => {
+//     const form = new FormData();
+//     // server expects field name: "file"
+//     form.append('file', {
+//       uri: localUri,
+//       name: 'photo.jpg',
+//       type: 'image/jpeg',
+//     } as any);
+
+//     const res = await fetch(UPLOAD_ENDPOINT, {
+//       method: 'POST',
+//       body: form, // DO NOT set Content-Type manually
+//     });
+
+//     if (!res.ok) {
+//       const t = await res.text();
+//       throw new Error(`Upload failed ${res.status}: ${t}`);
+//     }
+//     // server returns JSON { url, filename }
+//     const { url } = await res.json();
+//     return url as string;
+//   };
+
+//   // ---------- Pickers ----------
+//   const pickImage = async () => {
+//     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+//     if (!permissionResult.granted) {
+//       Alert.alert("Permission required", "You need to enable permission to access the image library.");
+//       return;
+//     }
+
+//     const result = await ImagePicker.launchImageLibraryAsync({
+//       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+//       allowsEditing: false,
+//       quality: 1,
+//     });
+
+//     if (result.canceled) return;
+
+//     const localUri = result.assets[0].uri;
+//     setSelectedImageLocal(localUri);
+//     try {
+//       const url = await uploadToImageServer(localUri);
+//       setUploadedImageUrl(url);
+//     } catch (e: any) {
+//       Alert.alert('Upload error', e.message);
+//     }
+//   };
+
+//   const removeImage = () => {
+//     Alert.alert(
+//       "Remove Image",
+//       "Are you sure you want to remove the selected image?",
+//       [
+//         { text: "Cancel", style: "cancel" },
+//         {
+//           text: "Remove",
+//           style: "destructive",
+//           onPress: () => {
+//             setSelectedImageLocal(null);
+//             setUploadedImageUrl(null);
+//           }
+//         },
+//       ]
+//     );
+//   };
+
+//   const pickImageL = async () => {
+//     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+//     if (!permissionResult.granted) {
+//       Alert.alert("Permission required", "You need to enable permission to access the image library.");
+//       return;
+//     }
+
+//     const result = await ImagePicker.launchImageLibraryAsync({
+//       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+//       allowsEditing: true,
+//       quality: 1,
+//     });
+
+//     if (result.canceled) return;
+
+//     const localUri = result.assets[0].uri;
+//     // keep local preview
+//     setImagesLocal(prev => [...prev, { uri: localUri }]);
+
+//     // upload in background (simple, sequential here)
+//     try {
+//       const url = await uploadToImageServer(localUri);
+//       setImagesUploadedUrls(prev => [...prev, url]);
+//     } catch (e: any) {
+//       Alert.alert('Upload error', e.message);
+//     }
+//   };
+
+//   const removeImageL = (index: number) => {
+//     Alert.alert(
+//       "Remove Image",
+//       "Are you sure you want to remove this image?",
+//       [
+//         { text: "Cancel", style: "cancel" },
+//         {
+//           text: "Remove",
+//           style: "destructive",
+//           onPress: () => {
+//             setImagesLocal(prev => prev.filter((_, i) => i !== index));
+//             setImagesUploadedUrls(prev => prev.filter((_, i) => i !== index));
+//           }
+//         },
+//       ]
+//     );
+//   };
+
+//   // ---------- Toggles ----------
+//   const toggleCloths = (option: string) => {
+//     setSelectedCloths(prev =>
+//       prev.includes(option)
+//         ? prev.filter(item => item !== option)
+//         : [...prev, option]
+//     );
+//   };
+
+//   const toggleTypes = (option: string) => {
+//     setSelectedTypes(prev =>
+//       prev.includes(option)
+//         ? prev.filter(item => item !== option)
+//         : [...prev, option]
+//     );
+//   };
+
+//   const toggleDropdownt = () => setDropdownVisiblet(!isDropdownVisiblet);
+//   const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
+
+//   // ---------- Keyboard visibility ----------
+//   useEffect(() => {
+//     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+//     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+//     return () => {
+//       show.remove();
+//       hide.remove();
+//     };
+//   }, []);
+
+//   // ---------- Submit ----------
+//   const handleRegister = async () => {
+//     // Ensure we have the uploaded URL(s)
+//     if (!uploadedImageUrl && selectedCloths.includes('Others(Upload an image)')) {
+//       Alert.alert("Missing image", "Please upload the 'Others' image first.");
+//       return;
+//     }
+
+//     try {
+//       const userData = {
+//         name: "Hotel ABC",
+//         email: "hotel@smart.com",
+//         password: "securepass",
+//         address: "123 Street",
+//         phone: "0771234567",
+//         role: "LAUNDRY",
+//         image: uploadedImageUrl ?? null,          // <-- single others image URL
+//         laundryImages: imagesUploadedUrls,        // <-- array of uploaded URLs
+//         cloths: selectedCloths,
+//         types: selectedTypes
+//       };
+
+//       // Your existing backend for user creation (unchanged)
+//       const response = await axios.post("http://172.20.10.2:8082/auth/v1/addLaundry", userData);
+
+//       if (response.status === 200) {
+//         navigation.navigate("Login");
+//       } else {
+//         console.error("User registration failed:", response.status);
+//         Alert.alert("Registration failed", `Status: ${response.status}`);
+//       }
+//     } catch (error: any) {
+//       console.error("Registration Error:", error);
+//       Alert.alert("Registration error", error.message ?? "Unknown error");
+//     }
+//   };
+
+//   const controlLogin = () => navigation.navigate('HotelRegisterFinal');
+
+//   return (
+//     <ScrollView contentContainerStyle={styles.scrollContainertop}>
+//       <View style={styles.container}>
+//         <Image source={registeroverlay} style={styles.image} />
+//         <View style={styles.switchset}>
+//           <Text style={styles.switchText}>
+//             {!isSwitchOn && "Hotel Admin"}
+//             {isSwitchOn && "Personal"}
+//           </Text>
+//           <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
+//             <Switch
+//               trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
+//               thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
+//               value={isSwitchOn}
+//               onValueChange={onToggleSwitch}
+//             />
+//           </View>
+//         </View>
+
+//         <View style={styles.backtop} />
+
+//         <TouchableOpacity onPress={() => navigation.navigate("UserRegistration")}>
+//           <Image source={inerbutton} style={styles.imagein} />
+//         </TouchableOpacity>
+
+//         <Image source={overlap} style={styles.regback} />
+//         <Text style={styles.text}>The Smart Laundry.</Text>
+//         <Text style={styles.textsub}>Create Account</Text>
+
+//         <BlurView style={{ marginTop: keyboardVisible ? '-35%' : undefined }} intensity={keyboardVisible ? 20 : 0}>
+//           <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisiblet(false)}>
+//             {isSwitchOn && <RegistreTop navigation={navigation} />}
+
+//             {!isSwitchOn && (
+//               <ScrollView
+//                 contentContainerStyle={styles.scrollContainer}
+//                 keyboardShouldPersistTaps="handled"
+//                 showsVerticalScrollIndicator={false}
+//               >
+//                 <View
+//                   style={[
+//                     styles.fields,
+//                     {
+//                       marginTop: selectedImageLocal ? "62%" : "45%",
+//                       top:
+//                         imagesLocal.length > 0 && selectedImageLocal
+//                           ? "25%"
+//                           : imagesLocal.length > 0
+//                             ? "100%"
+//                             : "0%"
+//                     }
+//                   ]}
+//                 >
+//                   <TextInput
+//                     style={styles.input}
+//                     placeholder="Available Item"
+//                     keyboardType="default"
+//                     placeholderTextColor={keyboardVisible ? "black" : '#999'}
+//                     autoCapitalize="none"
+//                     autoCorrect={false}
+//                     editable={false}
+//                   />
+
+//                   <View style={styles.dropdownContainer}>
+//                     <View style={styles.dropdownMenu}>
+//                       {types.map((option) => (
+//                         <TouchableOpacity
+//                           key={option}
+//                           style={styles.dropdownItem}
+//                           activeOpacity={1}
+//                           onPress={() => toggleTypes(option)}
+//                         >
+//                           <Text
+//                             style={[
+//                               styles.checkbox,
+//                               selectedTypes.includes(option) && styles.checked,
+//                             ]}
+//                           >
+//                             {selectedTypes.includes(option) ? '✓' : ' '}
+//                           </Text>
+//                           <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
+//                         </TouchableOpacity>
+//                       ))}
+
+//                       <TouchableOpacity
+//                         activeOpacity={1}
+//                         onPress={toggleDropdownt}
+//                         style={[styles.dropdownItem, { flexDirection: 'row' }]}
+//                       >
+//                         <Text style={{ color: keyboardVisible ? 'black' : '#999' }}>Clothes Item (KG)</Text>
+//                         <Image source={IconOpen} style={{ marginLeft: '30%', opacity: '0.6 as any', display: isDropdownVisiblet ? "'none' as any" : "'flex' as any" }} />
+//                         <Image source={IconClose} style={{ marginLeft: '30%', display: isDropdownVisiblet ? "'flex' as any" : "'none' as any" }} />
+//                       </TouchableOpacity>
+//                     </View>
+
+//                     {isDropdownVisiblet && (
+//                       <View style={styles.dropdownMenuc}>
+//                         {clothes.map((optionc) => (
+//                           <View key={optionc}>
+//                             <TouchableOpacity
+//                               style={styles.dropdownItem}
+//                               activeOpacity={1}
+//                               onPress={() => toggleCloths(optionc)}
+//                             >
+//                               <Text
+//                                 style={[
+//                                   styles.checkbox,
+//                                   selectedCloths.includes(optionc) && styles.checked,
+//                                 ]}
+//                               >
+//                                 {selectedCloths.includes(optionc) ? '✓' : ' '}
+//                               </Text>
+//                               <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>
+//                                 {optionc}
+//                               </Text>
+
+//                               {optionc === "Others(Upload an image)" &&
+//                                 selectedCloths.includes(optionc) && (
+//                                   <TouchableOpacity onPress={pickImage}>
+//                                     <Image source={upload} style={{ width: 25, height: 25, right: -10 }} />
+//                                   </TouchableOpacity>
+//                                 )}
+//                             </TouchableOpacity>
+
+//                             {/* Preview + URL for "Others" upload */}
+//                             {optionc === "Others(Upload an image)" &&
+//                               selectedCloths.includes(optionc) && (
+//                                 <>
+//                                   {selectedImageLocal && (
+//                                     <View style={{ alignItems: 'center', width: '100%', paddingVertical: 8 }}>
+//                                       <Image source={{ uri: selectedImageLocal }} style={{ width: "50%", height: 150 }} />
+//                                       <TouchableOpacity onPress={removeImage} style={styles.removeButton}>
+//                                         <Text style={styles.removeText}>Remove Image</Text>
+//                                       </TouchableOpacity>
+//                                     </View>
+//                                   )}
+//                                   {uploadedImageUrl && (
+//                                     <Text style={{ textAlign: 'center', marginVertical: 4 }}>
+//                                       Uploaded URL: {uploadedImageUrl}
+//                                     </Text>
+//                                   )}
+//                                 </>
+//                               )}
+//                           </View>
+//                         ))}
+//                       </View>
+//                     )}
+//                   </View>
+
+//                   {/* Multiple Laundry Images */}
+//                   <TouchableOpacity onPress={pickImageL}>
+//                     <TextInput
+//                       style={styles.input}
+//                       placeholder="Upload a Laundry Image"
+//                       keyboardType="default"
+//                       placeholderTextColor={keyboardVisible ? "black" : '#999'}
+//                       autoCapitalize="none"
+//                       autoCorrect={false}
+//                       editable={false}
+//                     />
+//                     <Image
+//                       source={upload}
+//                       style={{ position: 'absolute', width: 25, height: 25, right: 15, top: 15 }}
+//                     />
+//                   </TouchableOpacity>
+
+//                   {imagesLocal.length > 0 ? (
+//                     imagesLocal.map((image, index) => (
+//                       <View key={`img-${index}`} style={styles.imageWrapperL}>
+//                         <Image source={{ uri: image.uri }} style={styles.imagePreviewL} />
+//                         <TouchableOpacity onPress={() => removeImageL(index)} style={styles.removeButtonL}>
+//                           <Text style={styles.removeText}>Remove Image</Text>
+//                         </TouchableOpacity>
+
+//                         {imagesUploadedUrls[index] && (
+//                           <Text style={{ marginTop: 6, textAlign: 'center' }}>
+//                             Uploaded URL: {imagesUploadedUrls[index]}
+//                           </Text>
+//                         )}
+//                       </View>
+//                     ))
+//                   ) : (
+//                     <Text style={{ textAlign: 'center' }}>No images selected</Text>
+//                   )}
+//                 </View>
+//               </ScrollView>
+//             )}
+//           </TouchableOpacity>
+//         </BlurView>
+
+//         <TouchableOpacity
+//           style={[styles.loginButton, { marginTop: imagesLocal.length > 0 ? "30%" : "0%" }]}
+//           onPress={handleRegister}
+//         >
+//           <Text style={styles.loginButtonText}>Next</Text>
+//         </TouchableOpacity>
+
+//         <Or />
+//         <CreateAc butname="For Login" navigation={navigation} path="Login" />
+//       </View>
+//     </ScrollView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   imageWrapperL: {
+//     flex: 1,
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//     width: '100%',
+//     padding: 10,
+//   },
+//   imagePreviewL: {
+//     width: '100%',
+//     height: 200,
+//     resizeMode: 'contain',
+//   },
+//   removeButtonL: {
+//     marginTop: 10,
+//     backgroundColor: '#ff4d4d',
+//     paddingVertical: 8,
+//     paddingHorizontal: 15,
+//     borderRadius: 5,
+//   },
+//   scrollContainertop: { flexGrow: 1 },
+//   removeButton: {
+//     backgroundColor: '#A3AE95',
+//     padding: 10,
+//     borderRadius: 5,
+//     alignItems: 'center',
+//   },
+//   removeText: { color: '#3C4234', fontWeight: 'bold' },
+//   dropdownContainer: { marginBottom: 15 },
+//   checkbox: {
+//     width: 20, height: 20, borderWidth: 1, borderColor: '#ccc', borderRadius: 3,
+//     textAlign: 'center', lineHeight: 20,
+//   },
+//   checked: { backgroundColor: '#3E4B1F', color: '#fff', fontWeight: 'bold' },
+//   dropdownMenu: {
+//     borderWidth: 0.3, borderColor: '#ccc', borderRadius: 5,
+//     marginTop: 5, marginBottom: -15, backgroundColor: '#fff',
+//     maxHeight: 150, overflow: 'scroll',
+//   },
+//   dropdownMenuc: {
+//     borderWidth: 0.3, borderColor: '#ccc', borderRadius: 5,
+//     marginTop: 20, backgroundColor: '#fff',
+//     maxHeight: 350, overflow: 'scroll',
+//   },
+//   dropdownItem: { flexDirection: 'row', alignItems: 'center', padding: 10 },
+//   dropdownItemText: { fontSize: 16, marginLeft: 10 },
+//   dropdownHeader: {
+//     padding: 15, height: 50, width: '100%', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.3)'
+//   },
+//   dropdownHeaderText: { fontSize: 16 },
+//   textArea: { height: 80, textAlignVertical: 'top' },
+//   switch: { position: 'absolute', right: '30 as any', top: '50 as any', zIndex: '100 as any', borderRadius: 50 },
+//   switchText: { fontSize: 15, position: 'absolute', right: '85 as any', top: '58 as any', zIndex: '90 as any', color: '#F2EBBC' },
+//   switchset: { flexDirection: 'row' },
+//   loginButton: {
+//     width: '75%', height: 42, backgroundColor: '#A3AE95', borderRadius: 10,
+//     justifyContent: 'center', alignItems: 'center', marginTop: '35 as any', alignSelf: 'center'
+//   },
+//   loginButtonText: { fontSize: 15, fontWeight: 'bold', color: '#3C4234' },
+//   createac: {
+//     width: '75%', height: 42, borderRadius: 10, borderColor: 'black', borderWidth: 1,
+//     justifyContent: 'center', alignItems: 'center', marginTop: 20, alignSelf: 'center',
+//   },
+//   scrollContainer: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: '10%' },
+//   regback: { bottom: 0, width: '100%', height: '53%', position: 'absolute', marginBottom: '21%' },
+//   container: { flex: 1, backgroundColor: '#ffff' },
+//   image: { position: 'absolute', width: '100%', height: '40%' },
+//   imagein: { marginTop: '15%', marginLeft: '5%' },
+//   text: { fontSize: 35, color: '#F2EBBC', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
+//   backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
+//   textsub: { fontSize: 15, color: '#F2EBBC', fontWeight: '500', top: '8%', marginLeft: '10%' },
+//   fields: { width: '80%', alignSelf: 'center', marginTop: '45%' },
+//   input: {
+//     height: 50, width: '100%', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.3)',
+//     marginBottom: 15, paddingLeft: 15, fontSize: 16
+//   },
+// });
+
+// export default HotelRegister2;

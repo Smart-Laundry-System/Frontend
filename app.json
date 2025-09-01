@@ -10,10 +10,15 @@
     "splash": {
       "image": "./assets/loding.gif",
       "resizeMode": "contain",
-      "backgroundColor": "#EFEFEF"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,6 +28,12 @@
     },
     "web": {
       "favicon": "./assets/loding.gif"
+    },
+    "extra": {
+      "API_URL": "http://172.20.10.3:8082",
+      "APP_ENV": "development",
+      "IMAGE_UPLOAD_URL": "http://172.20.10.3:3999/upload",
+      "API_URL_IMAGE": "http://172.20.10.3:3999"
     }
   }
 }
