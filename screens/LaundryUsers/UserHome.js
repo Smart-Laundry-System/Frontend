@@ -1,5 +1,5 @@
-// UserHome.js (updated to use services/api.js)
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// UserHome.js
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,36 +12,26 @@ import {
   Pressable,
   SafeAreaView,
   Platform,
+  AppState,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useFocusEffect } from "@react-navigation/native";
 import Vector from "../../assets/Vector.png";
 import BackLogin from "../../assets/backLogin.png";
 import LoaundryIMG from "../../assets/loaundrycom.png";
 import SideMenuUser from "../../components/Menu/SideMenuUser";
 import DropDown from "../../components/Menu/DropDown";
 
-// ✅ Use the shared API layer
-import { api, authGet, IMG_URL } from "../../Services/api";
+import { api, authGet, IMG_URL, connectUnseenCount } from "../../Services/api";
 
-// ---------- demo orders (kept as-is) ----------
 const ORDERS = [
   {
     id: "o1",
-    title: "Shop name",
-    location: "0 Location",
-    status: "On The Way",
+    title: "Empty Orders",
+    location: "N/A",
+    status: "N/A",
     img: {
       uri: "https://images.unsplash.com/photo-1563225409-127c299532d7?q=80&w=1200",
-    },
-  },
-  {
-    id: "o2",
-    title: "Shop name",
-    location: "Location",
-    status: "Booked for Laundry",
-    img: {
-      uri: "https://images.unsplash.com/photo-1581578731508-23341e0dd4bc?q=80&w=1200",
     },
   },
 ];
@@ -62,19 +52,18 @@ const SURFACE = "#f8f8f8";
 export default function UserHome({ navigation }) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [orders, setOrders] = useState([]);
-
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState(FILTER_OPTIONS[0]);
   const filterBtnRef = useRef(null);
 
-  const [notifCount] = useState(2);
-  const [laundries, setLaundries] = useState([]); // ← data from API (users with role LAUNDRY)
+  const [notifCount, setNotifCount] = useState(0);
+  const [laundries, setLaundries] = useState([]);
 
   const route = useRoute();
   const { name = "First Name", email, token } = route.params ?? {};
+  const userEmail = route?.params?.email || route?.params?.userEmail || email || "";
 
-  // ---- helpers to normalize any backend shape to our UI shape ----
   const mapUserToLaundry = (u) => {
     const fullName =
       u?.name ||
@@ -105,7 +94,7 @@ export default function UserHome({ navigation }) {
       phone,
       services,
       rating: Number(u?.rating ?? 4.3),
-      laundryImg: imgPath, // will be prefixed with IMG_URL when rendering
+      laundryImg: imgPath,
     };
   };
 
@@ -114,12 +103,22 @@ export default function UserHome({ navigation }) {
     title: o?.laundryName || "Shop name",
     location: o?.laundryAddress || o?.address || "Location",
     status: o?.status || "Booked for Laundry",
-    laundryImg: o?.laundryImg || "", // `${IMG_URL}${path}` at render
+    laundryImg: o?.laundryImg || "",
   });
 
   const showOrders = search.trim().length === 0;
 
-  // ---- fetch laundries + orders (using shared api/authGet) ----
+  const refreshNotifications = useCallback(async () => {
+    if (!token || !userEmail) return;
+    try {
+      const res = await authGet("/api/auth/unseenCount", token, {
+        params: { email: userEmail },
+      });
+      const payload = res?.data || {};
+      setNotifCount(Number(payload?.unseen || 0));
+    } catch {}
+  }, [token, userEmail]);
+
   useEffect(() => {
     let mounted = true;
     if (!token) return;
@@ -128,16 +127,12 @@ export default function UserHome({ navigation }) {
       try {
         const res = await authGet("/api/auth/retriveLaundries", token);
         if (!mounted) return;
-
         const payload = res?.data;
         const rawList = Array.isArray(payload)
           ? payload
           : payload?.users || payload?.content || payload?.data || [];
-
-        const normalized = rawList.map(mapUserToLaundry);
-        setLaundries(normalized);
-      } catch (e) {
-        // fallback: try without auth if your endpoint allows public access
+        setLaundries(rawList.map(mapUserToLaundry));
+      } catch {
         try {
           const res2 = await api.get("/api/auth/retriveLaundries");
           if (!mounted) return;
@@ -146,38 +141,69 @@ export default function UserHome({ navigation }) {
             ? p2
             : p2?.users || p2?.content || p2?.data || [];
           setLaundries(raw2.map(mapUserToLaundry));
-        } catch (err) {
-          // console.warn("retriveLaundries failed:", err?.message || err);
-        }
+        } catch {}
       }
     }
 
     async function fetchOrders() {
       try {
-        const res = await authGet("/api/auth/retrieveUserOrder", token, {
-          params: { email: route?.params?.email || route?.params?.userEmail || "" },
+        const res = await authGet("/api/auth/retriveCustomerRelatedOrder", token, {
+          params: { email: userEmail },
         });
         if (!mounted) return;
-
         const payload = res?.data;
         const list = Array.isArray(payload)
           ? payload
           : payload?.orders || payload?.content || payload?.data || [];
         setOrders(list.map(mapApiOrderToUi));
-      } catch (e) {
-        // Optionally try a public/no-param fallback if your API supports it
-        // console.warn("retrieveUserOrder failed:", e?.message || e);
-      }
+      } catch {}
+    }
+
+    async function fetchNotifications() {
+      try {
+        const res = await authGet("/api/auth/unseenCount", token, {
+          params: { email: userEmail },
+        });
+        if (!mounted) return;
+        const payload = res?.data;
+        setNotifCount(Number(payload?.unseen || 0));
+      } catch {}
     }
 
     fetchUsers();
     fetchOrders();
+    fetchNotifications();
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [token, userEmail]);
 
-  // ---- local search (filters only the LAUNDRIES list) ----
+  // Live SSE (with polling fallback). This is the bit that makes the badge update in real time.
+  useEffect(() => {
+    if (!token || !userEmail) return;
+    const sub = connectUnseenCount({
+      email: userEmail,
+      token,
+      onUpdate: (n) => setNotifCount(Number(n) || 0),
+      // pollEveryMs: 12000, // optional tweak
+    });
+    return () => sub?.close?.();
+  }, [token, userEmail]);
+
+  // Keep your existing focus/app-resume refreshes (nice as a safety net)
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications();
+    }, [refreshNotifications])
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshNotifications();
+    });
+    return () => sub.remove();
+  }, [refreshNotifications]);
+
   const filteredLaundries = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return laundries;
@@ -206,9 +232,11 @@ export default function UserHome({ navigation }) {
             style={styles.notificationWrapper}
             onPress={() => setIsMenuVisible(true)}
           >
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{notifCount}</Text>
-            </View>
+            {notifCount ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{notifCount}</Text>
+              </View>
+            ) : null}
             <Ionicons name="menu" style={styles.menuicon} size={28} color={TEXT} />
           </TouchableOpacity>
         </View>
@@ -218,9 +246,7 @@ export default function UserHome({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Image source={Vector} />
           </TouchableOpacity>
-
           <Text style={styles.greeting}>Hi {name}</Text>
-
           <TouchableOpacity
             style={styles.profileBtn}
             onPress={() => navigation.navigate("ProfileUser", { email, token })}
@@ -240,7 +266,7 @@ export default function UserHome({ navigation }) {
           </View>
         </View>
 
-        {/* Search + filter (filters only LAUNDRIES) */}
+        {/* Search + filter */}
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
@@ -254,7 +280,11 @@ export default function UserHome({ navigation }) {
             />
           </View>
 
-          <Pressable ref={filterBtnRef} onPress={() => setFilterOpen(true)} style={styles.filterBtn}>
+          <Pressable
+            ref={filterBtnRef}
+            onPress={() => setFilterOpen(true)}
+            style={styles.filterBtn}
+          >
             <Ionicons name="options-outline" size={20} color={TEXT} />
           </Pressable>
 
@@ -313,14 +343,12 @@ export default function UserHome({ navigation }) {
 
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={() => {
-            navigation.navigate("UserOrders", { token, email, name });
-          }}
+          onPress={() => navigation.navigate("UserOrders", { token, email, name })}
         >
           <Text>Orders</Text>
         </TouchableOpacity>
 
-        {/* LAUNDRIES (from API, filtered by search) */}
+        {/* Laundries */}
         <View style={{ marginBottom: -18 }}>
           <Text style={[styles.sectionTitle, { marginTop: 38 }]}>Laundries</Text>
           {filteredLaundries.map((l) => (
@@ -353,7 +381,6 @@ export default function UserHome({ navigation }) {
   );
 }
 
-// ------------------ styles ------------------
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: {
@@ -372,7 +399,7 @@ const styles = StyleSheet.create({
   badge: {
     position: "relative",
     zIndex: 100,
-    top: 44,
+    top: 54,
     right: -13,
     backgroundColor: "#f2ebbc",
     borderRadius: 10,
@@ -385,7 +412,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, marginTop: 2 },
   menuicon: {
     color: "#3C4234",
-    top: 30,
+    top: 40,
     backgroundColor: "#a3ae95",
     paddingRight: 10,
     paddingLeft: 30,
@@ -393,16 +420,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   profileBtn: { padding: 2, borderRadius: 16 },
-  greeting: { fontSize: 18, color: TEXT, fontWeight: "600" },
+  greeting: { fontSize: 18, color: "#3C4234", fontWeight: "600" },
 
   welcomeWrap: { marginTop: 75, flexDirection: "row", alignItems: "center" },
-  welcome1: { fontSize: 22, color: TEXT, fontWeight: "700" },
-  welcome2: { fontSize: 22, color: TEXT, fontWeight: "700" },
+  welcome1: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
+  welcome2: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
   illustration: {
     width: 54,
     height: 54,
     borderRadius: 12,
-    backgroundColor: SURFACE,
+    backgroundColor: "#f8f8f8",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -422,12 +449,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
   },
-  searchInput: { flex: 1, color: TEXT, paddingVertical: 0 },
+  searchInput: { flex: 1, color: "#3C4234", paddingVertical: 0 },
   filterBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: GREEN,
+    backgroundColor: "#A3AE95",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -435,7 +462,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     marginTop: 16,
     marginBottom: 8,
-    color: TEXT,
+    color: "#3C4234",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -472,7 +499,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  statusPillText: { color: TEXT, fontSize: 12, fontWeight: "600" },
+  statusPillText: { color: "#3C4234", fontSize: 12, fontWeight: "600" },
 
   laundryRow: {
     flexDirection: "row",
@@ -486,10 +513,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#eee",
   },
-  laundryName: { color: TEXT, fontSize: 14, fontWeight: "600" },
-  laundryLoc: { color: MUTED, fontSize: 12, marginTop: 2 },
+  laundryName: { color: "#3C4234", fontSize: 14, fontWeight: "600" },
+  laundryLoc: { color: "#98A29D", fontSize: 12, marginTop: 2 },
   ratingWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontSize: 12, color: TEXT },
+  ratingText: { fontSize: 12, color: "#3C4234" },
 
   bottomBar: {
     position: "absolute",
@@ -511,12 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: -15,
     alignSelf: "center",
-  },
-  loginButtonText: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#3C4234",
+    marginBottom: -15,
   },
 });

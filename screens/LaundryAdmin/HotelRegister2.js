@@ -132,7 +132,7 @@ function HotelRegister2({ navigation }) {
         formData.append('image', {
             uri,
             name: fileName,
-            type: 'image/jpeg', // make sure the image you're uploading is JPEG
+            type: 'image/jpeg',
         });
 
         try {

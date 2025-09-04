@@ -1,13 +1,11 @@
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
-// import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
-import StartPage from './screens/StartPage'; // Correct import
+import StartPage from './screens/StartPage';
 import Login from './screens/Login';
 import UserRegistre from './screens/LaundryUsers/UserRegistre';
 import { PaperProvider } from 'react-native-paper';
 import HotelRegister2 from './screens/LaundryAdmin/HotelRegister2';
-// import HotelRegFinal from './screens/HotelAdmin/HotelRegFinal';
 import HotelRegisterFinal from './screens/LaundryAdmin/HotelRegisterFinal';
 import LaundryHome from './screens/LaundryAdmin/LaundryHome';
 import UserHome from './screens/LaundryUsers/UserHome';
@@ -33,13 +31,7 @@ export default function App() {
           <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
           <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
           <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
-          {/* <Stack.Screen name='HotelRegFinal' component={HotelRegFinal} options={{ headerShown: false }} /> */}
           <Stack.Screen name='HotelRegisterFinal' component={HotelRegisterFinal} options={{ headerShown: false }} />
-          {/* <Stack.Screen name="StartPage" component={StartPage} options={{ title:'Startpage' }} /> */}
-          {/* <Stack.Screen name='Login' component={Login} options={{ title:'Login' }} /> */}
-          {/* <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ title:'UserRegistre' }} /> */}
-          {/* <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ title:'HotelRegister2' }} /> */}
-          {/* <Stack.Screen name='HotelRegFinal' component={HotelRegFinal} options={{ title:'HotelRegFinal' }} /> */}
           <Stack.Screen name='Profile' component={Profile} options={{ headerShown: false }} />
           <Stack.Screen name='ProfileUser' component={ProfileUser} options={{ headerShown: false }} />
           <Stack.Screen name="UserHome" component={UserHome} options={{ headerShown: false }} />

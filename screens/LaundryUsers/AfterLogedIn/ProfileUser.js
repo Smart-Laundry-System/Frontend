@@ -1,3 +1,4 @@
+// screens/profile/ProfileUser.js
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -16,10 +17,12 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { authGet, sendForgotPasswordOTP, resetPasswordWithOTP } from "../../../Services/api";
 import Toast from "react-native-toast-message";
 
-// ⬇️ paper modal (Option A)
+// ✅ use the shared axios instance and authGet
+import { authGet, api } from "../../../Services/api";
+
+// paper modal
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
 
 const GREEN = "#A3AE95";
@@ -59,7 +62,7 @@ export default function ProfileUser() {
     address: "Location",
   });
 
-  // ===== Forgot/Reset password state (added) =====
+  // ===== Forgot/Reset password state =====
   const [fpEmail, setFpEmail] = useState("");
   const [rpEmail, setRpEmail] = useState("");
   const [rpOtp, setRpOtp] = useState("");
@@ -77,23 +80,30 @@ export default function ProfileUser() {
     []
   );
 
-  // send OTP (uses /api/auth/forgotPassword)
+  // ✅ send OTP (same path as Login)
   const sendemail = async () => {
     if (!fpEmail.trim()) {
-      Toast.show({ type: "error", text1: "Smart Laundry", text2: "Email is required", position: "top" });
+      Toast.show({
+        type: "error",
+        text1: "Smart Laundry",
+        text2: "Email is required",
+        position: "top",
+      });
       return;
     }
     try {
       setIsSendingOtp(true);
-      const res = await sendForgotPasswordOTP(fpEmail.trim());
+      const res = await api.post("/auth/v1/forgotPassword", {
+        email: fpEmail.trim(),
+      });
       Toast.show({
         type: "success",
         text1: "Smart Laundry",
-        text2: String(res || "OTP sent successfully"),
+        text2: String(res?.data || "OTP sent successfully"),
         position: "top",
         visibilityTime: 2000,
       });
-      // Prefill reset email
+      // Prefill for reset flow
       setRpEmail(fpEmail.trim());
       setModalVisible(false);
       setModalVisiblenext(true);
@@ -110,19 +120,29 @@ export default function ProfileUser() {
     }
   };
 
-  // reset password (uses /api/auth/resetPassword)
+  // ✅ reset password (use /auth/v1/resetPassword directly here)
   const onResetPassword = async () => {
     if (!rpEmail.trim() || !rpOtp.trim() || !rpPass.trim() || !rpConfirm.trim()) {
-      Toast.show({ type: "error", text1: "Smart Laundry", text2: "All fields are required", position: "top" });
+      Toast.show({
+        type: "error",
+        text1: "Smart Laundry",
+        text2: "All fields are required",
+        position: "top",
+      });
       return;
     }
     if (rpPass !== rpConfirm) {
-      Toast.show({ type: "error", text1: "Smart Laundry", text2: "Passwords do not match", position: "top" });
+      Toast.show({
+        type: "error",
+        text1: "Smart Laundry",
+        text2: "Passwords do not match",
+        position: "top",
+      });
       return;
     }
     try {
       setIsResetting(true);
-      const res = await resetPasswordWithOTP({
+      const res = await api.put("/auth/v1/resetPassword", {
         userName: rpEmail.trim(),
         otp: rpOtp.trim(),
         password: rpPass,
@@ -130,20 +150,21 @@ export default function ProfileUser() {
       Toast.show({
         type: "success",
         text1: "Smart Laundry",
-        text2: String(res || "Password updated"),
+        text2: String(res?.data || "Password updated"),
         position: "top",
         visibilityTime: 2000,
       });
       setModalVisiblenext(false);
-      // Clear fields
-      setRpEmail(""); setRpOtp(""); setRpPass(""); setRpConfirm("");
+      setRpEmail("");
+      setRpOtp("");
+      setRpPass("");
+      setRpConfirm("");
     } catch (e) {
       Toast.show({
         type: "error",
         text1: "Smart Laundry",
         text2: e?.response?.data || e?.message || "Password update failed",
         position: "top",
-        visibilityTime: 2000,
       });
     } finally {
       setIsResetting(false);
@@ -164,7 +185,10 @@ export default function ProfileUser() {
         return;
       }
       try {
-        const res = await authGet(`/api/auth/retriveUser?laundryEmail=${email}`, token);
+        const res = await authGet(
+          `/api/auth/retriveUser?laundryEmail=${email}`,
+          token
+        );
         if (!mounted) return;
         const u = res?.data || {};
         const name =
@@ -355,7 +379,6 @@ export default function ProfileUser() {
               <TouchableOpacity
                 style={styles.primaryBtn}
                 onPress={() => {
-                  // Open forgot modal; pre-fill with profile email if present
                   setFpEmail(profile.email || "");
                   setModalVisible(true);
                 }}
@@ -372,7 +395,7 @@ export default function ProfileUser() {
             </View>
           </View>
 
-          {/* --- PAPER MODALS (tap outside to close) --- */}
+          {/* --- PAPER MODALS --- */}
           <Portal>
             <Modal
               visible={modalVisible}
@@ -399,7 +422,9 @@ export default function ProfileUser() {
                   onPress={sendemail}
                   disabled={isSendingOtp}
                 >
-                  <Text style={styles.loginButtonText}>{isSendingOtp ? "Sending…" : "Send"}</Text>
+                  <Text style={styles.loginButtonText}>
+                    {isSendingOtp ? "Sending…" : "Send"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </Modal>
@@ -457,13 +482,14 @@ export default function ProfileUser() {
                   />
                 </View>
 
-                {/* Use same visual style as your other button */}
                 <TouchableOpacity
                   style={[styles.send, { opacity: isResetting ? 0.6 : 1, marginTop: 24 }]}
                   onPress={onResetPassword}
                   disabled={isResetting}
                 >
-                  <Text style={styles.loginButtonText}>{isResetting ? "Updating…" : "Update"}</Text>
+                  <Text style={styles.loginButtonText}>
+                    {isResetting ? "Updating…" : "Update"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </Modal>
@@ -472,7 +498,7 @@ export default function ProfileUser() {
         </View>
       </SafeAreaView>
 
-      {/* Local Toast host (safe even if you also mount one at root) */}
+      {/* Local Toast host */}
       <Toast />
     </PaperProvider>
   );
@@ -569,7 +595,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: TEXT, fontWeight: "700" },
 
-  // === modal styles (unchanged) ===
+  // === modal styles ===
   sheet: {
     marginHorizontal: 16,
     borderRadius: 16,

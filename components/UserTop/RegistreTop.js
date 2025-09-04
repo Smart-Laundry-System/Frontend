@@ -1,12 +1,7 @@
-// components/UserTop/RegistreTop.js
 import React, { useEffect, useState } from 'react';
 import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-
-// ✅ Use shared API layer
-// If this file is at components/UserTop/RegistreTop.js:
 import { api } from '../../Services/api';
-// If your location differs, change the path accordingly, e.g. '../services/api' or '../../../services/api'
 
 function RegistreTop({ navigation }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -54,7 +49,6 @@ function RegistreTop({ navigation }) {
     try {
       setSubmitting(true);
 
-      // ✅ Use the shared axios instance
       const res = await api.post('/auth/v1/addUser', payload);
 
       if (res?.status === 200 && res?.data) {
@@ -76,8 +70,6 @@ function RegistreTop({ navigation }) {
         });
       }
     } catch (err) {
-      // Helpful debugging (optional):
-      // console.log('REGISTER ERR', err?.response?.status, err?.response?.data, err?.message);
       const serverMsg = err?.response?.data;
       Toast.show({
         type: 'error',

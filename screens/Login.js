@@ -305,7 +305,6 @@ function Login({ navigation }) {
       <Text style={styles.modalText}>Enter your registered email</Text>
       <View
         style={{
-          height: "90%",
           borderRadius: 10,
           marginRight: "auto",
           marginLeft: "auto",
@@ -356,16 +355,16 @@ function Login({ navigation }) {
           />
         </View>
 
-        <TouchableOpacity
-          style={[styles.send, { opacity: isResetting ? 0.6 : 1 }]}
-          onPress={onResetPassword}
-          disabled={isResetting}
-        >
-          <Text style={styles.loginButtonText}>
-            {isResetting ? "Updating…" : "Update"}
-          </Text>
-        </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={[styles.send, { opacity: isResetting ? 0.6 : 1 }]}
+        onPress={onResetPassword}
+        disabled={isResetting}
+      >
+        <Text style={styles.loginButtonText}>
+          {isResetting ? "Updating…" : "Update"}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -508,16 +507,13 @@ function Login({ navigation }) {
         path="UserRegistration"
       />
 
-      {/* Modals */}
       {renderForgotModal()}
       {renderResetModal()}
 
-      {/* Toast Host */}
       <Toast />
     </View>
   );
 
-  // If using Portal, wrap with PaperProvider
   if (USE_PORTAL) {
     return <PaperProvider>{ScreenBody}</PaperProvider>;
   }
@@ -612,7 +608,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   modalViewset: {
-    height: 380,
+    height: 390,
     backgroundColor: "#A3AE95",
     padding: 20,
     shadowColor: "#000",
@@ -639,7 +635,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 50,
+    marginTop: 20,
     alignSelf: "center",
   },
 });
