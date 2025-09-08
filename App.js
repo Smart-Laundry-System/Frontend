@@ -19,6 +19,7 @@ import OrderHistoryCustomers from './screens/LaundryAdmin/AfterLogedIn/OrderHist
 import LaundryItems from './screens/LaundryAdmin/AfterLogedIn/LaundryItems';
 import ComplaintsList from './screens/LaundryAdmin/AfterLogedIn/ComplaintsList';
 import CustomerOrder from './screens/LaundryAdmin/AfterLogedIn/CustomerOrder';
+import OrderDetails from './screens/LaundryUsers/AfterLogedIn/OrderDetails';
 
 const Stack = createStackNavigator();
 
@@ -43,6 +44,7 @@ export default function App() {
           <Stack.Screen name="LaundryItems" component={LaundryItems} options={{ headerShown: false }} />
           <Stack.Screen name="OrderHistoryCustomers" component={OrderHistoryCustomers} options={{ headerShown: false }} />
           <Stack.Screen name="CustomerOrder" component={CustomerOrder} options={{ headerShown: false }} />
+          <Stack.Screen name="OrderDetails" component={OrderDetails} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />

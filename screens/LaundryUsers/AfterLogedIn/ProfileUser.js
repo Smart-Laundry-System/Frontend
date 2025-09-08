@@ -385,16 +385,9 @@ export default function ProfileUser() {
               >
                 <Text style={styles.primaryBtnText}>Update the password</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => navigation.navigate("Complain", { token })}
-              >
-                <Text style={styles.secondaryBtnText}>Complain</Text>
-              </TouchableOpacity>
             </View>
           </View>
-
+          
           {/* --- PAPER MODALS --- */}
           <Portal>
             <Modal
@@ -584,16 +577,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryBtnText: { color: "#fff", fontWeight: "bold" },
-  secondaryBtn: {
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: TEXT,
-  },
-  secondaryBtnText: { color: TEXT, fontWeight: "700" },
 
   // === modal styles ===
   sheet: {

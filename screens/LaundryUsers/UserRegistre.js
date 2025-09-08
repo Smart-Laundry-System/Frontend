@@ -223,7 +223,10 @@ function UserRegistre({ navigation }) {
             </BlurView>
 
 
-            {!isSwitchOn && <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
+            {!isSwitchOn && <TouchableOpacity style={styles.loginButton} onPress={() => {
+                controlLogin
+                laundryName, address, phone, phone2, email, password, selectedOptions
+            }}>
                 <Text style={styles.loginButtonText}>
                     Next
                 </Text>

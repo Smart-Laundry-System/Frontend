@@ -81,10 +81,10 @@ export default function UserHome({ navigation }) {
     const services = Array.isArray(u?.services)
       ? u.services
       : (u?.services || "")
-          .toString()
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
+        .toString()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     const imgPath = u?.laundryImg || u?.image || "";
 
     return {
@@ -116,12 +116,22 @@ export default function UserHome({ navigation }) {
       });
       const payload = res?.data || {};
       setNotifCount(Number(payload?.unseen || 0));
-    } catch {}
+    } catch { }
   }, [token, userEmail]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications();
+    }, [refreshNotifications])
+  );
 
   useEffect(() => {
     let mounted = true;
-    if (!token) return;
+    if (!token || !userEmail) return;
+
+    const sub1 = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshNotifications();
+    });
 
     async function fetchUsers() {
       try {
@@ -141,7 +151,7 @@ export default function UserHome({ navigation }) {
             ? p2
             : p2?.users || p2?.content || p2?.data || [];
           setLaundries(raw2.map(mapUserToLaundry));
-        } catch {}
+        } catch { }
       }
     }
 
@@ -156,7 +166,7 @@ export default function UserHome({ navigation }) {
           ? payload
           : payload?.orders || payload?.content || payload?.data || [];
         setOrders(list.map(mapApiOrderToUi));
-      } catch {}
+      } catch { }
     }
 
     async function fetchNotifications() {
@@ -167,42 +177,26 @@ export default function UserHome({ navigation }) {
         if (!mounted) return;
         const payload = res?.data;
         setNotifCount(Number(payload?.unseen || 0));
-      } catch {}
+      } catch { }
     }
 
     fetchUsers();
     fetchOrders();
     fetchNotifications();
-    return () => {
-      mounted = false;
-    };
-  }, [token, userEmail]);
 
-  // Live SSE (with polling fallback). This is the bit that makes the badge update in real time.
-  useEffect(() => {
-    if (!token || !userEmail) return;
     const sub = connectUnseenCount({
       email: userEmail,
       token,
       onUpdate: (n) => setNotifCount(Number(n) || 0),
       // pollEveryMs: 12000, // optional tweak
     });
-    return () => sub?.close?.();
-  }, [token, userEmail]);
 
-  // Keep your existing focus/app-resume refreshes (nice as a safety net)
-  useFocusEffect(
-    useCallback(() => {
-      refreshNotifications();
-    }, [refreshNotifications])
-  );
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") refreshNotifications();
-    });
-    return () => sub.remove();
-  }, [refreshNotifications]);
+    return () => {
+      sub1.remove();
+      mounted = false;
+      sub?.close?.();
+    };
+  }, [token, userEmail, refreshNotifications]);
 
   const filteredLaundries = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -243,7 +237,7 @@ export default function UserHome({ navigation }) {
 
         {/* Top row: back + centered name + profile */}
         <View style={styles.topRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
             <Image source={Vector} />
           </TouchableOpacity>
           <Text style={styles.greeting}>Hi {name}</Text>
@@ -310,7 +304,16 @@ export default function UserHome({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 8 }}
               renderItem={({ item }) => (
-                <TouchableOpacity activeOpacity={0.9} style={{ marginRight: 12 }}>
+                <TouchableOpacity activeOpacity={0.9} style={{ marginRight: 12 }}
+                  onPress={() =>
+                    navigation.navigate("OrderDetails", {
+                      token,
+                      orderId: item.id,        // unique id -> open detail screen
+                      laundryEmail: item.laundryEmail,                   // laundry owner email
+                      role: "CUSTOMER",
+                    })
+                  }
+                >
                   <ImageBackground
                     source={
                       item?.laundryImg

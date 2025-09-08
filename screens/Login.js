@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Pressable, // ✅ added
 } from "react-native";
 import { BlurView } from "expo-blur";
 import {
@@ -23,7 +24,7 @@ import { api, authPost, API_URL } from "../Services/api";
 import Vector from "../assets/Vector.png";
 import backLogin from "../assets/backLogin.png";
 import imageLoginBack from "../assets/imageLoginBack.png";
-import Or from '../components/Button/Or'
+import Or from "../components/Button/Or";
 import CreateAc from "../components/Button/CreateAc";
 
 const USE_PORTAL = true;
@@ -46,6 +47,17 @@ function Login({ navigation }) {
 
   const navLockedRef = useRef(false);
 
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isValidPassword = (pwd) => {
+    // At least 8 chars, at least one special symbol
+    const passwordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    return passwordRegex.test(pwd);
+  };
+
   const backtoback = () => {
     navigation.navigate("Home");
   };
@@ -63,7 +75,6 @@ function Login({ navigation }) {
     }
     try {
       setIsSendingOtp(true);
-      // Use the shared axios instance
       const res = await api.post("/auth/v1/forgotPassword", {
         email: fpEmail.trim(),
       });
@@ -101,6 +112,29 @@ function Login({ navigation }) {
       });
       return;
     }
+
+    if (!isValidEmail(rpEmail.trim())) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Email",
+        text2: "Please enter a valid email address",
+        position: "top",
+        visibilityTime: 2000,
+      });
+      return;
+    }
+
+    if (!isValidPassword(rpPass)) {
+      Toast.show({
+        type: "error",
+        text1: "Weak Password",
+        text2: "Password must be at least 8 characters and include one symbol",
+        position: "top",
+        visibilityTime: 2000,
+      });
+      return;
+    }
+
     if (rpPass !== rpConfirm) {
       Toast.show({
         type: "error",
@@ -174,11 +208,34 @@ function Login({ navigation }) {
 
   const submitCredantial = async () => {
     if (isSubmitting) return;
+
     if (!userName.trim() || !password.trim()) {
       Toast.show({
         type: "error",
         text1: "Missing Credentials",
         text2: "Please enter both email and password",
+        position: "bottom",
+        visibilityTime: 2000,
+      });
+      return;
+    }
+
+    if (!isValidEmail(userName.trim())) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Email",
+        text2: "Please enter a valid email address",
+        position: "bottom",
+        visibilityTime: 2000,
+      });
+      return;
+    }
+
+    if (!isValidPassword(password)) {
+      Toast.show({
+        type: "error",
+        text1: "Weak Password",
+        text2: "Password must be at least 8 characters and include one symbol",
         position: "bottom",
         visibilityTime: 2000,
       });
@@ -263,7 +320,7 @@ function Login({ navigation }) {
 
   // ---------- Modal Bodies ----------
   const ForgotBody = (
-    <View style={styles.modalView}>
+    <View style={[styles.modalView, { marginTop: keyboardVisible ? "-45%" : '-35%' }]}>
       <Text style={styles.modalText}>Enter your registered email</Text>
       <View
         style={{
@@ -301,7 +358,7 @@ function Login({ navigation }) {
   );
 
   const ResetBody = (
-    <View style={styles.modalViewset}>
+    <View style={[styles.modalViewset, { marginTop: keyboardVisible ? "-75%" : '-35%' }]}>
       <Text style={styles.modalText}>Enter your registered email</Text>
       <View
         style={{
@@ -354,7 +411,6 @@ function Login({ navigation }) {
             onChangeText={setRpConfirm}
           />
         </View>
-
       </View>
       <TouchableOpacity
         style={[styles.send, { opacity: isResetting ? 0.6 : 1 }]}
@@ -375,13 +431,23 @@ function Login({ navigation }) {
         <Portal>
           <PaperModal
             visible={modalVisible}
-            onDismiss={() => setModalVisible(false)} // back button only (Android)
-            dismissable={false} // cannot close by tapping outside
+            onDismiss={() => setModalVisible(false)}
+            dismissable={true} // ✅ allow outside tap to dismiss
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
-            <BlurView intensity={20} style={styles.modalBackground}>
-              {ForgotBody}
-            </BlurView>
+            {/* Outer pressable covers the screen area inside PaperModal content
+                and closes when tapping outside the inner card */}
+            <Pressable
+              style={styles.modalBackground}
+              onPress={() => setModalVisible(false)} // outside tap
+            >
+              {/* Inner pressable prevents outside-close when tapping content */}
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <BlurView intensity={20}>
+                  {ForgotBody}
+                </BlurView>
+              </Pressable>
+            </Pressable>
           </PaperModal>
         </Portal>
       );
@@ -391,11 +457,17 @@ function Login({ navigation }) {
         animationType="slide"
         transparent
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)} // back button only
+        onRequestClose={() => setModalVisible(false)}
       >
-        <BlurView intensity={20} style={styles.modalBackground}>
-          {ForgotBody}
-        </BlurView>
+        {/* Same tap-outside-to-close pattern for RN Modal */}
+        <Pressable
+          style={styles.modalBackground}
+          onPress={() => setModalVisible(false)} // outside tap
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <BlurView intensity={20}>{ForgotBody}</BlurView>
+          </Pressable>
+        </Pressable>
       </RNModal>
     );
   };
@@ -406,13 +478,18 @@ function Login({ navigation }) {
         <Portal>
           <PaperModal
             visible={modalVisiblenext}
-            onDismiss={() => setModalVisiblenext(false)} // back button only
-            dismissable={false}
+            onDismiss={() => setModalVisiblenext(false)}
+            dismissable={true} // ✅ allow outside tap
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
-            <BlurView intensity={20} style={styles.modalBackground}>
-              {ResetBody}
-            </BlurView>
+            <Pressable
+              style={styles.modalBackground}
+              onPress={() => setModalVisiblenext(false)} // outside tap
+            >
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <BlurView intensity={20}>{ResetBody}</BlurView>
+              </Pressable>
+            </Pressable>
           </PaperModal>
         </Portal>
       );
@@ -422,11 +499,16 @@ function Login({ navigation }) {
         animationType="none"
         transparent
         visible={modalVisiblenext}
-        onRequestClose={() => setModalVisiblenext(false)} // back button only
+        onRequestClose={() => setModalVisiblenext(false)}
       >
-        <BlurView intensity={20} style={styles.modalBackground}>
-          {ResetBody}
-        </BlurView>
+        <Pressable
+          style={styles.modalBackground}
+          onPress={() => setModalVisiblenext(false)} // outside tap
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <BlurView intensity={20}>{ResetBody}</BlurView>
+          </Pressable>
+        </Pressable>
       </RNModal>
     );
   };
@@ -476,7 +558,7 @@ function Login({ navigation }) {
             />
           </View>
           <View style={styles.forget}>
-            <Text style={styles.forgetfont}>Forget Password?</Text>
+            <Text style={styles.forgetfont}>Forgot Password?</Text>
             <TouchableOpacity
               style={styles.openButton}
               onPress={() => {
@@ -597,8 +679,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: "#FF0000",
   },
-  modalBackground: { flex: 1, justifyContent: "center" },
-  // 🔧 Fix numeric values (no quotes)
+  modalBackground: { flex: 1, justifyContent: "center" }, // unchanged
   modalView: {
     height: 250,
     backgroundColor: "#A3AE95",

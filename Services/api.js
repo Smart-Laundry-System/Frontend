@@ -98,17 +98,18 @@ api.interceptors.response.use(
         refreshToken: rt,
       });
 
+      const tokenType = (data?.tokenType || 'Bearer').trim();
       const newAT = data?.accessToken;
       const newRT = data?.refreshToken || rt;
       if (!newAT) throw new Error("Refresh failed: no accessToken returned");
 
       await setAuthTokens({ accessToken: newAT, refreshToken: newRT });
-      api.defaults.headers.common.Authorization = `Bearer ${newAT}`;
+      api.defaults.headers.common.Authorization = `${tokenType} ${newAT}`;
 
       flushQueue(null, newAT);
 
       config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${newAT}`;
+      config.headers.Authorization = `${tokenType} ${newAT}`;
       return api(config);
     } catch (e) {
       flushQueue(e, null);
@@ -173,16 +174,17 @@ export function connectUnseenCount({
 }) {
   if (!API_URL || !email) {
     // nothing to do
-    return { close: () => {} };
+    return { close: () => { } };
   }
 
   const q = encodeURIComponent(email);
-  const sseURL = `${API_URL}${SSE_PATH}?email=${q}`;
+  const sseURL = `${API_URL}${SSE_PATH}?email=${q}${token ? `&access_token=${encodeURIComponent(token)}` : ''}`;
 
   let es = null;
   let pollTimer = null;
 
   const parseAndSet = (data) => {
+    if (typeof onUpdate !== 'function') return;
     try {
       let n = Number.NaN;
       if (typeof data === "number") n = data;
@@ -197,44 +199,45 @@ export function connectUnseenCount({
         n = Number(data.unseen ?? data.count);
       }
       if (Number.isFinite(n)) onUpdate(n);
-    } catch {}
+    } catch { }
   };
 
   const startPolling = async () => {
+    if (pollTimer) clearInterval(pollTimer);
     try {
       const res = await authGet("/api/auth/unseenCount", token, {
         params: { email },
       });
       parseAndSet(res?.data);
-    } catch {}
+    } catch { }
     pollTimer = setInterval(async () => {
       try {
         const res = await authGet("/api/auth/unseenCount", token, {
           params: { email },
         });
         parseAndSet(res?.data);
-      } catch {}
+      } catch { }
     }, pollEveryMs);
   };
 
   // 1) Web: native EventSource
   if (typeof window !== "undefined" && typeof window.EventSource === "function") {
     try {
-      es = new window.EventSource(sseURL, { withCredentials: false });
+      es = new window.EventSource(sseURL, { withCredentials: true });
 
       const onMsg = (e) => parseAndSet(e?.data);
       es.addEventListener("notification.update", onMsg);
       es.addEventListener("unseenCount", onMsg);
       es.addEventListener("message", onMsg);
       es.addEventListener("error", () => {
-        try { es.close(); } catch {}
+        try { es.close(); } catch { }
         es = null;
         startPolling();
       });
 
       return {
         close: () => {
-          if (es) { try { es.close(); } catch {} es = null; }
+          if (es) { try { es.close(); } catch { } es = null; }
           if (pollTimer) clearInterval(pollTimer);
         },
       };
@@ -258,14 +261,14 @@ export function connectUnseenCount({
     es.addEventListener("unseenCount", onMsg);
     es.addEventListener("message", onMsg);
     es.addEventListener("error", () => {
-      try { es.close(); } catch {}
+      try { es.close(); } catch { }
       es = null;
       startPolling();
     });
 
     return {
       close: () => {
-        if (es) { try { es.close(); } catch {} es = null; }
+        if (es) { try { es.close(); } catch { } es = null; }
         if (pollTimer) clearInterval(pollTimer);
       },
     };

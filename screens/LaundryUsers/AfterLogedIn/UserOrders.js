@@ -16,7 +16,7 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Debounce } from "../../../utils/Debounce";
-import { api, IMG_URL } from "../../../Services/api"; 
+import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import DropDown from "../../../components/Menu/DropDown";
 
@@ -44,6 +44,7 @@ export default function UserOrders() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [rawQuery, setRawQuery] = useState("");
+  const [laundryEmail, setLaundryEmail] = useState("");
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState(FILTER_OPTIONS[0]);
@@ -154,7 +155,14 @@ export default function UserOrders() {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
-      onPress={() => navigation.navigate("OrderDetails", { order: item.raw })}
+      onPress={() =>
+        navigation.navigate("OrderDetails", {
+          token,
+          orderId: item.id,        // unique id -> open detail screen
+          laundryEmail: item.laundryEmail,                   // laundry owner email
+          role: "CUSTOMER",
+        })
+      }
     >
       <Image source={{ uri: item.img }} style={styles.cardImage} />
       <View style={styles.ratingPill}>
@@ -166,7 +174,7 @@ export default function UserOrders() {
         <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.cardSub} numberOfLines={1}>{item.location}</Text>
       </View>
-    </TouchableOpacity>
+    </TouchableOpacity >
   );
 
   return (

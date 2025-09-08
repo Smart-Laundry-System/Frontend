@@ -119,8 +119,12 @@ export default function CustomerOrder() {
     status: (o?.status || "PICKUP").toString(),
     paymentMethod: o?.paymentMethod || "By card",
     estimatedDate: o?.estimatedCompletedDate || o?.estimatedDate || null,
-    customerInterestDate: o?.customerInterestDate || o?.proposedDate || null,
+
+    // 👇 include all possible server keys; we normalize to customerInterestDate
+    customerInterestDate:
+      o?.customerInterestDate || o?.requestDate || null,
   });
+
 
   // build ?ids=1&ids=2 for Spring List<Long>
   const buildIdsParams = (key, arr) => {
@@ -164,7 +168,7 @@ export default function CustomerOrder() {
 
   useEffect(() => {
     fetchOrder();
-  }, [fetchOrder]);
+  }, [fetchOrder, actOnDate]);
 
   const statusIndex = useMemo(() => {
     const s = (order?.status || "").toUpperCase();

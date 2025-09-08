@@ -65,9 +65,11 @@ const SideMenu = ({ onClose, token, email }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      <PublicNotificationModal
+      <PublicNotificationModal 
         visible={modalVisible}
+        email={email}
         onClose={() => setModalVisible(false)}
+        token={token}
       />
     </>
   );
