@@ -8,6 +8,7 @@ import { Icon, Switch } from 'react-native-paper';
 import RegistreTop from '../../components/UserTop/RegistreTop'
 import Or from '../../components/Button/Or'
 import CreateAc from '../../components/Button/CreateAc';
+import Toast from 'react-native-toast-message';
 
 function UserRegistre({ navigation }) {
 
@@ -25,6 +26,10 @@ function UserRegistre({ navigation }) {
 
     const options = ['Ironing', 'Dry Clean', 'Detergent Wash'];
 
+    const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+    const isValidPassword = (s) => /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(s); // ≥8 & at least one symbol
+    const isNonEmpty = (s) => typeof s === "string" && s.trim().length > 0;
+
     const toggleOption = (option) => {
         setSelectedOptions((prev) =>
             prev.includes(option)
@@ -34,11 +39,53 @@ function UserRegistre({ navigation }) {
     };
 
     const controlLogin = () => {
-        if (isSwitchOn) {
-            navigation.navigate('Login');
-        } else if (!isSwitchOn) {
-            navigation.navigate('HotelRegister2');
+
+        const errors = [];
+
+        if (!isNonEmpty(laundryName)) errors.push("Laundry name");
+        if (!isNonEmpty(address)) errors.push("Address");
+        if (!isNonEmpty(phone)) errors.push("Phone");
+        // phone2 optional? If required, uncomment next line
+        // if (!isNonEmpty(phone2)) errors.push("LAN Phone");
+
+        if (!isNonEmpty(email)) {
+            errors.push("Email");
+        } else if (!isValidEmail(email.trim())) {
+            errors.push("Valid email");
         }
+
+        if (!isNonEmpty(password)) {
+            errors.push("Password");
+        } else if (!isValidPassword(password)) {
+            errors.push("Strong password (8+ & 1 symbol)");
+        }
+
+        // IMPORTANT: check array length (not array inequality)
+        // if (!Array.isArray(selectedOptions) || selectedOptions.length === 0) {
+        //     errors.push("At least one service type");
+        // }
+
+        if (errors.length) {
+            Toast.show({
+                type: "error",
+                text1: "Smart Laundry",
+                text2: `Please provide: ${errors.join(", ")}`,
+                position: "bottom",
+                visibilityTime: 2500,
+            });
+            return;
+        }
+
+        // All good → navigate with params
+        navigation.navigate("HotelRegister2", {
+            laundryName: laundryName.trim(),
+            address: address.trim(),
+            phone: phone.trim(),
+            phone2: phone2.trim(),
+            email: email.trim(),
+            password, // keep as is; don't trim passwords usually
+            selectedOptions,
+        });
     }
 
     const toggleDropdown = () => {
@@ -128,7 +175,7 @@ function UserRegistre({ navigation }) {
                                     placeholder="Name of the laundry"
                                     keyboardType="default"
                                     value={laundryName}
-                                    onChange={(e) => setLaundryName(e)}
+                                    onChangeText={setLaundryName}
                                     placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -138,7 +185,7 @@ function UserRegistre({ navigation }) {
                                 style={styles.input}
                                 placeholder="Address"
                                 value={address}
-                                onChange={(e) => setAddress(e)}
+                                onChangeText={setAddress}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -148,7 +195,7 @@ function UserRegistre({ navigation }) {
                                 placeholder="Phone"
                                 keyboardType='phone-pad'
                                 value={phone}
-                                onChange={(e) => setPhone(e)}
+                                onChangeText={setPhone}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -158,7 +205,7 @@ function UserRegistre({ navigation }) {
                                 placeholder="LAN Phone"
                                 keyboardType='phone-pad'
                                 value={phone2}
-                                onChange={(e) => setPhone2(e)}
+                                onChangeText={setPhone2}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -168,7 +215,7 @@ function UserRegistre({ navigation }) {
                                 placeholder="Email"
                                 keyboardType='email-address'
                                 value={email}
-                                onChange={(e) => setEmail(e)}
+                                onChangeText={setEmail}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -178,7 +225,7 @@ function UserRegistre({ navigation }) {
                                 placeholder="Password"
                                 secureTextEntry={true}
                                 value={password}
-                                onChange={(e) => setPassword(e)}
+                                onChangeText={setPassword}
                                 placeholderTextColor={keyboardVisible ? "black" : '#999'}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -223,10 +270,7 @@ function UserRegistre({ navigation }) {
             </BlurView>
 
 
-            {!isSwitchOn && <TouchableOpacity style={styles.loginButton} onPress={() => {
-                controlLogin
-                laundryName, address, phone, phone2, email, password, selectedOptions
-            }}>
+            {!isSwitchOn && <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
                 <Text style={styles.loginButtonText}>
                     Next
                 </Text>
@@ -234,7 +278,7 @@ function UserRegistre({ navigation }) {
 
             <Or />
             <CreateAc butname="For Login" navigation={navigation} path="Login" />
-
+            <Toast />
         </View >
     );
 }

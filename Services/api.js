@@ -12,6 +12,7 @@ const extra =
 
 export const API_URL = (extra.API_URL || "").replace(/\/$/, "");
 export const IMG_URL = extra.API_URL_IMAGE || "";
+const IMAGE_UPLOAD_URL = extra.IMAGE_UPLOAD_URL || ""; // <-- added
 
 // Auth refresh path (adjust in app.json -> expo.extra if needed)
 const REFRESH_PATH = extra.REFRESH_PATH || "/auth/v1/refresh";
@@ -161,9 +162,6 @@ export const authDelete = (url, token, config = {}) =>
 
 /* --------------------------------------------------------------------
    Live unseen-count subscription with SSE + safe polling fallback
-   - Works on web (native EventSource)
-   - Works on RN if you install `react-native-event-source`
-   - Otherwise falls back to polling /api/auth/unseenCount
 --------------------------------------------------------------------- */
 
 export function connectUnseenCount({
@@ -281,4 +279,48 @@ export function connectUnseenCount({
       },
     };
   }
+}
+
+/* --------------------- IMAGE UPLOAD HELPER (added) -------------------- */
+/**
+ * Upload a local image file to your image server (field name "file")
+ * and return the same structure as your Postman response (plus absolute url):
+ * { name, url, absoluteUrl }
+ */
+export async function uploadImageFile(localUri) {
+  if (!localUri) throw new Error("No localUri provided");
+  if (!IMAGE_UPLOAD_URL) {
+    throw new Error("Missing IMAGE_UPLOAD_URL in app.json -> expo.extra");
+  }
+  const name = localUri.split("/").pop() || `upload-${Date.now()}.jpg`;
+  const ext = (name.split(".").pop() || "jpg").toLowerCase();
+  const mime =
+    ext === "png" ? "image/png" :
+    ext === "jpg" || ext === "jpeg" ? "image/jpeg" :
+    "application/octet-stream";
+
+  const form = new FormData();
+  // IMPORTANT: key must be 'file' (matches your Postman screenshot)
+  form.append("file", { uri: localUri, name, type: mime });
+
+  // Let fetch set the multipart boundary; don't set Content-Type manually
+  const res = await fetch(IMAGE_UPLOAD_URL, { method: "POST", body: form });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Upload failed (${res.status}): ${t}`);
+  }
+
+  // Expected: { message, file: { name, url } }
+  const json = await res.json();
+  const file = json?.file || {};
+  const relativeUrl = file.url;      // e.g. "/files/175...-spring.png"
+  const fname = file.name;           // e.g. "175...-spring.png"
+
+  if (!relativeUrl) throw new Error("Server returned no file.url");
+
+  const base = (IMG_URL || "").replace(/\/$/, ""); // e.g. http://172.20.10.3:3999
+  const absoluteUrl = `${base}${relativeUrl}`;
+
+  return { name: fname, url: relativeUrl, absoluteUrl };
 }
