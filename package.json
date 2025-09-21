@@ -11,8 +11,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.848.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/checkbox": "^0.5.17",
-    "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-native-community/datetimepicker": "^8.4.5",
     "@react-native-community/masked-view": "^0.1.11",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/native": "^7.0.13",
@@ -29,10 +30,12 @@
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-native": "^0.79.5",
+    "react-native-date-picker": "^5.0.13",
     "react-native-gesture-handler": "2.24.0",
     "react-native-get-random-values": "^1.11.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-modal": "^13.0.1",
+    "react-native-modal-datetime-picker": "^18.0.0",
     "react-native-paper": "^5.12.5",
     "react-native-picker-select": "^9.3.1",
     "react-native-reanimated": "3.17.4",
@@ -41,8 +44,7 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-vector-icons": "^10.2.0",
-    "smartlaundry": "file:",
-    "@react-native-async-storage/async-storage": "2.1.2"
+    "smartlaundry": "file:"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

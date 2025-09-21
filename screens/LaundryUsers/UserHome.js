@@ -13,6 +13,7 @@ import {
   SafeAreaView,
   Platform,
   AppState,
+  ScrollView, // ⬅️ added
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
@@ -21,7 +22,6 @@ import BackLogin from "../../assets/backLogin.png";
 import LoaundryIMG from "../../assets/loaundrycom.png";
 import SideMenuUser from "../../components/Menu/SideMenuUser";
 import DropDown from "../../components/Menu/DropDown";
-
 import { api, authGet, IMG_URL, connectUnseenCount } from "../../Services/api";
 
 const ORDERS = [
@@ -30,9 +30,7 @@ const ORDERS = [
     title: "Empty Orders",
     location: "N/A",
     status: "N/A",
-    img: {
-      uri: "https://images.unsplash.com/photo-1563225409-127c299532d7?q=80&w=1200",
-    },
+    laundryImg: "",
   },
 ];
 
@@ -48,6 +46,11 @@ const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
 const SURFACE = "#f8f8f8";
+
+// === Card layout constants for FlatList getItemLayout/autoplay ===
+const CARD_WIDTH = 320;
+const CARD_GAP = 12;         // marginRight we use in renderItem
+const ITEM_LENGTH = CARD_WIDTH + CARD_GAP; // 332
 
 export default function UserHome({ navigation }) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -104,6 +107,7 @@ export default function UserHome({ navigation }) {
     location: o?.laundryAddress || o?.address || "Location",
     status: o?.status || "Booked for Laundry",
     laundryImg: o?.laundryImg || "",
+    laundryEmail: o?.laundryEmail, // used for navigation
   });
 
   const showOrders = search.trim().length === 0;
@@ -188,7 +192,6 @@ export default function UserHome({ navigation }) {
       email: userEmail,
       token,
       onUpdate: (n) => setNotifCount(Number(n) || 0),
-      // pollEveryMs: 12000, // optional tweak
     });
 
     return () => {
@@ -217,9 +220,83 @@ export default function UserHome({ navigation }) {
     }
   }, [laundries, search, selectedFilter]);
 
+  // ========= FlatList autoplay (auto movement) =========
+  const flatListRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const autoTimerRef = useRef(null);
+  const isTouchingRef = useRef(false);
+
+  const hasRealOrders = orders && orders.length > 0;
+  const ordersData = hasRealOrders ? orders : ORDERS;
+
+  const getItemLayout = (_data, index) => ({
+    length: ITEM_LENGTH,
+    offset: ITEM_LENGTH * index,
+    index,
+  });
+
+  const startAutoplay = useCallback(() => {
+    clearInterval(autoTimerRef.current);
+    autoTimerRef.current = setInterval(() => {
+      if (isTouchingRef.current) return; // don't advance while user is interacting
+      const next = (currentIndex + 1) % ordersData.length;
+      try {
+        flatListRef.current?.scrollToIndex({ index: next, animated: true });
+        setCurrentIndex(next);
+      } catch {
+        // fallback if initial layout not ready
+        flatListRef.current?.scrollToOffset({
+          offset: next * ITEM_LENGTH,
+          animated: true,
+        });
+        setCurrentIndex(next);
+      }
+    }, 3000); // 3s per card (tweak as you like)
+  }, [currentIndex, ordersData.length]);
+
+  const stopAutoplay = useCallback(() => {
+    clearInterval(autoTimerRef.current);
+  }, []);
+
+  // restart autoplay whenever data length changes or index updates
+  useEffect(() => {
+    if (!showOrders || ordersData.length <= 1) {
+      stopAutoplay();
+      return;
+    }
+    startAutoplay();
+    return () => stopAutoplay();
+  }, [showOrders, ordersData.length, currentIndex, startAutoplay, stopAutoplay]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems?.length) {
+      const vi = viewableItems[0].index ?? 0;
+      setCurrentIndex(vi);
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+  }).current;
+
+  // ========= Render =========
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
+
+        <View style={styles.topRow}>
+          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <Image source={Vector} />
+          </TouchableOpacity>
+          <Text style={styles.greeting}>Hi {name}</Text>
+          <TouchableOpacity
+            style={styles.profileBtn}
+            onPress={() => navigation.navigate("ProfileUser", { email, token })}
+          >
+            <Ionicons name="person-circle" size={28} color={TEXT} />
+          </TouchableOpacity>
+        </View>
+
         {/* Left hamburger with tiny ringed badge */}
         <View>
           <TouchableOpacity
@@ -235,146 +312,185 @@ export default function UserHome({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Top row: back + centered name + profile */}
-        <View style={styles.topRow}>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Image source={Vector} />
-          </TouchableOpacity>
-          <Text style={styles.greeting}>Hi {name}</Text>
-          <TouchableOpacity
-            style={styles.profileBtn}
-            onPress={() => navigation.navigate("ProfileUser", { email, token })}
-          >
-            <Ionicons name="person-circle" size={28} color={TEXT} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Welcome */}
-        <View style={styles.welcomeWrap}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.welcome1}>Welcome to</Text>
-            <Text style={styles.welcome2}>The Smart Laundry</Text>
-          </View>
-          <View style={styles.illustration}>
-            <Image source={LoaundryIMG} width={30} height={30} />
-          </View>
-        </View>
-
-        {/* Search + filter */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search Laundry..."
-              placeholderTextColor={MUTED}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-            />
-          </View>
-
-          <Pressable
-            ref={filterBtnRef}
-            onPress={() => setFilterOpen(true)}
-            style={styles.filterBtn}
-          >
-            <Ionicons name="options-outline" size={20} color={TEXT} />
-          </Pressable>
-
-          <DropDown
-            visible={filterOpen}
-            anchorRef={filterBtnRef}
-            options={FILTER_OPTIONS}
-            onSelect={(opt) => setSelectedFilter(opt)}
-            onRequestClose={() => setFilterOpen(false)}
-            width={220}
-            offsetY={8}
-          />
-        </View>
-
-        {/* Orders */}
-        {showOrders && (
-          <>
-            <Text style={styles.sectionTitle}>Your orders</Text>
-            <FlatList
-              data={orders && orders.length ? orders : ORDERS}
-              keyExtractor={(it) => it.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 8 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity activeOpacity={0.9} style={{ marginRight: 12 }}
-                  onPress={() =>
-                    navigation.navigate("OrderDetails", {
-                      token,
-                      orderId: item.id,        // unique id -> open detail screen
-                      laundryEmail: item.laundryEmail,                   // laundry owner email
-                      role: "CUSTOMER",
-                    })
-                  }
-                >
-                  <ImageBackground
-                    source={
-                      item?.laundryImg
-                        ? { uri: `${IMG_URL}${item.laundryImg}` }
-                        : BackLogin
-                    }
-                    imageStyle={styles.orderImg}
-                    style={styles.orderCard}
-                    resizeMode="cover"
-                  >
-                    <View style={styles.cardGlass} />
-                    <View style={styles.orderCardBottom}>
-                      <Text style={styles.orderTitle}>{item.title}</Text>
-                      <View style={styles.orderMetaRow}>
-                        <Ionicons name="location-outline" size={14} color="#fff" />
-                        <Text style={styles.orderMeta}>{item.location}</Text>
-                      </View>
-
-                      <View style={styles.statusPill}>
-                        <Text style={styles.statusPillText}>{item.status}</Text>
-                        <Ionicons name="checkmark" size={12} color={TEXT} />
-                      </View>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-              )}
-            />
-          </>
-        )}
-
-        <TouchableOpacity
-          style={styles.loginButton}
-          onPress={() => navigation.navigate("UserOrders", { token, email, name })}
+        {/* put the whole content in a vertical scroller to prevent overlap */}
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }} // ⬅️ added
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text>Orders</Text>
-        </TouchableOpacity>
 
-        {/* Laundries */}
-        <View style={{ marginBottom: -18 }}>
-          <Text style={[styles.sectionTitle, { marginTop: 38 }]}>Laundries</Text>
-          {filteredLaundries.map((l) => (
-            <TouchableOpacity key={l.id} style={styles.laundryRow}>
-              <Image
-                source={
-                  l?.laundryImg ? { uri: `${IMG_URL}${l.laundryImg}` } : BackLogin
-                }
-                style={styles.laundryImg}
+          {/* Welcome */}
+          <View style={styles.welcomeWrap}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.welcome1}>Welcome to</Text>
+              <Text style={styles.welcome2}>The Smart Laundry</Text>
+            </View>
+            <View style={styles.illustration}>
+              <Image source={LoaundryIMG} width={30} height={30} />
+            </View>
+          </View>
+
+          {/* Search + filter */}
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search Laundry..."
+                placeholderTextColor={MUTED}
+                value={search}
+                onChangeText={setSearch}
+                returnKeyType="search"
               />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.laundryName}>{l.name}</Text>
-                <Text style={styles.laundryLoc}>{l.address}</Text>
-              </View>
-              <View style={styles.ratingWrap}>
-                <Ionicons name="star" size={14} />
-                <Text style={styles.ratingText}>{Number(l.rating).toFixed(1)}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
 
-        <View style={{ height: 64 }} />
+            <Pressable
+              ref={filterBtnRef}
+              onPress={() => setFilterOpen(true)}
+              style={styles.filterBtn}
+            >
+              <Ionicons name="options-outline" size={20} color={TEXT} />
+            </Pressable>
+
+            <DropDown
+              visible={filterOpen}
+              anchorRef={filterBtnRef}
+              options={FILTER_OPTIONS}
+              onSelect={(opt) => setSelectedFilter(opt)}
+              onRequestClose={() => setFilterOpen(false)}
+              width={220}
+              offsetY={8}
+            />
+          </View>
+
+          {/* Orders carousel */}
+          {showOrders && (
+            <>
+              <Text style={styles.sectionTitle}>Your orders</Text>
+              <FlatList
+                ref={flatListRef}
+                data={ordersData}
+                keyExtractor={(it) => String(it.id)}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 12 }} // ⬅️ added bottom space
+                getItemLayout={getItemLayout}
+                initialScrollIndex={0}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                renderItem={({ item }) => {
+                  const card = (
+                    <ImageBackground
+                      source={
+                        item?.laundryImg
+                          ? { uri: `${IMG_URL}${item.laundryImg}` }
+                          : BackLogin
+                      }
+                      imageStyle={styles.orderImg}
+                      style={styles.orderCard}
+                      resizeMode="cover"
+                    >
+                      <View style={styles.cardGlass} />
+                      <View style={styles.orderCardBottom}>
+                        <Text style={styles.orderTitle}>{item.title}</Text>
+                        <View style={styles.orderMetaRow}>
+                          <Ionicons name="location-outline" size={14} color="#fff" />
+                          <Text style={styles.orderMeta}>{item.location}</Text>
+                        </View>
+
+                        <View style={styles.statusPill}>
+                          <Text style={styles.statusPillText}>{item.status}</Text>
+                          <Ionicons name="checkmark" size={12} color={TEXT} />
+                        </View>
+                      </View>
+                    </ImageBackground>
+                  );
+
+                  const wrapperProps = hasRealOrders
+                    ? {
+                      onPress: () =>
+                        navigation.navigate("OrderDetails", {
+                          token,
+                          orderId: item.id,
+                          laundryEmail: item.laundryEmail,
+                          role: "CUSTOMER",
+                        }),
+                    }
+                    : { activeOpacity: 0.9 };
+
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.9}
+                      style={{ marginRight: CARD_GAP }}
+                      {...wrapperProps}
+                      // pause autoplay while touching
+                      onPressIn={() => {
+                        isTouchingRef.current = true;
+                        stopAutoplay();
+                      }}
+                      onPressOut={() => {
+                        isTouchingRef.current = false;
+                        startAutoplay();
+                      }}
+                    >
+                      {card}
+                    </TouchableOpacity>
+                  );
+                }}
+                // also pause while dragging/swiping
+                onScrollBeginDrag={() => {
+                  isTouchingRef.current = true;
+                  stopAutoplay();
+                }}
+                onScrollEndDrag={() => {
+                  isTouchingRef.current = false;
+                  startAutoplay();
+                }}
+              />
+            </>
+          )}
+
+          {/* Orders button (now with normal spacing so it won't overlap) */}
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => navigation.navigate("UserOrders", { token, email, name })}
+          >
+            <Text>Orders</Text>
+          </TouchableOpacity>
+
+          {/* Laundries */}
+          <View style={{ marginBottom: 8 }}>
+            <Text style={[styles.sectionTitle, { marginTop: 38 }]}>Laundries</Text>
+            {filteredLaundries.map((l) => (
+              <TouchableOpacity
+                key={l.id}
+                style={styles.laundryRow}
+                onPress={() => {
+                  navigation.navigate("UserLaundry", {
+                    token,
+                    id: l.id,
+                    userEmail
+                  });
+                }}
+              >
+                <Image
+                  source={l?.laundryImg ? { uri: `${IMG_URL}${l.laundryImg}` } : BackLogin}
+                  style={styles.laundryImg}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.laundryName}>{l.name}</Text>
+                  <Text style={styles.laundryLoc}>{l.address}</Text>
+                </View>
+                <View style={styles.ratingWrap}>
+                  <Ionicons name="star" size={14} />
+                  <Text style={styles.ratingText}>{Number(l.rating).toFixed(1)}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
       </View>
 
       {isMenuVisible && (
@@ -398,11 +514,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     zIndex: 9000,
   },
-  notificationWrapper: { position: "absolute" },
+  notificationWrapper: { position: "absolute", zIndex: 100 },
   badge: {
-    position: "relative",
+    // position: "relative",
     zIndex: 100,
-    top: 54,
+    top: 34,
     right: -13,
     backgroundColor: "#f2ebbc",
     borderRadius: 10,
@@ -415,7 +531,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, marginTop: 2 },
   menuicon: {
     color: "#3C4234",
-    top: 40,
+    top: 20,
     backgroundColor: "#a3ae95",
     paddingRight: 10,
     paddingLeft: 30,
@@ -471,7 +587,7 @@ const styles = StyleSheet.create({
   },
 
   orderCard: {
-    width: 320,
+    width: CARD_WIDTH, // 320
     height: 190,
     borderRadius: 16,
     overflow: "hidden",
@@ -521,19 +637,6 @@ const styles = StyleSheet.create({
   ratingWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
   ratingText: { fontSize: 12, color: "#3C4234" },
 
-  bottomBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 56,
-    backgroundColor: "#C6CEBB",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
   loginButton: {
     width: "75%",
     height: 42,
@@ -542,6 +645,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginBottom: -15,
+    marginTop: 12, // ⬅️ changed (replaces old negative margin)
   },
 });

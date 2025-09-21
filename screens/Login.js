@@ -245,7 +245,7 @@ function Login({ navigation }) {
     setIsSubmitting(true);
 
     try {
-      const response = await authPost("/auth/v1/login", {
+      const response = await api.post("/auth/v1/login", {
         username: userName,
         password,
       });

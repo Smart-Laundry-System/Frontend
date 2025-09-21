@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
+import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
 import { api, IMG_URL } from "../../../Services/api";
 import DropDown from "../../../components/Menu/DropDown";
 import Vector from "../../../assets/Vector.png";
@@ -37,9 +38,7 @@ export default function NotificationFrmLaundry() {
 
   const token = route?.params?.token ?? "";
   const email = route?.params?.email ?? "";
-
-  // optional: parent screen can pass a setter to update a badge
-  const setUnseenBadge = route?.params?.setUnseen; // function(count:number)
+  const setUnseenBadge = route?.params?.setUnseen; // optional setter from parent
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,40 +51,43 @@ export default function NotificationFrmLaundry() {
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
+  // detail modal state
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
+
   const toAbsImage = (rel) => {
     if (!rel) return null;
     const base = (IMG_URL || "").replace(/\/$/, "");
     return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-  const mapApiNotifToUi = useCallback((n) => {
-    // Your NotificationDTO likely returns separate SQL date/time strings
-    // Try to build a display-friendly pair.
-    const when =
-      n?.createdAt ||
-      (n?.date && n?.time ? `${n.date} ${n.time}` : n?.date || n?.time || null);
-    const [timeLabel, dateLabel] = formatDateTime(when);
+const mapApiNotifToUi = useCallback((n) => {
+  const when =
+    n?.createdAt ||
+    (n?.date && n?.time ? `${n.date} ${n.time}` : n?.date || n?.time || null);
+  const [timeLabel, dateLabel] = formatDateTime(when);
 
-    const relImg = n?.laundryImg || n?.avatar || n?.image || n?.icon || n?.thumbnail;
-    const img =
-      relImg
-        ? toAbsImage(relImg)
-        : "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=256";
+  const relImg = n?.laundryImg || n?.avatar || n?.image || n?.icon || n?.thumbnail;
+  const img = relImg
+    ? toAbsImage(relImg)
+    : "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=256";
 
-    return {
-      id: String(n?.id ?? n?.notificationId ?? n?._id ?? Math.random()),
-      name: n?.laundryName || n?.title || "Name of the Laundry",
-      address: n?.laundryAddress || n?.address || "",
-      message: n?.message || n?.subject || "Message",
-      timeLabel,
-      dateLabel,
-      services: Array.isArray(n?.services) ? n.services : [],
-      img,
-      raw: n,
-    };
-  }, []);
+  return {
+    id: String(n?.id ?? n?.notificationId ?? n?._id ?? Math.random()),
+    name: n?.laundryName || n?.title || "Name of the Laundry",
+    address: n?.laundryAddress || n?.address || "",
+    subject: n?.subject ?? "",                       // ← ADD THIS
+    message: n?.message || n?.subject || "Message",
+    timeLabel,
+    dateLabel,
+    services: Array.isArray(n?.services) ? n.services : [],
+    img,
+    raw: n,
+  };
+}, []);
 
-  /** GET /api/auth/retrieveUserNotifications?email=... */
+
+  // GET /api/auth/retrieveUserNotifications?email=...
   const loadNotifications = useCallback(async () => {
     try {
       setError("");
@@ -115,7 +117,7 @@ export default function NotificationFrmLaundry() {
     }
   }, [email, token, refreshing, mapApiNotifToUi]);
 
-  /** PUT /api/auth/notifications/seen-all?email=...  (mark all as seen) */
+  // PUT /api/auth/notifications/seen-all?email=...
   const markAllSeen = useCallback(async () => {
     if (!email || !token) return;
     try {
@@ -123,14 +125,13 @@ export default function NotificationFrmLaundry() {
         params: { email },
         headers: { Authorization: `Bearer ${token}` },
       });
-      // unseen count is now 0 – inform parent badge if provided
       if (typeof setUnseenBadge === "function") setUnseenBadge(0);
     } catch {
-      // ignore – don't block UI
+      // ignore
     }
   }, [email, token, setUnseenBadge]);
 
-  /** Optionally verify unseen count via GET /api/auth/unseenCount?email=... */
+  // (optional) GET unseen count for parent badge
   const syncUnseenCount = useCallback(async () => {
     if (!email || !token || typeof setUnseenBadge !== "function") return;
     try {
@@ -145,19 +146,14 @@ export default function NotificationFrmLaundry() {
     }
   }, [email, token, setUnseenBadge]);
 
-  /**
-   * IMPORTANT: Run when the screen becomes focused.
-   * 1) Mark all as seen (zero unseen)
-   * 2) Reload the list (now all "seen")
-   * 3) Sync unseen count badge (optional)
-   */
+  // Focus: mark seen → load list → sync badge
   useFocusEffect(
     useCallback(() => {
       mountedRef.current = true;
       (async () => {
         await markAllSeen();
         await loadNotifications();
-        await syncUnseenCount(); // makes the badge 0 if parent provided setter
+        await syncUnseenCount();
       })();
       return () => {
         mountedRef.current = false;
@@ -165,7 +161,7 @@ export default function NotificationFrmLaundry() {
     }, [markAllSeen, loadNotifications, syncUnseenCount])
   );
 
-  // ---- live search (no debounce) ----
+  // live search
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
@@ -175,18 +171,20 @@ export default function NotificationFrmLaundry() {
     switch (selectedFilter.value) {
       case "name":
         return items.filter((x) => has(x.name));
-      case "address":
-        return items.filter((x) => has(x.address));
+      case "time":
+        return items.filter((x) => has(x.timeLabel));           // ← handle time
       case "date":
         return items.filter((x) => has(x.dateLabel));
-      case "services":
-        return items.filter((x) => has((x.services || []).join(" ")));
+      case "subject":
+        return items.filter((x) => has(x.subject) || has(x.message)); // ← handle subject
       default:
         return items.filter(
           (x) =>
             has(x.name) ||
             has(x.address) ||
             has(x.dateLabel) ||
+            has(x.timeLabel) ||
+            has(x.subject) ||
             has((x.services || []).join(" ")) ||
             has(x.message)
         );
@@ -194,109 +192,184 @@ export default function NotificationFrmLaundry() {
   }, [items, search, selectedFilter]);
 
   const renderRow = ({ item }) => (
-    <TouchableOpacity activeOpacity={0.9} style={styles.rowWrap}>
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={styles.rowWrap}
+      onPress={() => {
+        setDetailItem(item);
+        setDetailOpen(true);
+      }}
+    >
       <Image
         source={{ uri: item.img || "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=256" }}
         style={styles.avatar}
       />
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={styles.title}>{item.name}</Text>
-        <Text numberOfLines={1} style={styles.subtitle}>{item.message}</Text>
+        <Text numberOfLines={1} style={styles.subtitle}>{item.subject}</Text>
       </View>
       <View style={styles.rightMeta}>
         <Text style={styles.time}>{item.timeLabel}</Text>
         <Text style={styles.date}>{item.dateLabel}</Text>
       </View>
     </TouchableOpacity>
-  ); NotificationFrmLaundry
+  );
 
   return (
-    <View style={styles.screen}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image source={Vector} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Updates</Text>
-        <View style={{ width: 28 }} />
-      </View>
+    <PaperProvider>
+      <View style={styles.screen}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Image source={Vector} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Updates</Text>
+          <View style={{ width: 28 }} />
+        </View>
 
-      {/* Search + Filter (dropdown anchored to button) */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search Laundry..."
-            placeholderTextColor={MUTED}
-            style={styles.input}
-            returnKeyType="search"
+        {/* Search + Filter */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search Laundry..."
+              placeholderTextColor={MUTED}
+              style={styles.input}
+              returnKeyType="search"
+            />
+          </View>
+
+          <Pressable
+            ref={filterBtnRef}
+            style={styles.filterBtn}
+            onPress={() => setFilterOpen(true)}
+          >
+            <Ionicons name="options-outline" size={20} color={TEXT} />
+          </Pressable>
+
+          <DropDown
+            visible={filterOpen}
+            anchorRef={filterBtnRef}
+            options={FILTER_OPTIONS}
+            onSelect={(opt) => {
+              setSelectedFilter(opt);
+              setFilterOpen(false);
+            }}
+            onRequestClose={() => setFilterOpen(false)}
+            width={220}
+            offsetY={8}
           />
         </View>
 
-        <Pressable
-          ref={filterBtnRef}
-          style={styles.filterBtn}
-          onPress={() => setFilterOpen(true)}
-        >
-          <Ionicons name="options-outline" size={20} color={TEXT} />
-        </Pressable>
-
-        <DropDown
-          visible={filterOpen}
-          anchorRef={filterBtnRef}
-          options={FILTER_OPTIONS}
-          onSelect={(opt) => {
-            setSelectedFilter(opt);
-            setFilterOpen(false);
-          }}
-          onRequestClose={() => setFilterOpen(false)}
-          width={220}
-          offsetY={8}
-        />
-      </View>
-
-      {/* List */}
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.error}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retry}
-            onPress={() => {
-              setRefreshing(true);
-              // also mark seen again just in case and reload
-              markAllSeen().finally(loadNotifications).finally(syncUnseenCount);
-            }}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(it) => it.id}
-          renderItem={renderRow}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
+        {/* List */}
+        {loading ? (
+          <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={styles.error}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retry}
+              onPress={() => {
                 setRefreshing(true);
-                // during pull-to-refresh we mark all seen again and then reload
                 markAllSeen().finally(loadNotifications).finally(syncUnseenCount);
               }}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}><Text style={{ color: MUTED }}>No updates</Text></View>
-          }
-        />
-      )}
-    </View>
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(it) => it.id}
+            renderItem={renderRow}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  markAllSeen().finally(loadNotifications).finally(syncUnseenCount);
+                }}
+              />
+            }
+            ListEmptyComponent={
+              <View style={styles.center}><Text style={{ color: MUTED }}>No updates</Text></View>
+            }
+          />
+        )}
+      </View>
+
+      {/* Detail Modal */}
+      <Portal>
+        <Modal
+          visible={detailOpen}
+          onDismiss={() => setDetailOpen(false)}
+          contentContainerStyle={styles.detailCard}
+          dismissable
+        >
+          {detailItem && (
+            <View>
+              <View style={styles.detailHeader}>
+                <Image
+                  source={{ uri: detailItem.img }}
+                  style={styles.detailAvatar}
+                />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.detailTitle} numberOfLines={1}>
+                    {detailItem.name}
+                  </Text>
+                  <Text style={styles.detailMeta}>
+                    {detailItem.timeLabel} · {detailItem.dateLabel}
+                  </Text>
+                  {!!detailItem.address && (
+                    <Text style={styles.detailAddress} numberOfLines={1}>
+                      {detailItem.address}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.detailBody}>
+                <Text style={styles.detailSubheading}>Subject</Text>
+                <Text style={styles.detailMessage}>
+                  {detailItem.subject || "—"}
+                </Text>
+
+                <Text style={[styles.detailSubheading, { marginTop: 12 }]}>Message</Text>
+                <Text style={styles.detailMessage}>
+                  {detailItem.message || "—"}
+                </Text>
+
+                {!!(detailItem.services?.length) && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.detailSubheading}>Services</Text>
+                    <View style={styles.chipsRow}>
+                      {detailItem.services.map((s, i) => (
+                        <View key={`${s}-${i}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {String(s)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setDetailOpen(false)}
+              >
+                <Text style={styles.closeBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Modal>
+      </Portal>
+    </PaperProvider>
   );
 }
 
@@ -378,4 +451,38 @@ const styles = StyleSheet.create({
   error: { color: "#B00020", marginBottom: 8 },
   retry: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#FFECEC", borderRadius: 10 },
   retryText: { color: "#B00020", fontWeight: "700" },
+
+  /* modal */
+  detailCard: {
+    marginHorizontal: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+  },
+  detailHeader: { flexDirection: "row", alignItems: "center" },
+  detailAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#eee" },
+  detailTitle: { color: TEXT, fontWeight: "800", fontSize: 16 },
+  detailMeta: { color: MUTED, fontSize: 12, marginTop: 2 },
+  detailAddress: { color: MUTED, fontSize: 12, marginTop: 2 },
+  detailBody: { marginTop: 14 },
+  detailMessage: { color: TEXT, fontSize: 14, lineHeight: 20 },
+  detailSubheading: { color: TEXT, fontWeight: "700", marginBottom: 6 },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#F1F3F1",
+  },
+  chipText: { color: TEXT, fontSize: 12, fontWeight: "600" },
+  closeBtn: {
+    marginTop: 16,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: TEXT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeBtnText: { color: TEXT, fontWeight: "700" },
 });

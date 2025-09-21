@@ -367,7 +367,7 @@ export default function CustomerOrder() {
           >
             <View style={styles.glass}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.bannerTitle}>Services</Text>
+                <Text style={styles.bannerTitle}>For All Services</Text>
                 <View style={styles.addrRow}>
                   <Ionicons name="location-outline" size={14} color={TEXT} />
                   <Text style={styles.addrText}>{order.laundryAddress}</Text>

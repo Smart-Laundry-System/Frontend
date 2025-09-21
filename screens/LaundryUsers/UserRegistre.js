@@ -1,509 +1,347 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, Image, StyleSheet, Keyboard, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView } from 'react-native';
+// src/screens/auth/UserRegistre.jsx
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ScrollView,
+  Image,
+  StyleSheet,
+  Keyboard,
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  Dimensions,
+  Platform,
+} from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Switch } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
+
 import registeroverlay from '../../assets/backReg.png';
 import inerbutton from '../../assets/Vector1.png';
 import overlap from '../../assets/registeroverlay.png';
-import { BlurView } from 'expo-blur'
-import { Icon, Switch } from 'react-native-paper';
-import RegistreTop from '../../components/UserTop/RegistreTop'
-import Or from '../../components/Button/Or'
+
+import RegistreTop from '../../components/UserTop/RegistreTop';
+import Or from '../../components/Button/Or';
 import CreateAc from '../../components/Button/CreateAc';
-import Toast from 'react-native-toast-message';
+import { useRegistration } from '../../context/RegistrationContext';
+
+const { width } = Dimensions.get('window');
 
 function UserRegistre({ navigation }) {
+  const {
+    isSwitchOn,
+    setIsSwitchOn,
+    basicInfo,
+    updateBasicInfo,  // optional helper if you added it
+    setBasicInfo,     // fallback merge
+  } = useRegistration();
 
-    const [laundryName, setLaundryName] = useState("");
-    const [phone, setPhone] = useState("");
-    const [phone2, setPhone2] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [address, setAddress] = useState("");
-    const [isSwitchOn, setIsSwitchOn] = React.useState(true);
-    const [keyboardVisible, setKeyboardVisible] = React.useState(false);
+  // -------- Local form state --------
+  const [laundryName, setLaundryName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phone2, setPhone2] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [address, setAddress] = useState('');
+  const [serviceInputs, setServiceInputs] = useState(['']);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-    const [selectedOptions, setSelectedOptions] = React.useState([]);
-    const [isDropdownVisible, setDropdownVisible] = React.useState(false);
+  const outerScrollRef = useRef(null);
 
-    const options = ['Ironing', 'Dry Clean', 'Detergent Wash'];
+  // seed from context on mount / when basicInfo changes
+  useEffect(() => {
+    if (!basicInfo) return;
+    setLaundryName(basicInfo.laundryName ?? '');
+    setAddress(basicInfo.address ?? '');
+    setPhone(basicInfo.phone ?? '');
+    setPhone2(basicInfo.phone2 ?? '');
+    setEmail(basicInfo.email ?? '');
+    setPassword(basicInfo.password ?? '');
 
-    const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-    const isValidPassword = (s) => /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(s); // ≥8 & at least one symbol
-    const isNonEmpty = (s) => typeof s === "string" && s.trim().length > 0;
+    const svc = (basicInfo.selectedOptions ?? [])
+      .map((o) => (o?.name ?? o?.title ?? '').trim())
+      .filter(Boolean);
+    setServiceInputs(svc.length ? svc : ['']);
+  }, [basicInfo]);
 
-    const toggleOption = (option) => {
-        setSelectedOptions((prev) =>
-            prev.includes(option)
-                ? prev.filter((item) => item !== option)
-                : [...prev, option]
-        );
+  // -------- Validation helpers --------
+  const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  const isValidPassword = (s) => /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(s);
+  const isNonEmpty = (s) => typeof s === 'string' && s.trim().length > 0;
+
+  // -------- Dynamic services handlers --------
+  const addServiceRow = () => setServiceInputs((prev) => [...prev, '']);
+  const updateServiceRow = (idx, text) =>
+    setServiceInputs((prev) => prev.map((v, i) => (i === idx ? text : v)));
+  const removeServiceRow = (idx) =>
+    setServiceInputs((prev) => prev.filter((_, i) => i !== idx));
+
+  // -------- Keyboard spacing (limit max scroll to the keyboard top) --------
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const show = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hide = Keyboard.addListener(hideEvt, () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
     };
+  }, []);
 
-    const controlLogin = () => {
+  // -------- Submit --------
+  const controlLogin = () => {
+    const errors = [];
+    if (!isNonEmpty(laundryName)) errors.push('Laundry name');
+    if (!isNonEmpty(address)) errors.push('Address');
+    if (!isNonEmpty(phone)) errors.push('Phone');
 
-        const errors = [];
+    if (!isNonEmpty(email)) errors.push('Email');
+    else if (!isValidEmail(email.trim())) errors.push('Valid email');
 
-        if (!isNonEmpty(laundryName)) errors.push("Laundry name");
-        if (!isNonEmpty(address)) errors.push("Address");
-        if (!isNonEmpty(phone)) errors.push("Phone");
-        // phone2 optional? If required, uncomment next line
-        // if (!isNonEmpty(phone2)) errors.push("LAN Phone");
+    if (!isNonEmpty(password)) errors.push('Password');
+    else if (!isValidPassword(password)) errors.push('Strong password (8+ & 1 symbol)');
 
-        if (!isNonEmpty(email)) {
-            errors.push("Email");
-        } else if (!isValidEmail(email.trim())) {
-            errors.push("Valid email");
-        }
+    const selectedNames = serviceInputs.map((s) => (s || '').trim()).filter(Boolean);
+    const uniqueNames = Array.from(new Set(selectedNames));
+    if (!uniqueNames.length) errors.push('At least one service');
 
-        if (!isNonEmpty(password)) {
-            errors.push("Password");
-        } else if (!isValidPassword(password)) {
-            errors.push("Strong password (8+ & 1 symbol)");
-        }
-
-        // IMPORTANT: check array length (not array inequality)
-        // if (!Array.isArray(selectedOptions) || selectedOptions.length === 0) {
-        //     errors.push("At least one service type");
-        // }
-
-        if (errors.length) {
-            Toast.show({
-                type: "error",
-                text1: "Smart Laundry",
-                text2: `Please provide: ${errors.join(", ")}`,
-                position: "bottom",
-                visibilityTime: 2500,
-            });
-            return;
-        }
-
-        // All good → navigate with params
-        navigation.navigate("HotelRegister2", {
-            laundryName: laundryName.trim(),
-            address: address.trim(),
-            phone: phone.trim(),
-            phone2: phone2.trim(),
-            email: email.trim(),
-            password, // keep as is; don't trim passwords usually
-            selectedOptions,
-        });
+    if (errors.length) {
+      Toast.show({
+        type: 'error',
+        text1: 'Smart Laundry',
+        text2: `Please provide: ${errors.join(', ')}`,
+        position: 'bottom',
+        visibilityTime: 2500,
+      });
+      return;
     }
 
-    const toggleDropdown = () => {
-        setDropdownVisible(!isDropdownVisible);
+    const selectedOptions = uniqueNames.map((name) => ({ name, price: '' }));
+    const payload = {
+      laundryName: laundryName.trim(),
+      address: address.trim(),
+      phone: phone.trim(),
+      phone2: phone2.trim(),
+      email: email.trim(),
+      password,
+      selectedOptions,
+      role: basicInfo?.role ?? 'LAUNDRY',
     };
 
-    const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
+    if (typeof updateBasicInfo === 'function') {
+      updateBasicInfo(payload);
+    } else {
+      setBasicInfo((prev) => ({ ...(prev ?? {}), ...payload }));
+    }
 
+    navigation.navigate('HotelRegister2', payload);
+  };
 
+  const onToggleSwitch = () => setIsSwitchOn((v) => !v);
 
-    // const handleValueChange = (value) => {
-    //     setSelectedValue(value);
-    // };
+  const blurStyle = keyboardVisible ? { marginTop: -Math.round(0.4 * width) } : undefined;
 
-    useEffect(() => {
-        const keyboardDidShowListener = Keyboard.addListener(
-            'keyboardDidShow',
-            () => setKeyboardVisible(true)
-        );
-        const keyboardDidHideListener = Keyboard.addListener(
-            'keyboardDidHide',
-            () => setKeyboardVisible(false)
-        );
+  return (
+    <ScrollView
+      ref={outerScrollRef}
+      contentContainerStyle={[
+        styles.scrollContainertop,
+        // paddingBottom equals keyboard height so the last button stops at the keyboard top
+        { paddingBottom: keyboardHeight + 24 },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.container}>
+        <Image source={registeroverlay} style={styles.image} />
+        <View style={styles.switchset}>
+          <Text style={styles.switchText}>{!isSwitchOn ? 'Hotel Admin' : 'Personal'}</Text>
+          <View
+            style={[
+              styles.switch,
+              { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' },
+            ]}
+          >
+            <Switch
+              trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
+              thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
+              value={isSwitchOn}
+              onValueChange={onToggleSwitch}
+            />
+          </View>
+        </View>
 
-        return () => {
-            keyboardDidShowListener.remove();
-            keyboardDidHideListener.remove();
-        };
-    }, []);
+        <View style={styles.backtop} />
+        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.forback}>
+          <Image source={inerbutton} style={styles.imagein} />
+        </TouchableOpacity>
 
-    // const customTheme = {
-    //     ...PaperProvider,
-    //     colors: {
-    //         ...PaperProvider.colors,
-    //         accent: '#F2EBBC', // Customize theme accent color
-    //     },
-    // };
+        <Image source={overlap} style={styles.regback} />
+        <Text style={styles.text}>The Smart Laundry.</Text>
+        <Text style={styles.textsub}>Create Account</Text>
 
-    return (
-        <View style={styles.container}>
+        <BlurView style={blurStyle} intensity={keyboardVisible ? 20 : 0}>
+          <TouchableOpacity activeOpacity={1}>
+            {isSwitchOn && <RegistreTop navigation={navigation} />}
 
-            {/* <RegistreTop /> */}
-            <Image source={registeroverlay} style={styles.image} />
-            <View style={styles.switchset}>
-                <Text style={styles.switchText}>
-                    {!isSwitchOn && "Hotel Admin"}
-                    {isSwitchOn && "Personal"}
-                </Text>
-                <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
-                    <Switch
-                        trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
-                        thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
-                        value={isSwitchOn}
-                        onValueChange={onToggleSwitch}
-                    />
+            {!isSwitchOn && (
+              // keep inner ScrollView for your form; it doesn't need to scroll when keyboard is open
+              <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                // prevent nested scroll fighting; outer scroll handles the keyboard
+                scrollEnabled={false}
+              >
+                <View style={styles.fields}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Name of the laundry"
+                    keyboardType="default"
+                    value={laundryName}
+                    onChangeText={setLaundryName}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
 
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Address"
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    autoCapitalize="sentences"
+                    autoCorrect={false}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Phone"
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="LAN Phone"
+                    keyboardType="phone-pad"
+                    value={phone2}
+                    onChangeText={setPhone2}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  <Text style={{ marginTop: 8, marginBottom: 6, color: '#666' }}>Services Type</Text>
+
+                  {serviceInputs.map((val, idx) => (
+                    <View key={`svc-${idx}`} style={styles.serviceRow}>
+                      <TextInput
+                        style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                        placeholder={`Service ${idx + 1} (e.g., Ironing)`}
+                        placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                        value={val}
+                        onChangeText={(t) => updateServiceRow(idx, t)}
+                        autoCapitalize="words"
+                      />
+                      {serviceInputs.length > 1 && (
+                        <TouchableOpacity style={styles.removeButton} onPress={() => removeServiceRow(idx)}>
+                          <Text style={styles.removeText}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={addServiceRow}
+                    style={[
+                      styles.removeButton,
+                      { alignSelf: 'flex-start', backgroundColor: '#D9E0CF', marginTop: 10 },
+                    ]}
+                  >
+                    <Text style={[styles.removeText, { color: '#2E3329' }]}>+ Add another service</Text>
+                  </TouchableOpacity>
                 </View>
-            </View>
-            <View style={styles.backtop}></View>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.forback}>
-                <Image source={inerbutton} style={styles.imagein} />
-            </TouchableOpacity>
-            <Image source={overlap} style={styles.regback} />
-            <Text style={styles.text}>
-                The Smart Laundry.
-            </Text>
-            <Text style={styles.textsub}>
-                Create Account
-            </Text>
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </BlurView>
 
-            <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
-                <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-                    {isSwitchOn && <RegistreTop navigation={navigation} />}
+        {/* These buttons are inside the OUTER ScrollView,
+            so they move with the form and stop at the keyboard */}
+        {!isSwitchOn && (
+          <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
+            <Text style={styles.loginButtonText}>Next</Text>
+          </TouchableOpacity>
+        )}
 
-                    {!isSwitchOn && <ScrollView
-                        contentContainerStyle={styles.scrollContainer}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={styles.fields}>
-
-                            <View style={{ flexDirection: 'row' }}>
-                                <Icon icon="camera" size={100} color="red" style={styles.icon} />
-
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Name of the laundry"
-                                    keyboardType="default"
-                                    value={laundryName}
-                                    onChangeText={setLaundryName}
-                                    placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                            </View>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Address"
-                                value={address}
-                                onChangeText={setAddress}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Phone"
-                                keyboardType='phone-pad'
-                                value={phone}
-                                onChangeText={setPhone}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="LAN Phone"
-                                keyboardType='phone-pad'
-                                value={phone2}
-                                onChangeText={setPhone2}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Email"
-                                keyboardType='email-address'
-                                value={email}
-                                onChangeText={setEmail}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                secureTextEntry={true}
-                                value={password}
-                                onChangeText={setPassword}
-                                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-
-                            <View style={styles.dropdownContainer}>
-                                <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}>
-                                    <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                                        {/* {selectedOptions.length > 0
-                                            ? selectedOptions.join(', ')
-                                            : 'Select Options'} */}
-                                        Services Type
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {isDropdownVisible && (
-                                    <View style={styles.dropdownMenu}>
-                                        {options.map((option) => (
-                                            <TouchableOpacity
-                                                key={option}
-                                                style={styles.dropdownItem}
-                                                onPress={() => toggleOption(option)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.checkbox,
-                                                        selectedOptions.includes(option) && styles.checked,
-                                                    ]}
-                                                >
-                                                    {selectedOptions.includes(option) ? '✓' : ' '}
-                                                </Text>
-                                                <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-                    </ScrollView>}
-                </TouchableOpacity>
-                {/* </KeyboardAvoidingView> */}
-            </BlurView>
-
-
-            {!isSwitchOn && <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
-                <Text style={styles.loginButtonText}>
-                    Next
-                </Text>
-            </TouchableOpacity>}
-
-            <Or />
-            <CreateAc butname="For Login" navigation={navigation} path="Login" />
-            <Toast />
-        </View >
-    );
+        <Or />
+        <CreateAc butname="For Login" navigation={navigation} path="Login" />
+        {/* Keep <Toast /> in the root App */}
+      </View>
+    </ScrollView>
+  );
 }
 
+const { width: winW } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
-    icon: {
-        width: 100,
-        height: 100,
-        // margin: '100%',
-    },
-    dropdownContainer: {
-        marginBottom: 15
-    },
-    checkbox: {
-        width: 20,
-        height: 20,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 3,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    checked: {
-        backgroundColor: '#3E4B1F',
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    dropdownMenu: {
-        borderWidth: 0.3,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        marginTop: 5,
-        marginBottom: '-15',
-        backgroundColor: '#fff',
-        maxHeight: 150,
-        overflow: 'scroll',
-        // zIndex: 1010
-    },
-    dropdownItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 10,
-    },
-    dropdownItemText: {
-        fontSize: 16,
-        // color: '#999',
-        marginLeft: 10,
-    },
-    dropdownHeader: {
-        // borderWidth: 1,
-        // borderColor: '#ccc',
-        // borderRadius: 5,
-        padding: 15,
-        // backgroundColor: '#f9f9f9',
-        height: 50,
-        width: '100%',
-        borderBottomWidth: 1, // Thickness of the underline
-        borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
-    },
-    dropdownHeaderText: {
-        fontSize: 16,
-    },
-    textArea: {
-        height: 80,  // Adjusted height for multi-line text box
-        textAlignVertical: 'top',  // Ensures the text starts from the top
-    },
-    switch: {
-        position: 'absolute',
-        right: '30',
-        top: '50',
-        zIndex: '100',
-        borderRadius: 50
-    },
-    switchText: {
-        fontSize: 15,
-        position: 'absolute',
-        right: '85',
-        top: '58',
-        zIndex: '90',
-        color: '#F2EBBC'
-    },
-    switchset: {
-        flexDirection: 'row',
-        // position:'absolute'
-    },
-    loginButton: {
-        width: '75%',
-        height: 42,
-        backgroundColor: '#A3AE95', // Green color
-        borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: '35',
-        alignSelf: 'center',
-    },
-    loginButtonText: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#3C4234',
-    },
-    linedecr: {
-        textDecorationLine: "underline",
-        // justifyContent:'center',
-        textAlign: 'center',
-        borderBottomWidth: 1,
-        // paddingBottom: 1,
-        // marginRight: '21%',
-        marginLeft: '2.5%',
-        width: '34%'
-        // position:'absolute'
-    },
-    linedecl: {
-        textDecorationLine: "underline",
-        // justifyContent:'center',
-        textAlign: 'center',
-        borderBottomWidth: 1,
-        // paddingBottom: 1,
-        // marginLeft: '21%',
-        marginRight: '2.5%',
-        width: '34%'
-        // position: 'relative'
-    },
-    createac: {
-        width: '75%',
-        height: 42,
-        // backgroundColor: 'red',
-        borderRadius: 10,
-        borderColor: 'black', // Set the border color to black
-        borderWidth: 1,       // Add border width to make the line visible
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 20,
-        alignSelf: 'center',
-    },
-    scrollContainer: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        paddingHorizontal: '10%',
-        // marginTop:'35%'
-    },
-    regback: {
-        bottom: 0,
-        width: '100%',
-        height: '53%',
-        position: 'absolute',
-        marginBottom: '21%'
-    },
-    container: {
-        flex: 1,
-        // justifyContent: 'center',
-        // alignItems: 'center',
-        backgroundColor: '#ffff', // Light background
-    },
-    image: {
-        position: 'absolute',
-        width: '100%',
-        height: '40%',
-        // opacity: '0.9'
-    },
-    forback: {
-        top: "6.5%",
-        left: "6%",
-        width: '8%',
-        aspectRatio: 1,
-        overflow: 'hidden'
-    },
-    imagein: {
-        resizeMode: 'cover'
-        // marginTop: '15%',
-        // marginLeft: '5%',
-        // width: '10%',
-        // height: '20%',
-        // resizeMode: 'contain', // Maintain aspect ratio
-    },
-    text: {
-        fontSize: 35,
-        color: '#F2EBBC',
-        fontWeight: 'bold',
-        top: '8%',
-        marginLeft: '10%' // Adds space between text and other elements
-    },
-    backtop: {
-        position: 'absolute',
-        top: 0,
-        backgroundColor: 'rgba(60,66,52,0.7)',
-        width: '100%',
-        height: '40%',
-    },
-    textsub: {
-        fontSize: 15,
-        color: '#F2EBBC',
-        fontWeight: '500',
-        top: '8%',
-        marginLeft: '10%'
-    },
-    fields: {
-        width: '80%',
-        alignSelf: 'center',
-        marginTop: '58%',
-    },
-    input: {
-        height: 40,
-        width: '100%',
-        borderBottomWidth: 1, // Thickness of the underline
-        borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
-        // borderWidth: 1,
-        // borderRadius: 15,
-        // borderColor: 'rgba(0,0,0,0.3)',
-        marginBottom: 15,
-        paddingLeft: 15,
-        fontSize: 16,
-    },
-    forget: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: '10',
-        marginTop: '-2',
-        gap: 3,
-        marginBottom: '20'
-    },
-    forgetfont: {
-        fontSize: 15,
-        color: '#FF0000',
-        fontWeight: 'bold'
-    }
+  scrollContainertop: { flexGrow: 1, backgroundColor: '#ffff' }, // outer scroll content
+  switch: { position: 'absolute', right: 30, top: 50, zIndex: 100, borderRadius: 50 },
+  switchText: { fontSize: 15, position: 'absolute', right: 85, top: 58, zIndex: 90, color: '#F2EBBC' },
+  switchset: { flexDirection: 'row' },
+  loginButton: {
+    width: '75%', height: 42, backgroundColor: '#A3AE95',
+    borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+    marginTop: 35, alignSelf: 'center',
+  },
+  loginButtonText: { fontSize: 15, fontWeight: 'bold', color: '#3C4234' },
+  scrollContainer: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Math.round(winW * 0.1) },
+  regback: { bottom: 0, width: '100%', height: '53%', position: 'absolute', marginBottom: '21%' },
+  container: { flex: 1 },
+  image: { position: 'absolute', width: '100%', height: '40%' },
+  forback: { top: '6.5%', left: '6%', width: '8%', aspectRatio: 1, overflow: 'hidden' },
+  imagein: { resizeMode: 'cover' },
+  text: { fontSize: 35, color: '#F2EBBC', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
+  backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
+  textsub: { fontSize: 15, color: '#F2EBBC', fontWeight: '500', top: '8%', marginLeft: '10%' },
+  fields: { width: '80%', alignSelf: 'center', marginTop: '58%' },
+  input: {
+    height: 40, width: '100%', borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.3)', marginBottom: 15, paddingLeft: 15, fontSize: 16,
+  },
+  forget: { flexDirection: 'row', justifyContent: 'center', marginTop: -2, gap: 3, marginBottom: 20 },
+  removeButton: { backgroundColor: '#A3AE95', padding: 10, borderRadius: 5, marginLeft: 10 },
+  removeText: { color: '#3C4234', fontWeight: 'bold' },
+  serviceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
 });
 
 export default UserRegistre;

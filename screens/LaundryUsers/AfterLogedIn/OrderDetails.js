@@ -67,6 +67,8 @@ export default function OrderDetails() {
 
   const [modalVisiblec, setModalVisiblec] = useState(false);
 
+  const [showServicesSheet, setShowServicesSheet] = useState(false);
+
   const authHeader = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
     [token]
@@ -193,10 +195,18 @@ export default function OrderDetails() {
       ? `$${order.totPrice.toFixed(2)}`
       : "$0.00";
 
-  const servicesLabel = useMemo(() => {
-    if (!services.length) return "Ordered Service";
-    return services.map((s) => s.title || s.name || s.id).join(", ");
-  }, [services]);
+  // Put these near your other useMemo blocks
+  const serviceNames = useMemo(
+    () => (Array.isArray(services) ? services : [])
+      .map(s => s?.title ?? s?.name ?? String(s?.id ?? "")),
+    [services]
+  );
+
+  const shown = serviceNames.slice(0, 2);            // now an array of strings
+  const hasMore = serviceNames.length > 2;
+
+  const servicesTitle =
+    shown.length ? `${shown.join(", ")}${hasMore ? "…" : ""}` : "Ordered Service";
 
   /* ------------------------ date picking & confirm ------------------------ */
   const onOpenPicker = () => setShowDatePicker(true);
@@ -262,8 +272,8 @@ export default function OrderDetails() {
     (hasRequest
       ? new Date(order.customerInterestDate)
       : isValidDateVal(order.estimatedDate)
-      ? new Date(order.estimatedDate)
-      : null);
+        ? new Date(order.estimatedDate)
+        : null);
 
   /* ---------------------------------- UI ---------------------------------- */
   return (
@@ -315,7 +325,8 @@ export default function OrderDetails() {
             >
               <View style={styles.glass}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.bannerTitle}>{servicesLabel}</Text>
+                  <Text style={styles.bannerTitle}>{servicesTitle}</Text>
+
                   <View style={styles.addrRow}>
                     <Ionicons name="location-outline" size={14} color={TEXT} />
                     <Text style={styles.addrText}>{order.laundryAddress}</Text>
@@ -326,9 +337,11 @@ export default function OrderDetails() {
                   <Text style={styles.priceText}>{priceLabel}</Text>
                 </View>
 
-                <View style={styles.moreBtn}>
+                <TouchableOpacity style={styles.moreBtn} onPress={() => setShowServicesSheet(true)}>
+                  {/* <View > */}
                   <Ionicons name="ellipsis-horizontal" size={16} color="#000" />
-                </View>
+                  {/* </View> */}
+                </TouchableOpacity>
               </View>
             </ImageBackground>
 
@@ -388,7 +401,7 @@ export default function OrderDetails() {
 
             {/* About + Complain in one line */}
             <View style={styles.aboutHeaderRow}>
-              <Text style={styles.sectionTitle}>About Us</Text>
+              <Text style={styles.sectionTitle}>About {order.customerName}</Text>
 
               <TouchableOpacity
                 style={styles.secondaryBtn}
@@ -458,10 +471,10 @@ export default function OrderDetails() {
                 pendingRequestDate
                   ? pendingRequestDate
                   : hasRequest
-                  ? new Date(order.customerInterestDate)
-                  : isValidDateVal(order.estimatedDate)
-                  ? new Date(order.estimatedDate)
-                  : new Date()
+                    ? new Date(order.customerInterestDate)
+                    : isValidDateVal(order.estimatedDate)
+                      ? new Date(order.estimatedDate)
+                      : new Date()
               }
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -469,6 +482,34 @@ export default function OrderDetails() {
               minimumDate={new Date()}
               style={{ backgroundColor: "#fff", borderRadius: 10 }}
             />
+          </Modal>
+          <Modal
+            visible={showServicesSheet}
+            onDismiss={() => setShowServicesSheet(false)}
+            dismissable
+            contentContainerStyle={styles.servicesSheet}
+          >
+            <Text style={styles.sheetTitle}>Services</Text>
+            {services.length ? (
+              services.map((s) => (
+                <View key={s.id} style={styles.serviceRow}>
+                  <Text style={styles.serviceTitle} numberOfLines={1}>
+                    {s.title || s.name || `#${s.id}`}
+                  </Text>
+                  <Text style={styles.servicePrice}>
+                    {typeof s.price === "string"
+                      ? s.price
+                      : `$${Number(s.price || 0).toFixed(2)}`}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={{ color: MUTED }}>No services</Text>
+            )}
+
+            <TouchableOpacity style={styles.assignBack} onPress={() => setShowServicesSheet(false)}>
+              <Text style={styles.assignBackText}>Close</Text>
+            </TouchableOpacity>
           </Modal>
         </Portal>
       </SafeAreaView>
@@ -657,6 +698,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F0",
   },
   seeMoreText: { color: TEXT, fontWeight: "700" },
+  servicesSheet: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    padding: 16,
+  },
+  sheetTitle: { color: TEXT, fontWeight: "800", marginBottom: 12 },
+  serviceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFE8",
+  },
+  serviceTitle: { color: TEXT, flex: 1, marginRight: 10 },
+  servicePrice: { color: TEXT, fontWeight: "700" },
+  assignBack: {
+    marginTop: 12,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: TEXT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  assignBackText: { color: TEXT, fontWeight: "700" },
 
   datePickerSheet: {
     backgroundColor: "#fff",

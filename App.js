@@ -1,3 +1,69 @@
+// import { createStackNavigator } from '@react-navigation/stack';
+// import { NavigationContainer } from '@react-navigation/native';
+// import { StyleSheet, Text, View } from 'react-native';
+// import StartPage from './screens/StartPage';
+// import Login from './screens/Login';
+// import UserRegistre from './screens/LaundryUsers/UserRegistre';
+// import { PaperProvider } from 'react-native-paper';
+// import HotelRegister2 from './screens/LaundryAdmin/HotelRegister2';
+// import HotelRegisterFinal from './screens/LaundryAdmin/HotelRegisterFinal';
+// import LaundryHome from './screens/LaundryAdmin/LaundryHome';
+// import UserHome from './screens/LaundryUsers/UserHome';
+// import Profile from './screens/LaundryAdmin/AfterLogedIn/Profile';
+// import Toast from 'react-native-toast-message';
+// import ComplaintsPage from './screens/Complain/ComplaintsPage';
+// import ProfileUser from './screens/LaundryUsers/AfterLogedIn/ProfileUser';
+// import UserOrders from './screens/LaundryUsers/AfterLogedIn/UserOrders';
+// import NotificationFrmLaundry from './screens/LaundryUsers/AfterLogedIn/NotificationFrmLaundry';
+// import OrderHistoryCustomers from './screens/LaundryAdmin/AfterLogedIn/OrderHistoryCustomers';
+// import LaundryItems from './screens/LaundryAdmin/AfterLogedIn/LaundryItems';
+// import ComplaintsList from './screens/LaundryAdmin/AfterLogedIn/ComplaintsList';
+// import CustomerOrder from './screens/LaundryAdmin/AfterLogedIn/CustomerOrder';
+// import OrderDetails from './screens/LaundryUsers/AfterLogedIn/OrderDetails';
+// // import { RegistrationProvider } from "./context/RegistrationContext";
+
+// const Stack = createStackNavigator();
+
+// export default function App() {
+//   return (
+//     <PaperProvider>
+//       {/* <RegistrationProvider> */}
+//         <NavigationContainer>
+//           <Stack.Navigator initialRouteName="Home">
+//             <Stack.Screen name="Home" component={StartPage} options={{ headerShown: false }} />
+//             <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
+//             <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
+//             <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
+//             <Stack.Screen name='HotelRegisterFinal' component={HotelRegisterFinal} options={{ headerShown: false }} />
+//             <Stack.Screen name='Profile' component={Profile} options={{ headerShown: false }} />
+//             <Stack.Screen name='ProfileUser' component={ProfileUser} options={{ headerShown: false }} />
+//             <Stack.Screen name="UserHome" component={UserHome} options={{ headerShown: false }} />
+//             <Stack.Screen name='LaundryHome' component={LaundryHome} options={{ headerShown: false }} />
+//             <Stack.Screen name='Complaint' component={ComplaintsPage} options={{ headerShown: false }} />
+//             <Stack.Screen name='UserOrders' component={UserOrders} options={{ headerShown: false }} />
+//             <Stack.Screen name='NotificationFrmLaundry' component={NotificationFrmLaundry} options={{ headerShown: false }} />
+//             <Stack.Screen name="ComplaintsList" component={ComplaintsList} options={{ headerShown: false }} />
+//             <Stack.Screen name="LaundryItems" component={LaundryItems} options={{ headerShown: false }} />
+//             <Stack.Screen name="OrderHistoryCustomers" component={OrderHistoryCustomers} options={{ headerShown: false }} />
+//             <Stack.Screen name="CustomerOrder" component={CustomerOrder} options={{ headerShown: false }} />
+//             <Stack.Screen name="OrderDetails" component={OrderDetails} options={{ headerShown: false }} />
+//           </Stack.Navigator>
+//         </NavigationContainer>
+//         <Toast />
+//       {/* </RegistrationProvider> */}
+//     </PaperProvider>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#fff',
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//   },
+// });
+
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
@@ -20,34 +86,39 @@ import LaundryItems from './screens/LaundryAdmin/AfterLogedIn/LaundryItems';
 import ComplaintsList from './screens/LaundryAdmin/AfterLogedIn/ComplaintsList';
 import CustomerOrder from './screens/LaundryAdmin/AfterLogedIn/CustomerOrder';
 import OrderDetails from './screens/LaundryUsers/AfterLogedIn/OrderDetails';
+import { RegistrationProvider } from "./context/RegistrationContext";
+import UserLaundry from './screens/LaundryUsers/AfterLogedIn/UserLaundry';
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <PaperProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
-          <Stack.Screen name="Home" component={StartPage} options={{ headerShown: false }} />
-          <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
-          <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
-          <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
-          <Stack.Screen name='HotelRegisterFinal' component={HotelRegisterFinal} options={{ headerShown: false }} />
-          <Stack.Screen name='Profile' component={Profile} options={{ headerShown: false }} />
-          <Stack.Screen name='ProfileUser' component={ProfileUser} options={{ headerShown: false }} />
-          <Stack.Screen name="UserHome" component={UserHome} options={{ headerShown: false }} />
-          <Stack.Screen name='LaundryHome' component={LaundryHome} options={{ headerShown: false }} />
-          <Stack.Screen name='Complaint' component={ComplaintsPage} options={{ headerShown: false }} />
-          <Stack.Screen name='UserOrders' component={UserOrders} options={{ headerShown: false }} />
-          <Stack.Screen name='NotificationFrmLaundry' component={NotificationFrmLaundry} options={{ headerShown: false }} />
-          <Stack.Screen name="ComplaintsList" component={ComplaintsList} options={{ headerShown: false }} />
-          <Stack.Screen name="LaundryItems" component={LaundryItems} options={{ headerShown: false }} />
-          <Stack.Screen name="OrderHistoryCustomers" component={OrderHistoryCustomers} options={{ headerShown: false }} />
-          <Stack.Screen name="CustomerOrder" component={CustomerOrder} options={{ headerShown: false }} />
-          <Stack.Screen name="OrderDetails" component={OrderDetails} options={{ headerShown: false }} />
-        </Stack.Navigator>
-      </NavigationContainer>
-      <Toast />
+      <RegistrationProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Home">
+            <Stack.Screen name="Home" component={StartPage} options={{ headerShown: false }} />
+            <Stack.Screen name='Login' component={Login} options={{ headerShown: false }} />
+            <Stack.Screen name='UserRegistration' component={UserRegistre} options={{ headerShown: false }} />
+            <Stack.Screen name='HotelRegister2' component={HotelRegister2} options={{ headerShown: false }} />
+            <Stack.Screen name='HotelRegisterFinal' component={HotelRegisterFinal} options={{ headerShown: false }} />
+            <Stack.Screen name='Profile' component={Profile} options={{ headerShown: false }} />
+            <Stack.Screen name='ProfileUser' component={ProfileUser} options={{ headerShown: false }} />
+            <Stack.Screen name="UserHome" component={UserHome} options={{ headerShown: false }} />
+            <Stack.Screen name='LaundryHome' component={LaundryHome} options={{ headerShown: false }} />
+            <Stack.Screen name='Complaint' component={ComplaintsPage} options={{ headerShown: false }} />
+            <Stack.Screen name='UserOrders' component={UserOrders} options={{ headerShown: false }} />
+            <Stack.Screen name='NotificationFrmLaundry' component={NotificationFrmLaundry} options={{ headerShown: false }} />
+            <Stack.Screen name="ComplaintsList" component={ComplaintsList} options={{ headerShown: false }} />
+            <Stack.Screen name="LaundryItems" component={LaundryItems} options={{ headerShown: false }} />
+            <Stack.Screen name="OrderHistoryCustomers" component={OrderHistoryCustomers} options={{ headerShown: false }} />
+            <Stack.Screen name="CustomerOrder" component={CustomerOrder} options={{ headerShown: false }} />
+            <Stack.Screen name="OrderDetails" component={OrderDetails} options={{ headerShown: false }} />
+            <Stack.Screen name="UserLaundry" component={UserLaundry} options={{ headerShown: false }} />
+          </Stack.Navigator>
+        </NavigationContainer>
+        <Toast />
+      </RegistrationProvider>
     </PaperProvider>
   );
 }

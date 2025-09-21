@@ -15,20 +15,36 @@ import Vector from '../../assets/Vector.png';
 import StartImage from '../../assets/startimage.png';
 import { BlurView } from 'expo-blur';
 import { useRoute } from '@react-navigation/native';
-import { api, authGet } from '../../Services/api';
+import { api, authGet, IMG_URL } from '../../Services/api';
 import SideMenu from '../../components/Menu/SideMenu';
+
+const AVATAR_COLORS = ["#444", "#666", "#a3ae95", "#555","#3C4234","#A3AE95"];
+
+const getInitials = (name = "") =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(p => (p[0] || "").toUpperCase())
+    .join("") || "U";
+
+const colorFor = (name = "") => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
 
 const LaundryHome = ({ navigation }) => {
   const [laundryInfo, setLaundryInfo] = useState(null);
   const [customerInfo, setCustomerInfo] = useState(null);
-  const [employees, setEmployees] = useState([]); 
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fatchingLoad, setFatchingLoad] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
 
-  const serviceListRef = useRef(null); 
+  const serviceListRef = useRef(null);
   const employeeListRef = useRef(null);
 
   const route = useRoute();
@@ -36,15 +52,10 @@ const LaundryHome = ({ navigation }) => {
 
   const testServices = [
     { title: 'No services', category: 'No services', price: 'N/A' },
-    { title: 'No services', category: 'No services', price: 'N/A' },
-    { title: 'No services', category: 'No services', price: 'N/A' },
   ];
 
   const ITEM_HEIGHT = 64;
   const testCustomers = [
-    { name: 'No customers' },
-    { name: 'No customers' },
-    { name: 'No customers' },
     { name: 'No customers' },
   ];
 
@@ -105,143 +116,157 @@ const LaundryHome = ({ navigation }) => {
   // Normalize customers array for FlatList
   const customers =
     (Array.isArray(customerInfo?.user) && customerInfo.user.length ? customerInfo.user :
-    Array.isArray(customerInfo) && customerInfo.length ? customerInfo :
-    Array.isArray(laundryInfo?.users) && laundryInfo.users.length ? laundryInfo.users :
-    testCustomers);
+      Array.isArray(customerInfo) && customerInfo.length ? customerInfo :
+        Array.isArray(laundryInfo?.users) && laundryInfo.users.length ? laundryInfo.users :
+          testCustomers);
 
   return (
+
     <ScrollView style={styles.container}>
-      {/* Header Row */}
-      <View style={styles.topRow}>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Image style={styles.image} src={undefined} source={Vector} />
+      <View style={styles.adjustBottom}>
+        {/* Header Row */}
+        <View style={styles.topRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Image style={styles.image} source={Vector} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.editBtn}>
+            <Text style={styles.editBtnText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.notificationWrapper} onPress={() => setIsMenuVisible(true)}>
+          <View style={styles.badge}><Text style={styles.badgeText}>2</Text></View>
+          <Icon name="menu" style={styles.menuicon} size={28} />
+        </TouchableOpacity>
+        {isMenuVisible && <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} />}
+
+        {/* Laundry Header */}
+        <View style={styles.laundryHeader}>
+          <Text style={styles.laundryName}>{laundryInfo?.name || 'Laundry Name'}</Text>
+          <TouchableOpacity style={styles.addEmployeeBtn}>
+            <Text style={styles.addEmployeeText}>Add new employee</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.serviceCard}>
+          <Image
+            // source={require('../../assets/startimage.png')}
+            source={laundryInfo?.laundryImg ? { uri: `${IMG_URL}${laundryInfo.laundryImg}` } :
+              require('../../assets/startimage.png')}
+            style={styles.serviceImage}
+          />
+
+          <FlatList
+            ref={serviceListRef}
+            horizontal
+            pagingEnabled
+            data={laundryInfo?.services?.length ? laundryInfo.services : testServices}
+            keyExtractor={(item, i) => i.toString()}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('LaundryItems', { token, email, name: laundryInfo?.name || '' });
+                }}
+              >
+                <BlurView intensity={60} tint="light" style={styles.serviceItem}>
+                  {(servicesData?.length > 1) && (
+                    <View style={styles.paginationWrapper}>
+                      {(laundryInfo?.services || testServices).map((_, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.paginationDash,
+                            currentIndex === index && styles.paginationDashActive,
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                  <Text style={styles.serviceTitle}>{item?.title}</Text>
+                  {item?.category ?
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Icon name="scale-outline" size={14} color="#3C4234" />
+                      <Text style={styles.serviceSubtitle}>{item?.category}</Text>
+                    </View> :
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Icon name="scale-outline" size={14} color="#3C4234" />
+                      <Text style={styles.serviceSubtitle}>For each kg</Text>
+                    </View>
+                  }
+                  <Text style={styles.servicePrice}>${item?.price}</Text>
+                </BlurView>
+              </TouchableOpacity>
+            )}
+            style={styles.overlay}
+            onScroll={(e) => {
+              const index = Math.floor(
+                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
+              );
+              setCurrentIndex(index);
+            }}
+          />
+        </View>
+
+        {/* Employees Button */}
+        <TouchableOpacity style={styles.employeesBtn}>
+          <Text style={styles.employeesText}>Employees</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.editBtn}>
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity style={styles.notificationWrapper} onPress={() => setIsMenuVisible(true)}>
-        <View style={styles.badge}><Text style={styles.badgeText}>2</Text></View>
-        <Icon name="menu" style={styles.menuicon} size={28} />
-      </TouchableOpacity>
-      {isMenuVisible && <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} />}
-
-      {/* Laundry Header */}
-      <View style={styles.laundryHeader}>
-        <Text style={styles.laundryName}>{laundryInfo?.name || 'Laundry Name'}</Text>
-        <TouchableOpacity style={styles.addEmployeeBtn}>
-          <Text style={styles.addEmployeeText}>Add new employee</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.serviceCard}>
-        <Image
-          source={require('../../assets/startimage.png')}
-          style={styles.serviceImage}
-        />
-
+        {/* Customers / Employees List */}
+        <Text style={styles.sectionTitle}>Customers</Text>
         <FlatList
-          ref={serviceListRef}
+          ref={employeeListRef}
+          data={customers}
           horizontal
           pagingEnabled
-          data={laundryInfo?.services?.length ? laundryInfo.services : testServices}
-          keyExtractor={(item, i) => i.toString()}
           showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, index) => (item?.id?.toString?.() ?? index.toString())}
+          getItemLayout={(_, index) => ({
+            length: ITEM_HEIGHT,
+            offset: ITEM_HEIGHT * index,
+            index,
+          })}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('LaundryItems', { token, email, name: laundryInfo?.name || '' });
-              }}
-            >
-              <BlurView intensity={60} tint="light" style={styles.serviceItem}>
-                {(servicesData?.length > 1) && (
-                  <View style={styles.paginationWrapper}>
-                    {(laundryInfo?.services || testServices).map((_, index) => (
-                      <View
-                        key={index}
-                        style={[
-                          styles.paginationDash,
-                          currentIndex === index && styles.paginationDashActive,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                )}
-                <Text style={styles.serviceTitle}>{item?.title}</Text>
-                <Text style={styles.serviceSubtitle}>{item?.category}</Text>
-                <Text style={styles.servicePrice}>${item?.price}</Text>
-              </BlurView>
-            </TouchableOpacity>
+            <View style={styles.customerCard}>
+              <View style={[styles.avatarBox, { backgroundColor: colorFor(item?.name || 'Customer') }]}>
+                <Text style={styles.avatarInitials}>{getInitials(item?.name || 'Customer')}</Text>
+              </View>
+              <View style={styles.customerNameWrapper}>
+                <Text style={styles.customerName}>{item?.name || 'Customer'}</Text>
+              </View>
+            </View>
           )}
-          style={styles.overlay}
           onScroll={(e) => {
             const index = Math.floor(
               e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
             );
             setCurrentIndex(index);
           }}
+          style={styles.overlaycus}
         />
-      </View>
 
-      {/* Employees Button */}
-      <TouchableOpacity style={styles.employeesBtn}>
-        <Text style={styles.employeesText}>Employees</Text>
-      </TouchableOpacity>
-
-      {/* Customers / Employees List */}
-      <Text style={styles.sectionTitle}>Customers</Text>
-      <FlatList
-        ref={employeeListRef}
-        data={customers}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item, index) => (item?.id?.toString?.() ?? index.toString())}
-        getItemLayout={(_, index) => ({
-          length: ITEM_HEIGHT,
-          offset: ITEM_HEIGHT * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-          <View style={styles.customerCard}>
-            <Image
-              source={
-                item?.imageUrl
-                  ? { uri: item.imageUrl }
-                  : StartImage
-              }
-              style={styles.customerImage}
-            />
-            <View style={styles.customerNameWrapper}>
-              <Text style={styles.customerName}>{item?.name || 'Customer'}</Text>
-            </View>
+        {/* About Section */}
+        <View style={styles.aboutSection}>
+          <Text style={styles.aboutTitle}>About Us</Text>
+          <View style={styles.ratingRow}>
+            <Text style={{ color: '#FFC107', fontSize: 16 }}>⭐ {laundryInfo?.rating || '0.0'}</Text>
+            <Text style={{ color: '#555', marginLeft: 4 }}>({laundryInfo?.reviewCount || '0'} Reviews)</Text>
           </View>
-        )}
-        onScroll={(e) => {
-          const index = Math.floor(
-            e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
-          );
-          setCurrentIndex(index);
-        }}
-        style={styles.overlaycus}
-      />
-
-      {/* About Section */}
-      <View style={styles.aboutSection}>
-        <Text style={styles.aboutTitle}>About Us</Text>
-        <View style={styles.ratingRow}>
-          <Text style={{ color: '#FFC107', fontSize: 16 }}>⭐ {laundryInfo?.rating || '0.0'}</Text>
-          <Text style={{ color: '#555', marginLeft: 4 }}>({laundryInfo?.reviewCount || '0'} Reviews)</Text>
+          <Text style={styles.aboutText}>{laundryInfo?.about || 'Laundry description not available.'}</Text>
         </View>
-        <Text style={styles.aboutText}>{laundryInfo?.about || 'Laundry description not available.'}</Text>
+
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  adjustBottom: {
+    bottom: 30,
+    marginTop: 16
+  },
   paginationWrapper: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -268,7 +293,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
 
-  container: { flex: 1, backgroundColor: '#fff', padding: 16, marginTop: 16 },
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   forback: {
     top: '6.5%',
@@ -384,6 +409,23 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
+  avatarBox: {
+    width: 130,
+    height: 130,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#a3ae95",
+    zIndex: 10,
+  },
+  avatarInitials: {
+    fontSize: 42,
+    fontWeight: "800",
+    color: "#ffffff",
+    letterSpacing: 1,
+  },
+
   customerNameWrapper: {
     position: 'absolute',
     width: 130,
@@ -404,7 +446,7 @@ const styles = StyleSheet.create({
   },
 
   serviceTitle: { fontSize: 18, fontWeight: '600', color: '#3C4234' },
-  serviceSubtitle: { fontSize: 12, fontWeight: '600', color: '#666' },
+  serviceSubtitle: { fontSize: 12, fontWeight: '600', color: '#666', margin: 5 },
   servicePrice: {
     fontSize: 20,
     color: '#3C4234',
