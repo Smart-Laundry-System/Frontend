@@ -608,7 +608,7 @@ export default function UserLaundry({ navigation }) {
       try {
         const r = await authGet("/api/auth/laundryById", token, { params: { id } });
         setDetails(r.data);
-      } catch {}
+      } catch { }
     } catch (err) {
       Toast.show({ type: "error", text1: "Couldn't submit rating", text2: "Please try again." });
     }
@@ -660,7 +660,7 @@ export default function UserLaundry({ navigation }) {
       laundryId: details?.id || details?.laundryId || details?.ownerEmail,
     };
 
-    console.log("my...............................my................mt.......",bodye);
+    console.log("my...............................my................mt.......", bodye);
 
     // Update/attach the customer to the laundry (non-fatal if it fails)
     try {
@@ -1004,6 +1004,18 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: GREEN,
   },
+
+  sheetSubmit: {
+    marginTop: 8,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#3C4234",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+
   centerBoxWhite: {
     width: "92%",
     maxWidth: 380,

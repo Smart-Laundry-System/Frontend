@@ -77,7 +77,7 @@ import LaundryHome from './screens/LaundryAdmin/LaundryHome';
 import UserHome from './screens/LaundryUsers/UserHome';
 import Profile from './screens/LaundryAdmin/AfterLogedIn/Profile';
 import Toast from 'react-native-toast-message';
-import ComplaintsPage from './screens/Complain/ComplaintsPage';
+import ComplaintsPage from './screens/LaundryAdmin/AfterLogedIn/Complain/ComplaintsPage';
 import ProfileUser from './screens/LaundryUsers/AfterLogedIn/ProfileUser';
 import UserOrders from './screens/LaundryUsers/AfterLogedIn/UserOrders';
 import NotificationFrmLaundry from './screens/LaundryUsers/AfterLogedIn/NotificationFrmLaundry';

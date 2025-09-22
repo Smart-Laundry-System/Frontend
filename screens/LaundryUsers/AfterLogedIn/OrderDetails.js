@@ -27,7 +27,15 @@ import UserComplainModel from "../../../components/Notification/UserComplainMode
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
-const CARD_BG = "#FFFBEA";
+const RED = "#B00020";
+const BLACK = "#000";
+const BLACKOP = "rgba(0,0,0,0.35)";
+const YELLOW = "#D4A017";
+const WHITE = "#fff";
+const WHITEBIRGE = "#E6ECE1";
+const STATUSBOX = "#F2F2F0";
+const STATUSBOXAC = "#C8D2C1";
+const BORDERBOT = "#EFEFE8";
 const PLACE_IMG =
   "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=1200";
 
@@ -41,9 +49,9 @@ const STATUS_COLORS = {
 
 /* -------------------------------- endpoints ------------------------------- */
 const ENDPOINTS = {
-  orderById: "/api/auth/retriveOrderById", // GET ?orderID=
-  servicesByIds: "/api/auth/retriveServiceById", // GET ?ids=1&ids=2
-  requestEstimatedDate: "/api/auth/order/requestEstimatedDate", // PUT ?orderID=&date=
+  orderById: "/api/auth/retriveOrderById",
+  servicesByIds: "/api/auth/retriveServiceById",
+  requestEstimatedDate: "/api/auth/order/requestEstimatedDate",
 };
 
 export default function OrderDetails() {
@@ -57,22 +65,15 @@ export default function OrderDetails() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // UI: picker modal + locally chosen (not yet submitted) date
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingRequestDate, setPendingRequestDate] = useState(null);
 
-  // About section controls
   const [expandedAbout, setExpandedAbout] = useState(false);
   const [aboutOverflows, setAboutOverflows] = useState(false);
 
   const [modalVisiblec, setModalVisiblec] = useState(false);
 
   const [showServicesSheet, setShowServicesSheet] = useState(false);
-
-  const authHeader = useMemo(
-    () => ({ Authorization: `Bearer ${token}` }),
-    [token]
-  );
 
   const toast = {
     ok: (t1, t2) =>
@@ -151,7 +152,7 @@ export default function OrderDetails() {
 
       const mapped = mapToUi(o);
       setOrder(mapped);
-
+      console.log(mapped);
       // reset any unstaged selection when fresh data loads
       setPendingRequestDate(null);
 
@@ -177,6 +178,11 @@ export default function OrderDetails() {
     fetchOrder();
   }, [fetchOrder]);
 
+  const authHeader = useMemo(
+    () => ({ Authorization: `Bearer ${token}` }),
+    [token]
+  );
+
   const statusIndex = useMemo(() => {
     const s = (order?.status || "").toUpperCase();
     if (s.includes("REACHED")) return 3;
@@ -195,7 +201,6 @@ export default function OrderDetails() {
       ? `$${order.totPrice.toFixed(2)}`
       : "$0.00";
 
-  // Put these near your other useMemo blocks
   const serviceNames = useMemo(
     () => (Array.isArray(services) ? services : [])
       .map(s => s?.title ?? s?.name ?? String(s?.id ?? "")),
@@ -219,7 +224,7 @@ export default function OrderDetails() {
     if (Platform.OS === "ios") setShowDatePicker(false);
   };
 
-  // confirm request -> call server with picked date
+  // customer date confirmation for picked date
   const onConfirmRequest = async () => {
     if (!order?.id || !pendingRequestDate) return;
     try {
@@ -256,7 +261,7 @@ export default function OrderDetails() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={{ color: "#B00020", marginBottom: 8 }}>
+          <Text style={{ color: RED, marginBottom: 8 }}>
             {error || "Order not found"}
           </Text>
         </View>
@@ -291,13 +296,12 @@ export default function OrderDetails() {
             contentContainerStyle={{ paddingBottom: 28 }}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Header */}
             <View style={styles.headerRow}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Image source={Vector} />
               </TouchableOpacity>
 
-              {/* Confirm Request: enabled only when a date was chosen via Update */}
+              {/* Confirm Request: enabled only when a date was requsted with customer via update button */}
               <TouchableOpacity
                 style={[
                   styles.badgePill,
@@ -313,10 +317,10 @@ export default function OrderDetails() {
               </TouchableOpacity>
             </View>
 
-            {/* Title: Laundry name */}
+            {/* Laundry name */}
             <Text style={styles.title}>{order.customerName}</Text>
 
-            {/* Banner card */}
+            {/* Top pard card with laundry image */}
             <ImageBackground
               source={{ uri: toAbs(order.laundryImg) }}
               style={styles.banner}
@@ -339,13 +343,13 @@ export default function OrderDetails() {
 
                 <TouchableOpacity style={styles.moreBtn} onPress={() => setShowServicesSheet(true)}>
                   {/* <View > */}
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#000" />
+                  <Ionicons name="ellipsis-horizontal" size={16} color={BLACK} />
                   {/* </View> */}
                 </TouchableOpacity>
               </View>
             </ImageBackground>
 
-            {/* Status (read-only) */}
+            {/* Status customer only can view */}
             <Text style={styles.sectionTitle}>Status</Text>
             <View style={styles.statusRow}>
               <StatusBox label="Pick up" icon="hand-left" active={statusIndex >= 0} />
@@ -357,7 +361,7 @@ export default function OrderDetails() {
               <StatusBox label="Reached" icon="home" active={statusIndex >= 3} />
             </View>
 
-            {/* Total */}
+            {/* Total price*/}
             <View style={styles.sumRow}>
               <Text style={[styles.sumLabel, { fontWeight: "700" }]}>Total:</Text>
               <Text style={[styles.sumValue, { opacity: 0.7 }]}>{priceLabel}</Text>
@@ -368,7 +372,7 @@ export default function OrderDetails() {
               {hasRequest ? "Requested Completed Date" : "Estimated Completed Date"}
             </Text>
 
-            {/* Date + Update button */}
+            {/* Date for customer request */}
             <View
               style={{
                 flexDirection: "row",
@@ -399,26 +403,18 @@ export default function OrderDetails() {
                 : "Before update check the notification"}
             </Text>
 
-            {/* About + Complain in one line */}
+            {/* About the laundry */}
             <View style={styles.aboutHeaderRow}>
               <Text style={styles.sectionTitle}>About {order.customerName}</Text>
-
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => setModalVisiblec(true)}
-              >
-                <Text style={styles.secondaryBtnText}>Complain</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* Rating (optional) */}
+            {/* Rating part */}
             <View style={styles.aboutRow}>
-              <Ionicons name="star" size={14} color="#D4A017" />
+              <Ionicons name="star" size={14} color={YELLOW} />
               <Text style={styles.aboutRating}> 4.3</Text>
             </View>
 
-            {/* ABOUT TEXT + SEE MORE */}
-            {/* Capture touches so outside-press doesn't collapse when tapping inside */}
+            {/* See more with about part */}
             <View
               onStartShouldSetResponder={() => true}
               style={{ marginTop: 6 }}
@@ -448,12 +444,21 @@ export default function OrderDetails() {
               )}
             </View>
 
-            {/* Complaint modal */}
+            <View style={{ alignItems: 'center' }}>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setModalVisiblec(true)}
+              >
+                <Text style={styles.secondaryBtnText}>Complain</Text>
+              </TouchableOpacity>
+            </View>
+
             <UserComplainModel
               visible={modalVisiblec}
               email={email}
               onClose={() => setModalVisiblec(false)}
               token={token}
+            // laundrtId={id}
             />
           </ScrollView>
         </Pressable>
@@ -480,7 +485,7 @@ export default function OrderDetails() {
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={onDatePicked}
               minimumDate={new Date()}
-              style={{ backgroundColor: "#fff", borderRadius: 10 }}
+              style={{ backgroundColor: WHITE, borderRadius: 10 }}
             />
           </Modal>
           <Modal
@@ -518,29 +523,30 @@ export default function OrderDetails() {
   );
 }
 
-/* ------------------------------- small parts ------------------------------- */
+/* ------------------------------- status parts ------------------------------- */
 function StatusBox({ label, icon, active }) {
   return (
     <View style={[styles.statusBox, active && styles.statusBoxActive]}>
       <Ionicons
         name={icon}
         size={18}
-        color={active ? "#000" : "rgba(0,0,0,0.35)"}
+        color={active ? BLACK : BLACKOP}   // was {BLACK}/{BLACKOP}
       />
-      <Text style={[styles.statusLabel, active && { color: "#000" }]}>
+      <Text style={[styles.statusLabel, active && { color: BLACK }]}>
         {label}
       </Text>
     </View>
   );
 }
+
 function StatusConnector() {
   return <View style={styles.connector} />;
 }
 
 /* --------------------------------- styles --------------------------------- */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
-  container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 },
+  safe: { flex: 1, backgroundColor: WHITE },
+  container: { flex: 1, backgroundColor: WHITE, paddingHorizontal: 16 },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
 
@@ -566,7 +572,7 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 12,
-    backgroundColor: "#ffffffd0",
+    backgroundColor: WHITE,
     borderRadius: 16,
     padding: 12,
     flexDirection: "row",
@@ -577,7 +583,7 @@ const styles = StyleSheet.create({
   addrText: { color: MUTED, fontSize: 12 },
   pricePill: {
     marginLeft: "auto",
-    backgroundColor: "#E6ECE1",
+    backgroundColor: WHITEBIRGE,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -588,7 +594,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#00000010",
+    backgroundColor: BORDERBOT,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -605,17 +611,19 @@ const styles = StyleSheet.create({
   statusBox: {
     width: 64,
     height: 64,
-    backgroundColor: "#F2F2F0",
+    backgroundColor: STATUSBOX,   // was {STATUSBOX}
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 6,
   },
-  statusBoxActive: { backgroundColor: "#C8D2C1" },
+  statusBoxActive: {
+    backgroundColor: STATUSBOXAC,
+  },
   statusLabel: {
     marginTop: 6,
     fontSize: 10,
-    color: "rgba(0,0,0,0.35)",
+    color: BLACKOP,    
     fontWeight: "600",
   },
   connector: {
@@ -633,7 +641,7 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: "center",
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: WHITE,
   },
   dateText: { color: TEXT, fontWeight: "700" },
 
@@ -673,13 +681,14 @@ const styles = StyleSheet.create({
   aboutRating: { color: TEXT, fontWeight: "700", marginLeft: 4 },
 
   secondaryBtn: {
-    height: 40,
-    paddingHorizontal: 14,
+    width: "75%",
+    height: 42,
+    backgroundColor: GREEN,
     borderRadius: 10,
+    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: TEXT,
+    marginTop: 20,
   },
   secondaryBtnText: { color: TEXT, fontWeight: "700" },
 
@@ -695,13 +704,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: "#F2F2F0",
+    backgroundColor: STATUSBOX,
   },
   seeMoreText: { color: TEXT, fontWeight: "700" },
   servicesSheet: {
     marginHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: "#fff",
+    backgroundColor: WHITE,
     padding: 16,
   },
   sheetTitle: { color: TEXT, fontWeight: "800", marginBottom: 12 },
@@ -710,7 +719,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EFEFE8",
+    borderBottomColor: BORDERBOT,
   },
   serviceTitle: { color: TEXT, flex: 1, marginRight: 10 },
   servicePrice: { color: TEXT, fontWeight: "700" },
@@ -726,7 +735,7 @@ const styles = StyleSheet.create({
   assignBackText: { color: TEXT, fontWeight: "700" },
 
   datePickerSheet: {
-    backgroundColor: "#fff",
+    backgroundColor: WHITE,
     padding: 12,
     borderRadius: 16,
     marginHorizontal: 20,

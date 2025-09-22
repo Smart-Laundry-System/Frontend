@@ -35,7 +35,7 @@ const FILTER_OPTIONS = [
 ];
 
 const ENDPOINTS = {
-  complaints: "/api/auth/retrieveComplaints", // expects ?email=...
+  complaints: "/api/auth/retrieveComplaints", 
 };
 
 export default function ComplaintsList() {
@@ -55,7 +55,6 @@ export default function ComplaintsList() {
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // modal for full complaint
   const [modalVisible, setModalVisible] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
 
@@ -65,7 +64,6 @@ export default function ComplaintsList() {
     return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-  // Map arbitrary backend complaint → UI row
   const mapApiToUi = useCallback((c) => {
     const when = c?.createdAt || (c?.date && c?.time ? `${c.date} ${c.time}` : c?.date || c?.time || null);
     const [timeLabel, dateLabel] = formatDateTime(when);
@@ -222,7 +220,6 @@ export default function ComplaintsList() {
           />
         )}
 
-        {/* Modal (full complaint) */}
         <Portal>
           <Modal visible={modalVisible} onDismiss={closeModal} dismissable contentContainerStyle={styles.sheet}>
             <Text style={styles.modalTitle}>{activeItem?.subject || "Complaint"}</Text>

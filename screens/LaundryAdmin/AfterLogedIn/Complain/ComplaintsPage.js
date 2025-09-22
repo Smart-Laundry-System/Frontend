@@ -14,31 +14,30 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { BlurView } from 'expo-blur'; // If not using Expo: use @react-native-community/blur
-import Back from '../../assets/Vector.png';
-import DropDown from '../../components/Menu/DropDown';
+import Back from '../../../../assets/Vector.png';
+import DropDown from '../../../../components/Menu/DropDown';
 
-// ==== Dummy data with unique ids + extra fields for filtering/detail =====
 const dummyComplaints = [
   {
     id: '1',
     subject: 'Washer not working',
     date: '2025-08-01',
     time: '10:00 AM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Amal Perera',
     address: 'No. 12, Galle Rd, Colombo',
     phone: '0771234567',
     email: 'amal@example.com',
     object: 'Washer #12',
     description: 'Machine does not start; error code E02.',
-    avatar: null, // or a require(...) / URL
+    avatar: null,
   },
   {
     id: '2',
     subject: 'Late service',
     date: '2025-08-02',
     time: '11:30 AM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Kavindi Silva',
     address: 'Kandy Rd, Peradeniya',
     phone: '0715556666',
@@ -52,7 +51,7 @@ const dummyComplaints = [
     subject: 'Wrong item delivered',
     date: '2025-08-03',
     time: '02:45 PM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'M. Rahman',
     address: 'Main St, Jaffna',
     phone: '0751112222',
@@ -66,7 +65,7 @@ const dummyComplaints = [
     subject: 'No response from staff',
     date: '2025-08-04',
     time: '03:15 PM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Tharindu Jay',
     address: 'Matara',
     phone: '0709988776',
@@ -80,7 +79,7 @@ const dummyComplaints = [
     subject: 'Washer not working',
     date: '2025-08-01',
     time: '10:00 AM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Amal Perera',
     address: 'No. 12, Galle Rd, Colombo',
     phone: '0771234567',
@@ -94,7 +93,7 @@ const dummyComplaints = [
     subject: 'Late service',
     date: '2025-08-02',
     time: '11:30 AM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Kavindi Silva',
     address: 'Kandy Rd, Peradeniya',
     phone: '0715556666',
@@ -108,7 +107,7 @@ const dummyComplaints = [
     subject: 'Wrong item delivered',
     date: '2025-08-03',
     time: '02:45 PM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'M. Rahman',
     address: 'Main St, Jaffna',
     phone: '0751112222',
@@ -122,7 +121,7 @@ const dummyComplaints = [
     subject: 'No response from staff',
     date: '2025-08-04',
     time: '03:15 PM',
-    image: require('../../assets/backLogin.png'),
+    image: require('../../../../assets/backLogin.png'),
     name: 'Tharindu Jay',
     address: 'Matara',
     phone: '0709988776',
@@ -131,10 +130,8 @@ const dummyComplaints = [
     description: 'Called twice; no call back.',
     avatar: null,
   },
-  // ... add more as needed with unique ids
 ];
 
-// ===== Helpers =====
 const DEFAULT_SEARCH_KEYS = [
   'subject',
   'date',
@@ -292,19 +289,17 @@ const ComplaintsPage = () => {
           activeOpacity={1}
           onPress={closeDetail}
         >
-          {/* Prevent closing when tapping inside the card */}
           <TouchableOpacity
             activeOpacity={1}
             style={styles.detailCard}
             onPress={(e) => e.stopPropagation()}
           >
-            {/* header with avatar */}
             <View style={styles.detailHeader}>
               <Image
                 source={
                   selectedItem?.avatar
                     ? selectedItem.avatar
-                    : require('../../assets/backLogin.png') // fallback
+                    : require('../../../../assets/backLogin.png')
                 }
                 style={styles.avatar}
               />

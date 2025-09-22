@@ -3,11 +3,9 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 const RegistrationContext = createContext(null);
 
 export function RegistrationProvider({ children }) {
-  const [isSwitchOn, setIsSwitchOn] = useState(false);
+  const [isSwitchOn, setIsSwitchOn] = useState(true);
 
-  // Single source of truth for the whole registration flow
   const [basicInfo, setBasicInfo] = useState({
-    // Step 1 (UserRegistre)
     laundryName: "",
     email: "",
     password: "",
@@ -15,29 +13,16 @@ export function RegistrationProvider({ children }) {
     phone: "",
     phone2: "",
     role: "LAUNDRY",
-
-    // Step 1 output (names only)
-    // e.g. ["Ironing", "Dry Clean"] or [{ name/title,... }]
     selectedOptions: [],
-
-    // Step 2 (with prices) — normalized shape
-    // [{ title: "Ironing", price: "120" }, ...]
     services: [],
-
-    // Step 2 selections
-    availableItems: [],   // combined list (types + cloths + user's "others")
-    otherItems: [],       // raw "others" inputs (optional to keep)
-    laundryImageUrl: "",  // single uploaded laundry image absolute URL
-
-    // NEW: Business hours (send to backend as "HH:mm")
-    openTime: "",         // e.g. "09:00"
-    closeTime: "",        // e.g. "21:00"
-
-    // Final step
-    about: "",            // "About the laundry" / message
+    availableItems: [],   
+    otherItems: [],       
+    laundryImageUrl: "",  
+    openTime: "", 
+    closeTime: "",
+    about: "",   
   });
-
-  // ---- helpers ----
+  
   // Merge a patch into basicInfo (preferred way to update)
   const updateBasicInfo = (patch = {}) =>
     setBasicInfo((prev) => ({ ...(prev ?? {}), ...patch }));

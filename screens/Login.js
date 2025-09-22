@@ -1,4 +1,3 @@
-// screens/Login.js
 import React, { useEffect, useRef, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import Toast from "react-native-toast-message";
@@ -11,7 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Pressable, // ✅ added
+  Pressable,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import {
@@ -53,7 +52,6 @@ function Login({ navigation }) {
   };
 
   const isValidPassword = (pwd) => {
-    // At least 8 chars, at least one special symbol
     const passwordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
     return passwordRegex.test(pwd);
   };
@@ -318,7 +316,6 @@ function Login({ navigation }) {
     }
   };
 
-  // ---------- Modal Bodies ----------
   const ForgotBody = (
     <View style={[styles.modalView, { marginTop: keyboardVisible ? "-45%" : '-35%' }]}>
       <Text style={styles.modalText}>Enter your registered email</Text>
@@ -424,7 +421,6 @@ function Login({ navigation }) {
     </View>
   );
 
-  // ---------- Modal Renderers (Portal vs RN Modal) ----------
   const renderForgotModal = () => {
     if (USE_PORTAL) {
       return (
@@ -432,14 +428,14 @@ function Login({ navigation }) {
           <PaperModal
             visible={modalVisible}
             onDismiss={() => setModalVisible(false)}
-            dismissable={true} // ✅ allow outside tap to dismiss
+            dismissable={true} 
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
             {/* Outer pressable covers the screen area inside PaperModal content
                 and closes when tapping outside the inner card */}
             <Pressable
               style={styles.modalBackground}
-              onPress={() => setModalVisible(false)} // outside tap
+              onPress={() => setModalVisible(false)}
             >
               {/* Inner pressable prevents outside-close when tapping content */}
               <Pressable onPress={(e) => e.stopPropagation()}>
@@ -459,10 +455,9 @@ function Login({ navigation }) {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        {/* Same tap-outside-to-close pattern for RN Modal */}
         <Pressable
           style={styles.modalBackground}
-          onPress={() => setModalVisible(false)} // outside tap
+          onPress={() => setModalVisible(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <BlurView intensity={20}>{ForgotBody}</BlurView>
@@ -479,12 +474,12 @@ function Login({ navigation }) {
           <PaperModal
             visible={modalVisiblenext}
             onDismiss={() => setModalVisiblenext(false)}
-            dismissable={true} // ✅ allow outside tap
+            dismissable={true} 
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
             <Pressable
               style={styles.modalBackground}
-              onPress={() => setModalVisiblenext(false)} // outside tap
+              onPress={() => setModalVisiblenext(false)}
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
                 <BlurView intensity={20}>{ResetBody}</BlurView>
@@ -503,7 +498,7 @@ function Login({ navigation }) {
       >
         <Pressable
           style={styles.modalBackground}
-          onPress={() => setModalVisiblenext(false)} // outside tap
+          onPress={() => setModalVisiblenext(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <BlurView intensity={20}>{ResetBody}</BlurView>
@@ -513,7 +508,6 @@ function Login({ navigation }) {
     );
   };
 
-  // ---------- Screen ----------
   const ScreenBody = (
     <View style={styles.container}>
       <Image source={backLogin} style={styles.imageBack} />
@@ -679,7 +673,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: "#FF0000",
   },
-  modalBackground: { flex: 1, justifyContent: "center" }, // unchanged
+  modalBackground: { flex: 1, justifyContent: "center" }, 
   modalView: {
     height: 250,
     backgroundColor: "#A3AE95",

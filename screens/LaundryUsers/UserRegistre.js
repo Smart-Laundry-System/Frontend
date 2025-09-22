@@ -25,8 +25,6 @@ import Or from '../../components/Button/Or';
 import CreateAc from '../../components/Button/CreateAc';
 import { useRegistration } from '../../context/RegistrationContext';
 
-const { width } = Dimensions.get('window');
-
 function UserRegistre({ navigation }) {
   const {
     isSwitchOn,

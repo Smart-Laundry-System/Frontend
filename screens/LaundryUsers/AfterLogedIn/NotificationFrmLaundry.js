@@ -1,4 +1,3 @@
-// screens/notifications/UserNotifications.js
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -38,7 +37,7 @@ export default function NotificationFrmLaundry() {
 
   const token = route?.params?.token ?? "";
   const email = route?.params?.email ?? "";
-  const setUnseenBadge = route?.params?.setUnseen; // optional setter from parent
+  const setUnseenBadge = route?.params?.setUnseen;
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +50,6 @@ export default function NotificationFrmLaundry() {
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // detail modal state
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
 
@@ -76,7 +74,7 @@ const mapApiNotifToUi = useCallback((n) => {
     id: String(n?.id ?? n?.notificationId ?? n?._id ?? Math.random()),
     name: n?.laundryName || n?.title || "Name of the Laundry",
     address: n?.laundryAddress || n?.address || "",
-    subject: n?.subject ?? "",                       // ← ADD THIS
+    subject: n?.subject ?? "",                   
     message: n?.message || n?.subject || "Message",
     timeLabel,
     dateLabel,
@@ -87,7 +85,6 @@ const mapApiNotifToUi = useCallback((n) => {
 }, []);
 
 
-  // GET /api/auth/retrieveUserNotifications?email=...
   const loadNotifications = useCallback(async () => {
     try {
       setError("");
