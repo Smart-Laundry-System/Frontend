@@ -18,13 +18,22 @@ import {
   Portal,
   Modal as PaperModal,
 } from "react-native-paper";
-import { api, authPost, API_URL } from "../Services/api";
+
+import { api, API_URL } from "../Services/api";
 
 import Vector from "../assets/Vector.png";
 import backLogin from "../assets/backLogin.png";
 import imageLoginBack from "../assets/imageLoginBack.png";
 import Or from "../components/Button/Or";
 import CreateAc from "../components/Button/CreateAc";
+
+import {
+  AppTheme,
+  tokens,
+  isValidEmail,
+  isValidPassword,
+  TOAST,
+} from "../styles/theme";
 
 const USE_PORTAL = true;
 
@@ -46,130 +55,85 @@ function Login({ navigation }) {
 
   const navLockedRef = useRef(false);
 
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const isValidPassword = (pwd) => {
-    const passwordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-    return passwordRegex.test(pwd);
-  };
-
-  const backtoback = () => {
-    navigation.navigate("Home");
-  };
+  const backtoback = () => navigation.navigate("Home");
 
   const sendemail = async () => {
-    if (!fpEmail.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Smart Laundry",
-        text2: "Email is required",
-        position: "top",
-        visibilityTime: 2000,
-      });
+    const email = (fpEmail || "").trim();
+    if (!email) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "Email is required"));
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Toast.show(TOAST.errorTop("Invalid Email", "Please enter a valid email address"));
       return;
     }
     try {
       setIsSendingOtp(true);
-      const res = await api.post("/auth/v1/forgotPassword", {
-        email: fpEmail.trim(),
-      });
-      Toast.show({
-        type: "success",
-        text1: "Smart Laundry",
-        text2: res?.data || "OTP sent successfully",
-        position: "top",
-        visibilityTime: 2000,
-      });
+      const res = await api.post("/auth/v1/forgotPassword", { email });
+      Toast.show(TOAST.success("Smart Laundry", res?.data || "OTP sent successfully"));
       setModalVisible(false);
-      setRpEmail(fpEmail.trim());
+      setRpEmail(email);
       setModalVisiblenext(true);
     } catch (e) {
-      Toast.show({
-        type: "error",
-        text1: "Smart Laundry",
-        text2: e?.response?.data || e?.message || "Failed to send OTP",
-        position: "top",
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorTop(
+          "Smart Laundry",
+          e?.response?.data || e?.message || "Failed to send OTP"
+        )
+      );
     } finally {
       setIsSendingOtp(false);
     }
   };
 
   const onResetPassword = async () => {
-    if (!rpEmail.trim() || !rpOtp.trim() || !rpPass.trim() || !rpConfirm.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Smart Laundry",
-        text2: "All fields are required",
-        position: "top",
-        visibilityTime: 2000,
-      });
+    const email = (rpEmail || "").trim();
+    const otp = (rpOtp || "").trim();
+    const pass = (rpPass || "").trim();
+    const confirm = (rpConfirm || "").trim();
+
+    if (!email || !otp || !pass || !confirm) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "All fields are required"));
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Toast.show(TOAST.errorTop("Invalid Email", "Please enter a valid email address"));
+      return;
+    }
+    if (!isValidPassword(pass)) {
+      Toast.show(
+        TOAST.errorTop(
+          "Weak Password",
+          "Password must be at least 8 characters and include one symbol"
+        )
+      );
+      return;
+    }
+    if (pass !== confirm) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "Passwords do not match"));
       return;
     }
 
-    if (!isValidEmail(rpEmail.trim())) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid Email",
-        text2: "Please enter a valid email address",
-        position: "top",
-        visibilityTime: 2000,
-      });
-      return;
-    }
-
-    if (!isValidPassword(rpPass)) {
-      Toast.show({
-        type: "error",
-        text1: "Weak Password",
-        text2: "Password must be at least 8 characters and include one symbol",
-        position: "top",
-        visibilityTime: 2000,
-      });
-      return;
-    }
-
-    if (rpPass !== rpConfirm) {
-      Toast.show({
-        type: "error",
-        text1: "Smart Laundry",
-        text2: "Passwords do not match",
-        position: "top",
-        visibilityTime: 2000,
-      });
-      return;
-    }
     try {
       setIsResetting(true);
       const res = await api.put("/auth/v1/resetPassword", {
-        userName: rpEmail.trim(),
-        otp: rpOtp.trim(),
-        password: rpPass,
+        userName: email,
+        otp,
+        password: pass,
       });
-      Toast.show({
-        type: "success",
-        text1: "Smart Laundry",
-        text2: res?.data || "Password updated",
-        position: "top",
-        visibilityTime: 2000,
-      });
+      Toast.show(TOAST.success("Smart Laundry", res?.data || "Password updated"));
       setModalVisiblenext(false);
       setRpEmail("");
       setRpOtp("");
       setRpPass("");
       setRpConfirm("");
     } catch (e) {
-      Toast.show({
-        type: "error",
-        text1: "Smart Laundry",
-        text2: e?.response?.data || e?.message || "Password update failed",
-        position: "top",
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorTop(
+          "Smart Laundry",
+          e?.response?.data || e?.message || "Password update failed"
+        )
+      );
     } finally {
       setIsResetting(false);
     }
@@ -184,11 +148,7 @@ function Login({ navigation }) {
     );
 
     if (!API_URL) {
-      Toast.show({
-        type: "error",
-        text1: "Missing API_URL",
-        text2: "Set it in app config and rebuild.",
-      });
+      Toast.show(TOAST.errorTop("Missing API_URL", "Set it in app config and rebuild."));
     }
 
     return () => {
@@ -207,36 +167,24 @@ function Login({ navigation }) {
   const submitCredantial = async () => {
     if (isSubmitting) return;
 
-    if (!userName.trim() || !password.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Missing Credentials",
-        text2: "Please enter both email and password",
-        position: "bottom",
-        visibilityTime: 2000,
-      });
+    const email = (userName || "").trim();
+    const pwd = (password || "").trim();
+
+    if (!email || !pwd) {
+      Toast.show(TOAST.errorBottom("Missing Credentials", "Please enter both email and password"));
       return;
     }
-
-    if (!isValidEmail(userName.trim())) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid Email",
-        text2: "Please enter a valid email address",
-        position: "bottom",
-        visibilityTime: 2000,
-      });
+    if (!isValidEmail(email)) {
+      Toast.show(TOAST.errorBottom("Invalid Email", "Please enter a valid email address"));
       return;
     }
-
-    if (!isValidPassword(password)) {
-      Toast.show({
-        type: "error",
-        text1: "Weak Password",
-        text2: "Password must be at least 8 characters and include one symbol",
-        position: "bottom",
-        visibilityTime: 2000,
-      });
+    if (!isValidPassword(pwd)) {
+      Toast.show(
+        TOAST.errorBottom(
+          "Weak Password",
+          "Password must be at least 8 characters and include one symbol"
+        )
+      );
       return;
     }
 
@@ -244,8 +192,8 @@ function Login({ navigation }) {
 
     try {
       const response = await api.post("/auth/v1/login", {
-        username: userName,
-        password,
+        username: email,
+        password: pwd,
       });
 
       const receivedToken = response?.data;
@@ -275,13 +223,9 @@ function Login({ navigation }) {
           ],
         });
 
-        Toast.show({
-          type: "success",
-          text1: "Welcome to Smart Laundry",
-          text2: "Check your notifications first",
-          position: "top",
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.success("Welcome to Smart Laundry", "Check your notifications first")
+        );
       } else if (decodedToken.role === "LAUNDRY") {
         navigation.reset({
           index: 0,
@@ -294,46 +238,30 @@ function Login({ navigation }) {
         });
       } else {
         navLockedRef.current = false;
-        Toast.show({
-          type: "error",
-          text1: "Login Failed",
-          text2: "Unknown user role",
-          position: "bottom",
-          visibilityTime: 2000,
-        });
+        Toast.show(TOAST.errorBottom("Login Failed", "Unknown user role"));
       }
     } catch (error) {
       navLockedRef.current = false;
-      Toast.show({
-        type: "error",
-        text1: "Login Error",
-        text2: "Invalid credentials or server error",
-        position: "bottom",
-        visibilityTime: 2000,
-      });
+      Toast.show(TOAST.errorBottom("Login Error", "Invalid credentials or server error"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const ForgotBody = (
-    <View style={[styles.modalView, { marginTop: keyboardVisible ? "-45%" : '-35%' }]}>
+    <View
+      style={[
+        styles.modalView,
+        { marginTop: keyboardVisible ? "-45%" : "-35%" },
+      ]}
+    >
       <Text style={styles.modalText}>Enter your registered email</Text>
-      <View
-        style={{
-          height: "85%",
-          borderRadius: 10,
-          marginRight: "auto",
-          marginLeft: "auto",
-          backgroundColor: "rgba(242,235,188,0.4)",
-          width: "95%",
-        }}
-      >
+      <View style={styles.modalInnerForgot}>
         <View style={styles.innerfield}>
           <TextInput
             style={styles.inputin}
             placeholder="Email"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={tokens.colors.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -342,7 +270,7 @@ function Login({ navigation }) {
           />
         </View>
         <TouchableOpacity
-          style={[styles.send, { opacity: isSendingOtp ? 0.6 : 1 }]}
+          style={[styles.send, { opacity: isSendingOtp ? tokens.opacities.disabled : 1 }]}
           onPress={sendemail}
           disabled={isSendingOtp}
         >
@@ -355,22 +283,19 @@ function Login({ navigation }) {
   );
 
   const ResetBody = (
-    <View style={[styles.modalViewset, { marginTop: keyboardVisible ? "-75%" : '-35%' }]}>
+    <View
+      style={[
+        styles.modalViewset,
+        { marginTop: keyboardVisible ? "-75%" : "-35%" },
+      ]}
+    >
       <Text style={styles.modalText}>Enter your registered email</Text>
-      <View
-        style={{
-          borderRadius: 10,
-          marginRight: "auto",
-          marginLeft: "auto",
-          backgroundColor: "rgba(242,235,188,0.4)",
-          width: "95%",
-        }}
-      >
+      <View style={styles.modalInnerReset}>
         <View style={styles.innerfieldall}>
           <TextInput
             style={styles.inputin}
             placeholder="Email"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={tokens.colors.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -380,7 +305,7 @@ function Login({ navigation }) {
           <TextInput
             style={styles.inputin}
             placeholder="OTP"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={tokens.colors.placeholder}
             keyboardType="number-pad"
             autoCapitalize="none"
             autoCorrect={false}
@@ -390,7 +315,7 @@ function Login({ navigation }) {
           <TextInput
             style={styles.inputin}
             placeholder="New Password"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={tokens.colors.placeholder}
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
@@ -400,7 +325,7 @@ function Login({ navigation }) {
           <TextInput
             style={styles.inputin}
             placeholder="Confirm Password"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={tokens.colors.placeholder}
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
@@ -410,7 +335,7 @@ function Login({ navigation }) {
         </View>
       </View>
       <TouchableOpacity
-        style={[styles.send, { opacity: isResetting ? 0.6 : 1 }]}
+        style={[styles.send, { opacity: isResetting ? tokens.opacities.disabled : 1 }]}
         onPress={onResetPassword}
         disabled={isResetting}
       >
@@ -428,20 +353,15 @@ function Login({ navigation }) {
           <PaperModal
             visible={modalVisible}
             onDismiss={() => setModalVisible(false)}
-            dismissable={true} 
+            dismissable
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
-            {/* Outer pressable covers the screen area inside PaperModal content
-                and closes when tapping outside the inner card */}
             <Pressable
               style={styles.modalBackground}
               onPress={() => setModalVisible(false)}
             >
-              {/* Inner pressable prevents outside-close when tapping content */}
               <Pressable onPress={(e) => e.stopPropagation()}>
-                <BlurView intensity={20}>
-                  {ForgotBody}
-                </BlurView>
+                <BlurView intensity={tokens.blur.modal}>{ForgotBody}</BlurView>
               </Pressable>
             </Pressable>
           </PaperModal>
@@ -460,7 +380,7 @@ function Login({ navigation }) {
           onPress={() => setModalVisible(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <BlurView intensity={20}>{ForgotBody}</BlurView>
+            <BlurView intensity={tokens.blur.modal}>{ForgotBody}</BlurView>
           </Pressable>
         </Pressable>
       </RNModal>
@@ -474,7 +394,7 @@ function Login({ navigation }) {
           <PaperModal
             visible={modalVisiblenext}
             onDismiss={() => setModalVisiblenext(false)}
-            dismissable={true} 
+            dismissable
             contentContainerStyle={{ marginHorizontal: 16 }}
           >
             <Pressable
@@ -482,7 +402,7 @@ function Login({ navigation }) {
               onPress={() => setModalVisiblenext(false)}
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
-                <BlurView intensity={20}>{ResetBody}</BlurView>
+                <BlurView intensity={tokens.blur.modal}>{ResetBody}</BlurView>
               </Pressable>
             </Pressable>
           </PaperModal>
@@ -501,7 +421,7 @@ function Login({ navigation }) {
           onPress={() => setModalVisiblenext(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <BlurView intensity={20}>{ResetBody}</BlurView>
+            <BlurView intensity={tokens.blur.modal}>{ResetBody}</BlurView>
           </Pressable>
         </Pressable>
       </RNModal>
@@ -523,7 +443,7 @@ function Login({ navigation }) {
 
       <BlurView
         style={{ marginTop: keyboardVisible ? "-35%" : undefined }}
-        intensity={keyboardVisible ? 6 : 0}
+        intensity={keyboardVisible ? tokens.blur.light : tokens.blur.screen}
       >
         <View>
           <View style={styles.fields}>
@@ -567,7 +487,10 @@ function Login({ navigation }) {
       </BlurView>
 
       <TouchableOpacity
-        style={[styles.loginButton, { opacity: isSubmitting ? 0.6 : 1 }]}
+        style={[
+          styles.loginButton,
+          { opacity: isSubmitting ? tokens.opacities.disabled : 1 },
+        ]}
         onPress={submitCredantial}
         disabled={isSubmitting}
       >
@@ -591,13 +514,13 @@ function Login({ navigation }) {
   );
 
   if (USE_PORTAL) {
-    return <PaperProvider>{ScreenBody}</PaperProvider>;
+    return <PaperProvider theme={AppTheme}>{ScreenBody}</PaperProvider>;
   }
   return ScreenBody;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffff" },
+  container: { flex: 1, backgroundColor: tokens.colors.bodyBackground },
   forback: {
     top: "6.5%",
     left: "6%",
@@ -607,9 +530,9 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     width: "75%",
-    height: 42,
-    backgroundColor: "#A3AE95",
-    borderRadius: 10,
+    height: tokens.sizes.buttonHeight,
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: tokens.radius.md,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 35,
@@ -617,8 +540,8 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     fontSize: 15,
-    fontWeight: "bold",
-    color: "#3C4234",
+    ...tokens.components.Button.text.style,
+    color: tokens.components.Button.text.color,
   },
   imageLoginBack: {
     position: "absolute",
@@ -630,34 +553,34 @@ const styles = StyleSheet.create({
   backtop: {
     position: "absolute",
     top: 0,
-    backgroundColor: "rgba(163, 174, 149,0.6)",
+    backgroundColor: tokens.overlays.top,
     width: "100%",
     height: "70%",
   },
   image: { resizeMode: "cover" },
   title: {
-    fontSize: 35,
-    color: "#3C4234",
-    fontWeight: "bold",
+    fontSize: tokens.components.Typography.h1.fontSize,
+    color: tokens.colors.text,
+    ...tokens.components.Typography.h1,
     top: "8%",
     marginLeft: "10%",
   },
   subTit: {
-    fontSize: 15,
-    color: "#3C4234",
-    fontWeight: "500",
+    fontSize: tokens.components.Typography.body.fontSize,
+    color: tokens.colors.text,
+    ...tokens.components.Typography.body,
     top: "8%",
     marginLeft: "10%",
   },
   fields: { width: "80%", alignSelf: "center", marginTop: "80%" },
   input: {
-    height: 50,
+    height: tokens.sizes.inputHeight,
     width: "100%",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.3)",
-    marginBottom: 15,
-    paddingLeft: 15,
-    fontSize: 16,
+    borderBottomWidth: tokens.components.Input.borderBottomWidth,
+    borderBottomColor: tokens.colors.bottomBorder,
+    marginBottom: tokens.spacing.sm,
+    paddingLeft: tokens.components.Input.paddingLeft,
+    fontSize: tokens.components.Input.fontSize,
   },
   forget: {
     flexDirection: "row",
@@ -665,53 +588,70 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
-  forgetfont: { fontSize: 15, color: "#FF0000", fontWeight: "bold" },
+  forgetfont: {
+    fontSize: 15,
+    color: tokens.colors.notification,
+    ...tokens.fonts.bold,
+  },
   resetfont: {
     fontSize: 15,
-    fontWeight: "bold",
-    color: "#A3AE95",
+    ...tokens.fonts.bold,
+    color: tokens.colors.greenButton,
     borderBottomWidth: 1.5,
-    borderBottomColor: "#FF0000",
+    borderBottomColor: tokens.colors.notification,
   },
-  modalBackground: { flex: 1, justifyContent: "center" }, 
+  modalBackground: { flex: 1, justifyContent: "center" },
   modalView: {
-    height: 250,
-    backgroundColor: "#A3AE95",
-    padding: 20,
-    shadowColor: "#000",
-    elevation: 5,
-    borderRadius: 10,
+    height: tokens.components.Modal.smallCardHeight,
+    backgroundColor: tokens.colors.lightColor,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radius.md,
+    ...tokens.shadows.level1,
   },
   modalViewset: {
-    height: 390,
-    backgroundColor: "#A3AE95",
-    padding: 20,
-    shadowColor: "#000",
-    elevation: 5,
-    borderRadius: 10,
+    height: tokens.components.Modal.bigCardHeight,
+    backgroundColor: tokens.colors.lightColor,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radius.md,
+    ...tokens.shadows.level1,
   },
   modalText: { fontSize: 12, marginBottom: 10 },
   innerfieldall: { marginHorizontal: "3%", marginVertical: 10 },
   innerfield: { marginRight: "3%", marginTop: 10, marginLeft: "3%" },
   inputin: {
-    height: 50,
+    height: tokens.sizes.inputHeight,
     width: "100%",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.3)",
+    borderBottomColor: tokens.colors.bottomBorder,
     paddingLeft: 15,
     fontSize: 20,
     marginBottom: 12,
   },
   send: {
     width: "75%",
-    height: 42,
-    borderRadius: 10,
-    borderColor: "black",
+    height: tokens.sizes.buttonHeight,
+    borderRadius: tokens.radius.md,
+    borderColor: "#000",
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 20,
     alignSelf: "center",
+  },
+  modalInnerForgot: {
+    height: "85%",
+    borderRadius: tokens.radius.md,
+    marginRight: "auto",
+    marginLeft: "auto",
+    backgroundColor: tokens.overlays.big,
+    width: "95%",
+  },
+  modalInnerReset: {
+    borderRadius: tokens.radius.md,
+    marginRight: "auto",
+    marginLeft: "auto",
+    backgroundColor: tokens.overlays.big,
+    width: "95%",
   },
 });
 

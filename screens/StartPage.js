@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import background from '../assets/startimage.png'
 import backPart from '../assets/backPart.png'
 import Buttoncom from '../components/Button/Buttoncom'
+import { tokens } from '../styles/theme';
 
 function StartPage({ navigation }) {
 
@@ -27,7 +28,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#A3AE95',
+        backgroundColor: tokens.colors.greenButton,
         elevation: 5,
     },
     linecon: {
@@ -44,18 +45,15 @@ const styles = StyleSheet.create({
     },
     title: {
         marginTop: '65%',
-        fontSize: 30,
+        fontSize: tokens.components.Typography.h1.fontSize,
         fontWeight: 'bold',
-        color: '#3C4234',
+        color: tokens.colors.darkText,
         textAlign: 'center'
     },
     bottitle: {
-        fontSize: 11,
-        color: '#3C4234',
-        textShadowColor: 'rgba(0,0,0,0.4)',
-        textShadowRadius: 5,
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowOpacity: 0.3,
+        fontSize: tokens.components.Typography.small.fontSize,
+        color: tokens.colors.darkText,
+        ...tokens.shadows.level3,
         top: '25%',
         textAlign: 'center'
     },
