@@ -13,7 +13,7 @@ import {
   SafeAreaView,
   Platform,
   AppState,
-  ScrollView, // ⬅️ added
+  ScrollView,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
@@ -23,6 +23,8 @@ import LoaundryIMG from "../../assets/loaundrycom.png";
 import SideMenuUser from "../../components/Menu/SideMenuUser";
 import DropDown from "../../components/Menu/DropDown";
 import { api, authGet, IMG_URL, connectUnseenCount } from "../../Services/api";
+import { getAccessToken } from "../../Services/tokenStorage";
+import { tokens } from "../../styles/theme";
 
 const ORDERS = [
   {
@@ -42,16 +44,6 @@ const FILTER_OPTIONS = [
   { label: "Services", value: "services" },
 ];
 
-const GREEN = "#A3AE95";
-const TEXT = "#3C4234";
-const MUTED = "#98A29D";
-const SURFACE = "#f8f8f8";
-
-// === Card layout constants for FlatList getItemLayout/autoplay ===
-const CARD_WIDTH = 320;
-const CARD_GAP = 12;         // marginRight we use in renderItem
-const ITEM_LENGTH = CARD_WIDTH + CARD_GAP; // 332
-
 export default function UserHome({ navigation }) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -64,8 +56,14 @@ export default function UserHome({ navigation }) {
   const [laundries, setLaundries] = useState([]);
 
   const route = useRoute();
-  const { name = "First Name", email, token } = route.params ?? {};
+  const routeToken = route?.params?.token ?? null; // ✅ define routeToken from route
+
+  const [token, setToken] = useState(routeToken || null);
+
+  const { name = "First Name", email } = route.params ?? {};
   const userEmail = route?.params?.email || route?.params?.userEmail || email || "";
+
+  const itemlength = tokens.screenconstants.cardwidth + tokens.screenconstants.cardgap;
 
   const mapUserToLaundry = (u) => {
     const fullName =
@@ -112,16 +110,19 @@ export default function UserHome({ navigation }) {
 
   const showOrders = search.trim().length === 0;
 
-  const refreshNotifications = useCallback(async () => {
-    if (!token || !userEmail) return;
-    try {
-      const res = await authGet("/api/auth/unseenCount", token, {
-        params: { email: userEmail },
-      });
-      const payload = res?.data || {};
-      setNotifCount(Number(payload?.unseen || 0));
-    } catch { }
-  }, [token, userEmail]);
+  const refreshNotifications = useCallback(
+    async () => {
+      if (!token || !userEmail) return;
+      try {
+        const res = await authGet("/api/auth/unseenCount", token, {
+          params: { email: userEmail },
+        });
+        const payload = res?.data || {};
+        setNotifCount(Number(payload?.unseen || 0));
+      } catch { }
+    },
+    [token, userEmail]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -184,6 +185,13 @@ export default function UserHome({ navigation }) {
       } catch { }
     }
 
+    (async () => {
+      if (!routeToken) {
+        const t = await getAccessToken().catch(() => null);
+        if (mounted && t) setToken(t);
+      }
+    })();
+
     fetchUsers();
     fetchOrders();
     fetchNotifications();
@@ -199,7 +207,7 @@ export default function UserHome({ navigation }) {
       mounted = false;
       sub?.close?.();
     };
-  }, [token, userEmail, refreshNotifications]);
+  }, [routeToken, userEmail, refreshNotifications, token]);
 
   const filteredLaundries = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -230,8 +238,8 @@ export default function UserHome({ navigation }) {
   const ordersData = hasRealOrders ? orders : ORDERS;
 
   const getItemLayout = (_data, index) => ({
-    length: ITEM_LENGTH,
-    offset: ITEM_LENGTH * index,
+    length: itemlength,
+    offset: itemlength * index,
     index,
   });
 
@@ -246,7 +254,7 @@ export default function UserHome({ navigation }) {
       } catch {
         // fallback if initial layout not ready
         flatListRef.current?.scrollToOffset({
-          offset: next * ITEM_LENGTH,
+          offset: next * itemlength,
           animated: true,
         });
         setCurrentIndex(next);
@@ -257,6 +265,18 @@ export default function UserHome({ navigation }) {
   const stopAutoplay = useCallback(() => {
     clearInterval(autoTimerRef.current);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        return true;
+      };
+
+      navigation.addListener('beforeRemove', onBackPress);
+
+      return () => navigation.removeListener('beforeRemove', onBackPress);
+    }, [navigation])
+  );
 
   // restart autoplay whenever data length changes or index updates
   useEffect(() => {
@@ -283,7 +303,6 @@ export default function UserHome({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-
         <View style={styles.topRow}>
           <TouchableOpacity onPress={() => navigation.navigate("Login")}>
             <Image source={Vector} />
@@ -293,7 +312,7 @@ export default function UserHome({ navigation }) {
             style={styles.profileBtn}
             onPress={() => navigation.navigate("ProfileUser", { email, token })}
           >
-            <Ionicons name="person-circle" size={28} color={TEXT} />
+            <Ionicons name="person-circle" size={28} color={tokens.colors.darkText} />
           </TouchableOpacity>
         </View>
 
@@ -308,7 +327,7 @@ export default function UserHome({ navigation }) {
                 <Text style={styles.badgeText}>{notifCount}</Text>
               </View>
             ) : null}
-            <Ionicons name="menu" style={styles.menuicon} size={28} color={TEXT} />
+            <Ionicons name="menu" style={styles.menuicon} size={28} color={tokens.colors.darkText} />
           </TouchableOpacity>
         </View>
 
@@ -318,7 +337,6 @@ export default function UserHome({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-
           {/* Welcome */}
           <View style={styles.welcomeWrap}>
             <View style={{ flex: 1 }}>
@@ -330,14 +348,13 @@ export default function UserHome({ navigation }) {
             </View>
           </View>
 
-          {/* Search + filter */}
           <View style={styles.searchRow}>
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
+              <Ionicons name="search" size={18} color={tokens.colors.placeholder} style={{ marginRight: 8 }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search Laundry..."
-                placeholderTextColor={MUTED}
+                placeholderTextColor={tokens.colors.placeholder}
                 value={search}
                 onChangeText={setSearch}
                 returnKeyType="search"
@@ -349,7 +366,7 @@ export default function UserHome({ navigation }) {
               onPress={() => setFilterOpen(true)}
               style={styles.filterBtn}
             >
-              <Ionicons name="options-outline" size={20} color={TEXT} />
+              <Ionicons name="options-outline" size={20} color={tokens.colors.darkText} />
             </Pressable>
 
             <DropDown
@@ -401,7 +418,7 @@ export default function UserHome({ navigation }) {
 
                         <View style={styles.statusPill}>
                           <Text style={styles.statusPillText}>{item.status}</Text>
-                          <Ionicons name="checkmark" size={12} color={TEXT} />
+                          <Ionicons name="checkmark" size={12} color={tokens.colors.darkText} />
                         </View>
                       </View>
                     </ImageBackground>
@@ -423,7 +440,7 @@ export default function UserHome({ navigation }) {
                     <TouchableOpacity
                       key={item.id}
                       activeOpacity={0.9}
-                      style={{ marginRight: CARD_GAP }}
+                      style={{ marginRight: tokens.screenconstants.cardgap }}
                       {...wrapperProps}
                       // pause autoplay while touching
                       onPressIn={() => {
@@ -471,7 +488,7 @@ export default function UserHome({ navigation }) {
                   navigation.navigate("UserLaundry", {
                     token,
                     id: l.id,
-                    userEmail
+                    userEmail,
                   });
                 }}
               >
@@ -494,7 +511,12 @@ export default function UserHome({ navigation }) {
       </View>
 
       {isMenuVisible && (
-        <SideMenuUser onClose={() => setIsMenuVisible(false)} token={token} email={email} />
+        <SideMenuUser
+          onClose={() => setIsMenuVisible(false)}
+          token={token}
+          email={email}
+          name={name}
+        />
       )}
     </SafeAreaView>
   );
@@ -587,7 +609,7 @@ const styles = StyleSheet.create({
   },
 
   orderCard: {
-    width: CARD_WIDTH, // 320
+    width: tokens.screenconstants.cardwidth,
     height: 190,
     borderRadius: 16,
     overflow: "hidden",

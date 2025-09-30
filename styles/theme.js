@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
 
-/* ----------------------------- Fonts (web/ios/android) ----------------------------- */
 export const WEB_FONT_STACK =
     'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"';
 
@@ -25,24 +24,25 @@ const fonts = Platform.select({
     },
 });
 
-/* -------------------------------- Base Colors -------------------------------- */
 const base = {
-    // your app tokens (normalized)
     bodyBackground: "#FFFFFF",
     greenButton: "#A3AE95",
     darkText: "#3C4234",
     alertText: "#FF0000",
     lightColor: "#A3AE95",
     shadow: "#000000",
+    switchact: "#F2EBBC",
+    addbutton: "#D9E0CF",
+    switchoff: "rgba(0,0,0,0.8)",
+    switchthumb: "rgba(0,0,0,0.6)",
     placeholder: "rgba(0,0,0,0.4)",
     bottomBorder: "rgba(0,0,0,0.3)",
 
-    // overlay tokens you used
-    overlayTop: "rgba(163,174,149,0.6)",
+    overlayTopl: "rgba(163,174,149,0.6)",
+    overlayTopd: "rgba(60,66,52,0.7)",
     overlayBig: "rgba(242,235,188,0.4)",
 };
 
-/* ------------------------------- Semantic Colors ------------------------------- */
 const semantic = {
     primary: base.greenButton,
     background: base.bodyBackground,
@@ -51,7 +51,6 @@ const semantic = {
     border: "rgba(0,0,0,0.12)",
     notification: base.alertText,
 
-    // additional states
     success: "#2E7D32",
     warning: "#ED6C02",
     error: base.alertText,
@@ -61,7 +60,11 @@ const semantic = {
     placeholder: base.placeholder,
 };
 
-/* ------------------------------ Spacing / Sizing ------------------------------ */
+const screenconstants = {
+    cardwidth: 320,
+    cardgap: 12
+}
+
 const spacing = {
     xxs: 4,
     xs: 8,
@@ -71,6 +74,7 @@ const spacing = {
     xl: 24,
     xxl: 32,
     xxxl: 40,
+    textarea: 120
 };
 
 const radius = {
@@ -87,9 +91,7 @@ const sizes = {
     icon: 24,
 };
 
-/* --------------------------------- Elevation --------------------------------- */
 const elevation = {
-    // android elevation levels
     level1: 2,
     level2: 4,
     level3: 6,
@@ -97,9 +99,7 @@ const elevation = {
     level5: 12,
 };
 
-/* ---------------------------------- Shadows ---------------------------------- */
 const shadows = {
-    // iOS shadow presets
     level1: {
         shadowColor: base.shadow,
         shadowOpacity: 0.15,
@@ -123,43 +123,37 @@ const shadows = {
     },
 };
 
-/* --------------------------------- Opacities -------------------------------- */
 const opacities = {
     disabled: 0.6,
     pressed: 0.7,
     overlay: 0.9,
-
+    fullscreen: 1
 };
 
-/* ---------------------------------- Blur ------------------------------------- */
 const blur = {
-    screen: 0,     // default screen blur intensity
-    modal: 20,    // from your backblur.BACKBLUR
-    light: 6,     // when keyboard opened in your screen
+    screen: 0,
+    modal: 20,
+    light: 6,
 };
 
-/* ------------------------------ Overlay Colors ------------------------------- */
 const overlays = {
-    top: base.overlayTop,   // header/top wash
-    big: base.overlayBig,   // card/inner modal wash
+    toplight: base.overlayTopl,
+    big: base.overlayBig,
+    topdark: base.overlayTopd
 };
 
-/* -------------------------------- Durations ---------------------------------- */
 const durations = {
-    toast: 2000,   // from times.TOASTVISIBILITY
+    toast: 2000,
     short: 150,
     medium: 250,
     long: 400,
 };
 
-/* ------------------------------ Regular Expressions -------------------------- */
 const regex = {
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    // at least 8 chars incl. one symbol (your rule). tweak as needed.
     password: /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/,
 };
 
-/* ------------------------------ Component Tokens ----------------------------- */
 const components = {
     Button: {
         height: sizes.buttonHeight,
@@ -200,7 +194,7 @@ const components = {
         },
         bigCardHeight: 390,
         smallCardHeight: 250,
-        overlayBg: "transparent", // you use BlurView instead
+        overlayBg: "transparent",
         blurIntensity: blur.modal,
         innerOverlay: overlays.big,
     },
@@ -213,7 +207,6 @@ const components = {
     },
 };
 
-/* --------------------------------- Theme Obj -------------------------------- */
 export const AppTheme = {
     dark: false,
     colors: {
@@ -223,17 +216,15 @@ export const AppTheme = {
         text: semantic.text,
         border: semantic.border,
         notification: semantic.notification,
-        // expose a few extra helpful tokens
         success: semantic.success,
         warning: semantic.warning,
         error: semantic.error,
         info: semantic.info,
         placeholder: semantic.placeholder,
     },
-    fonts, // platform-specific font map (regular/medium/bold/heavy)
+    fonts,
 };
 
-/* ------------------------------ Public Tokens API ---------------------------- */
 export const tokens = {
     colors: { ...base, ...semantic },
     spacing,
@@ -247,33 +238,33 @@ export const tokens = {
     durations,
     regex,
     components,
-    fonts
+    fonts,
+    screenconstants
 };
 
-/* ------------------------------- Small Helpers ------------------------------- */
 export const isValidEmail = (email) => tokens.regex.email.test(String(email || "").trim());
 export const isValidPassword = (pwd) => tokens.regex.password.test(String(pwd || ""));
 
-/* ------------------------------ Toast Presets --------------------------------
-   Use these to keep titles/positions/visibilityTime consistent everywhere.
--------------------------------------------------------------------------------*/
 export const TOAST = {
     success: (text1 = "Smart Laundry", text2 = "Done") => ({
         type: "success",
         text1, text2,
         position: "top",
         visibilityTime: tokens.durations.toast,
+        zIndex: 9999
     }),
     errorTop: (text1 = "Smart Laundry", text2 = "Something went wrong") => ({
         type: "error",
         text1, text2,
         position: "top",
         visibilityTime: tokens.durations.toast,
+        zIndex: 9999
     }),
     errorBottom: (text1 = "Smart Laundry", text2 = "Something went wrong") => ({
         type: "error",
         text1, text2,
         position: "bottom",
         visibilityTime: tokens.durations.toast,
+        zIndex: 9999
     }),
 };

@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   closeIcon: {
     position: 'absolute',
-    marginTop: 30,
+    marginTop: 60,
     top: 10,
     right: 10,
   },

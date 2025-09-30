@@ -490,9 +490,6 @@ export default function ProfileUser() {
           {/* --- end modals --- */}
         </View>
       </SafeAreaView>
-
-      {/* Local Toast host */}
-      <Toast />
     </PaperProvider>
   );
 }

@@ -15,6 +15,8 @@ import Vector from "../../../assets/Vector.png";
 import { BlurView } from "expo-blur";
 import { api, authGet, API_URL, IMG_URL } from "../../../Services/api";
 import CreateAc from "../../../components/Button/CreateAc";
+import { TOAST, tokens } from "../../../styles/theme";
+import Toast from "react-native-toast-message";
 
 const Profile = ({ navigation, route }) => {
   const [profile, setProfile] = useState({
@@ -28,21 +30,20 @@ const Profile = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisiblenext, setModalVisiblenext] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  // If you navigated here from Login, pass token like:
-  // navigation.reset({ routes: [{ name: 'Profile', params: { token } }]})
   const token = route?.params?.token || null;
+  const email = route?.params?.email || null;
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Prefer authenticated call if token exists; otherwise fall back to plain GET.
         const res = token
-          ? await authGet("/api/auth/retriveUser", token)
-          : await api.get("/api/auth/retriveUser");
+          ? await authGet("/api/auth/details", token, { params: { email: email }, })
+          : await api.get("/api/auth/details", token, { params: { email: email }, });
 
-        // If your API wraps data, adjust accordingly (e.g., res.data.user)
         setProfile(res?.data || {});
+        console.log(profile);
       } catch (error) {
         console.error("Failed to load profile:", error?.response?.data || error?.message);
       } finally {
@@ -53,9 +54,80 @@ const Profile = ({ navigation, route }) => {
     fetchProfile();
   }, [token]);
 
-  const sendemail = () => {
-    setModalVisible(false);
-    setModalVisiblenext(true);
+  const sendemail = async () => {
+    const email = (email || "").trim();
+    if (!email) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "Email is required"));
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Toast.show(TOAST.errorTop("Invalid Email", "Please enter a valid email address"));
+      return;
+    }
+    try {
+      setIsSendingOtp(true);
+      const res = await api.post("/auth/v1/forgotPassword", { email });
+      Toast.show(TOAST.success("Smart Laundry", res?.data || "OTP sent successfully"));
+      setModalVisible(false);
+      setRpEmail(email);
+      setModalVisiblenext(true);
+    } catch (e) {
+      Toast.show(TOAST.errorTop(
+        "Smart Laundry",
+        e?.response?.data || e?.message || "Failed to send OTP"
+      ));
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const onResetPassword = async () => {
+    const email = (rpEmail || "").trim();
+    const otp = (rpOtp || "").trim();
+    const pass = (rpPass || "").trim();
+    const confirm = (rpConfirm || "").trim();
+
+    if (!email || !otp || !pass || !confirm) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "All fields are required"));
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Toast.show(TOAST.errorTop("Invalid Email", "Please enter a valid email address"));
+      return;
+    }
+    if (!isValidPassword(pass)) {
+      Toast.show(TOAST.errorTop(
+        "Weak Password",
+        "Password must be at least 8 characters and include one symbol"
+      ));
+      return;
+    }
+    if (pass !== confirm) {
+      Toast.show(TOAST.errorTop("Smart Laundry", "Passwords do not match"));
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      const res = await api.put("/auth/v1/resetPassword", {
+        userName: email,
+        otp,
+        password: pass,
+      });
+      Toast.show(TOAST.success("Smart Laundry", res?.data || "Password updated"));
+      setModalVisiblenext(false);
+      setRpEmail("");
+      setRpOtp("");
+      setRpPass("");
+      setRpConfirm("");
+    } catch (e) {
+      Toast.show(TOAST.errorTop(
+        "Smart Laundry",
+        e?.response?.data || e?.message || "Password update failed"
+      ));
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   if (loading) {
@@ -88,7 +160,7 @@ const Profile = ({ navigation, route }) => {
 
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Laundry name</Text>
+        <Text style={styles.headerTitle}>{profile.name}</Text>
       </View>
 
       {/* Card */}
@@ -115,7 +187,7 @@ const Profile = ({ navigation, route }) => {
 
         <View className="field" style={styles.field}>
           <Icon name="mail-outline" size={16} color="#3C4234" />
-          <TextInput style={styles.input} value={profile.email} editable={false} />
+          <TextInput style={styles.input} value={email} editable={false} />
         </View>
 
         <View style={styles.field}>
@@ -240,7 +312,15 @@ const Profile = ({ navigation, route }) => {
                     autoCorrect={false}
                   />
                 </View>
-                <CreateAc butname="Update" navigation={navigation} path="Home" />
+                <TouchableOpacity
+                  style={[styles.send, { opacity: isResetting ? tokens.opacities.disabled : 1 }]}
+                  onPress={onResetPassword}
+                  disabled={isResetting}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isResetting ? "Updating…" : "Update"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>

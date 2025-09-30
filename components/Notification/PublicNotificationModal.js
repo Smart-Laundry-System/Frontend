@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { api } from '../../Services/api';
 import Toast from 'react-native-toast-message';
+import { TOAST, tokens } from '../../styles/theme';
 
 const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => {
   const [subject, setSubject] = useState('');
@@ -23,24 +24,16 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
     if (submitting) return;
 
     if (!subject.trim() || !message.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing fields',
-        text2: 'Please fill Subject and Message.',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing fields", "Please fill Subject and Message.")
+      );
       return;
     }
 
     if (!email) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing email',
-        text2: 'Laundry email is required.',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing email", "Laundry email is required.")
+      );
       return;
     }
 
@@ -59,39 +52,26 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
       });
 
       if (res?.status === 200 && res?.data) {
-        Toast.show({
-          type: 'success',
-          text1: 'Notification sent',
-          text2: 'Your public message has been posted.',
-          position: 'top',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.success("Notification sent", "Your public message has been posted.")
+        );
         // optionally notify parent & close/reset
         onSent?.(res.data);
         setSubject('');
         setMessage('');
         onClose?.();
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Send failed',
-          text2: 'Unexpected server response.',
-          position: 'bottom',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.errorBottom("Send failed", "Unexpected server response.")
+        );
       }
     } catch (err) {
       const serverMsg = err?.response?.data;
-      Toast.show({
-        type: 'error',
-        text1: 'Send failed',
-        text2:
-          (typeof serverMsg === 'string' && serverMsg) ||
+      Toast.show(
+        TOAST.errorBottom("Send failed", (typeof serverMsg === 'string' && serverMsg) ||
           err?.message ||
-          'Network/server error',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+          'Network/server error')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -102,13 +82,13 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={onClose} // Android back button
+      onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={tokens.blur.modal} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.modalContent}>
           <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
-            <Icon name="close" size={28} color="#000" />
+            <Icon name="close" size={28} color={tokens.colors.shadow} />
           </TouchableOpacity>
 
           <Text style={styles.header}>Enter your public message here</Text>
@@ -120,18 +100,18 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
               <TextInput
                 style={styles.inputl}
                 placeholder="Subject"
-                placeholderTextColor="rgba(117, 114, 90, 0.38)"
+                placeholderTextColor={tokens.colors.placeholder}
                 value={subject}
                 onChangeText={setSubject}
                 editable={!submitting}
               />
             </View>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Content</Text>
+            <Text style={[styles.label, { marginTop: tokens.spacing.sm }]}>Content</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Message"
-              placeholderTextColor="rgba(117, 114, 90, 0.38)"
+              placeholderTextColor={tokens.colors.placeholder}
               multiline
               numberOfLines={6}
               value={message}
@@ -141,7 +121,7 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
           </View>
 
           <TouchableOpacity
-            style={[styles.sendButton, submitting && { opacity: 0.6 }]}
+            style={[styles.sendButton, submitting && { opacity: tokens.opacities.disabled }]}
             onPress={sendNotifications}
             disabled={submitting}
           >
@@ -164,27 +144,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderColor: '#75725a',
+    marginBottom: tokens.spacing.sm,
+    borderBottomWidth: tokens.components.Input.borderBottomWidth,
+    borderColor: tokens.colors.bottomBorder,
   },
   icon: {
-    marginRight: 8,
+    marginRight: tokens.spacing.xs,
     opacity: 0.36,
     marginLeft: -8,
   },
   overlay: {
     flex: 1,
-    backgroundColor: '#00000080',
+    backgroundColor: tokens.colors.placeholder,
     justifyContent: 'center',
-    padding: 20,
+    padding: tokens.spacing.lg,
   },
   modalContent: {
-    backgroundColor: '#a3ae95',
+    backgroundColor: tokens.colors.greenButton,
     marginRight: -20,
     marginLeft: -20,
     position: 'relative',
-    paddingBottom: 12,
+    paddingBottom: tokens.spacing.sm,
   },
   closeIcon: {
     position: 'absolute',
@@ -193,51 +173,50 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
-    fontSize: 16,
-    marginBottom: 16,
-    color: '#000',
-    padding: 12,
-    // removed invalid negative padding
+    fontSize: tokens.components.Input.fontSize,
+    marginBottom: tokens.spacing.md,
+    color: tokens.colors.shadow,
+    padding: tokens.spacing.sm
   },
   inputContainer: {
-    marginTop: 8,
-    padding: 20,
-    backgroundColor: 'rgba(242,235,188,0.4)',
-    margin: 30,
-    borderRadius: 8,
+    marginTop: tokens.spacing.xs,
+    padding: tokens.spacing.lg,
+    backgroundColor: tokens.colors.overlayBig,
+    margin: tokens.spacing.xl,
+    borderRadius: tokens.radius.sm,
   },
   label: {
-    fontSize: 14,
-    color: 'rgba(60,66,52,0.7)',
-    marginBottom: 4,
+    fontSize: tokens.components.Typography.body.fontSize,
+    color: tokens.colors.overlayTopd,
+    marginBottom: tokens.spacing.xxs,
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 10,
+    borderColor: tokens.colors.placeholder,
+    borderRadius: tokens.radius.md,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: tokens.spacing.xs,
   },
   inputl: {
     flex: 1,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: '#3C4234',
+    paddingVertical: tokens.spacing.xs,
+    fontSize: tokens.components.Typography.small.fontSize,
+    color: tokens.colors.darkText,
   },
   textArea: {
-    height: 120,
+    height: tokens.spacing.textarea,
     textAlignVertical: 'top',
   },
   sendButton: {
-    backgroundColor: '#3C4234',
-    marginTop: 12,
-    paddingVertical: 12,
-    marginHorizontal: 20,
-    borderRadius: 8,
+    backgroundColor: tokens.colors.darkText,
+    marginTop: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.sm,
+    marginHorizontal: tokens.spacing.lg,
+    borderRadius: tokens.spacing.xs,
     alignItems: 'center',
   },
   sendButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: tokens.colors.background,
+    ...tokens.fonts.heavy
   },
 });

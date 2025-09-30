@@ -22,6 +22,7 @@ import Toast from "react-native-toast-message";
 import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import UserComplainModel from "../../../components/Notification/UserComplainModel";
+import { TOAST } from "../../../styles/theme";
 
 /* ----------------------------- design tokens ----------------------------- */
 const GREEN = "#A3AE95";
@@ -68,31 +69,15 @@ export default function OrderDetails() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingRequestDate, setPendingRequestDate] = useState(null);
 
+  // NEW: temp date that only lives inside the sheet while user scrolls
+  const [pickerTempDate, setPickerTempDate] = useState(null);
+
   const [expandedAbout, setExpandedAbout] = useState(false);
   const [aboutOverflows, setAboutOverflows] = useState(false);
 
   const [modalVisiblec, setModalVisiblec] = useState(false);
 
   const [showServicesSheet, setShowServicesSheet] = useState(false);
-
-  const toast = {
-    ok: (t1, t2) =>
-      Toast.show({
-        type: "success",
-        text1: t1,
-        text2: t2,
-        position: "top",
-        visibilityTime: 1800,
-      }),
-    err: (t1, t2) =>
-      Toast.show({
-        type: "error",
-        text1: t1,
-        text2: t2,
-        position: "top",
-        visibilityTime: 2200,
-      }),
-  };
 
   const toAbs = (rel) => {
     if (!rel) return PLACE_IMG;
@@ -137,6 +122,11 @@ export default function OrderDetails() {
     return p.toString();
   };
 
+  const authHeader = useMemo(
+    () => ({ Authorization: `Bearer ${token}` }),
+    [token]
+  );
+
   const fetchOrder = useCallback(async () => {
     if (!token || !orderId) return;
     setLoading(true);
@@ -178,11 +168,6 @@ export default function OrderDetails() {
     fetchOrder();
   }, [fetchOrder]);
 
-  const authHeader = useMemo(
-    () => ({ Authorization: `Bearer ${token}` }),
-    [token]
-  );
-
   const statusIndex = useMemo(() => {
     const s = (order?.status || "").toUpperCase();
     if (s.includes("REACHED")) return 3;
@@ -202,45 +187,50 @@ export default function OrderDetails() {
       : "$0.00";
 
   const serviceNames = useMemo(
-    () => (Array.isArray(services) ? services : [])
-      .map(s => s?.title ?? s?.name ?? String(s?.id ?? "")),
+    () =>
+      (Array.isArray(services) ? services : []).map(
+        (s) => s?.title ?? s?.name ?? String(s?.id ?? "")
+      ),
     [services]
   );
 
-  const shown = serviceNames.slice(0, 2);            // now an array of strings
+  const shown = serviceNames.slice(0, 2); // now an array of strings
   const hasMore = serviceNames.length > 2;
 
   const servicesTitle =
     shown.length ? `${shown.join(", ")}${hasMore ? "…" : ""}` : "Ordered Service";
 
   /* ------------------------ date picking & confirm ------------------------ */
-  const onOpenPicker = () => setShowDatePicker(true);
 
-  // only store locally; do NOT call API here
-  const onDatePicked = async (_, selectedDate) => {
-    if (Platform.OS === "android") setShowDatePicker(false);
-    if (!selectedDate) return;
-    setPendingRequestDate(selectedDate);
-    if (Platform.OS === "ios") setShowDatePicker(false);
+  // start of local “today” to avoid timezone/time-of-day issues
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const onOpenPicker = () => {
+    // base the picker on what the UI currently shows
+    setPickerTempDate(basePickerDate);
+    setPendingRequestDate(null); // clear old preview so the field is honest
+    setShowDatePicker(true);
   };
 
-  // customer date confirmation for picked date
   const onConfirmRequest = async () => {
     if (!order?.id || !pendingRequestDate) return;
     try {
       setBusy(true);
       await api.put(ENDPOINTS.requestEstimatedDate, null, {
-        params: {
-          orderID: order.id,
-          date: pendingRequestDate.toISOString(),
-        },
+        params: { orderID: order.id, date: pendingRequestDate.toISOString() },
         headers: authHeader,
       });
-      toast.ok("Smart Laundry", "Requested estimated date sent.");
+      // Clear preview immediately; fetch will also refresh the server values
+      setPendingRequestDate(null);
+      Toast.show(TOAST.success("Smart Laundry", "Requested estimated date sent."));
       await fetchOrder();
     } catch (e) {
       const msg = e?.response?.data || e?.message || "Update failed";
-      toast.err("Smart Laundry", msg);
+      Toast.show(TOAST.errorBottom("Smart Laundry", msg));
     } finally {
       setBusy(false);
     }
@@ -253,7 +243,6 @@ export default function OrderDetails() {
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
-        <Toast />
       </SafeAreaView>
     );
   }
@@ -265,20 +254,21 @@ export default function OrderDetails() {
             {error || "Order not found"}
           </Text>
         </View>
-        <Toast />
       </SafeAreaView>
     );
   }
 
-  // date to show in the field: preview pending → request date → estimated date
   const hasRequest = isValidDateVal(order.customerInterestDate);
   const displayDate =
     pendingRequestDate ||
     (hasRequest
       ? new Date(order.customerInterestDate)
       : isValidDateVal(order.estimatedDate)
-        ? new Date(order.estimatedDate)
-        : null);
+      ? new Date(order.estimatedDate)
+      : null);
+
+  const basePickerDate = displayDate || new Date();
+  const pickerKey = (basePickerDate && basePickerDate.toDateString()) || "now";
 
   /* ---------------------------------- UI ---------------------------------- */
   return (
@@ -341,10 +331,11 @@ export default function OrderDetails() {
                   <Text style={styles.priceText}>{priceLabel}</Text>
                 </View>
 
-                <TouchableOpacity style={styles.moreBtn} onPress={() => setShowServicesSheet(true)}>
-                  {/* <View > */}
+                <TouchableOpacity
+                  style={styles.moreBtn}
+                  onPress={() => setShowServicesSheet(true)}
+                >
                   <Ionicons name="ellipsis-horizontal" size={16} color={BLACK} />
-                  {/* </View> */}
                 </TouchableOpacity>
               </View>
             </ImageBackground>
@@ -415,10 +406,7 @@ export default function OrderDetails() {
             </View>
 
             {/* See more with about part */}
-            <View
-              onStartShouldSetResponder={() => true}
-              style={{ marginTop: 6 }}
-            >
+            <View onStartShouldSetResponder={() => true} style={{ marginTop: 6 }}>
               <Text
                 style={styles.aboutText}
                 numberOfLines={expandedAbout ? undefined : 3}
@@ -444,7 +432,7 @@ export default function OrderDetails() {
               )}
             </View>
 
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ alignItems: "center" }}>
               <TouchableOpacity
                 style={styles.secondaryBtn}
                 onPress={() => setModalVisiblec(true)}
@@ -458,7 +446,7 @@ export default function OrderDetails() {
               email={email}
               onClose={() => setModalVisiblec(false)}
               token={token}
-            // laundrtId={id}
+              // laundrtId={id}
             />
           </ScrollView>
         </Pressable>
@@ -467,27 +455,60 @@ export default function OrderDetails() {
           {/* Date picker */}
           <Modal
             visible={showDatePicker}
-            onDismiss={() => setShowDatePicker(false)}
+            onDismiss={() => {
+              setShowDatePicker(false);
+              setPickerTempDate(null);
+              setPendingRequestDate(null); // also clear on dismiss
+            }}
             dismissable
             contentContainerStyle={styles.datePickerSheet}
           >
             <DateTimePicker
-              value={
-                pendingRequestDate
-                  ? pendingRequestDate
-                  : hasRequest
-                    ? new Date(order.customerInterestDate)
-                    : isValidDateVal(order.estimatedDate)
-                      ? new Date(order.estimatedDate)
-                      : new Date()
-              }
+              key={pickerKey} // <- force re-mount when base date changes
+              value={pickerTempDate || basePickerDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={onDatePicked}
-              minimumDate={new Date()}
+              onChange={(event, date) => {
+                if (event?.type === "dismissed") {
+                  setShowDatePicker(false);
+                  setPickerTempDate(null);
+                  return;
+                }
+                if (date) setPickerTempDate(date);
+              }}
+              minimumDate={startOfToday}
               style={{ backgroundColor: WHITE, borderRadius: 10 }}
             />
+            {/* Action row */}
+            <View style={{ flexDirection: "row", marginTop: 12, gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.assignBack, { flex: 1, borderColor: MUTED }]}
+                onPress={() => {
+                  setShowDatePicker(false);
+                  setPickerTempDate(null);
+                  setPendingRequestDate(null);
+                }}
+              >
+                <Text style={[styles.assignBackText, { color: MUTED }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.assignBack, { flex: 1 }]}
+                onPress={() => {
+                  if (!pickerTempDate) return;
+                  // Stage preview for the UI; user must still tap "Confirm Request"
+                  setPendingRequestDate(pickerTempDate);
+                  setShowDatePicker(false);
+                  setPickerTempDate(null);
+                }}
+              >
+                <Text style={styles.assignBackText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </Modal>
+
           <Modal
             visible={showServicesSheet}
             onDismiss={() => setShowServicesSheet(false)}
@@ -512,13 +533,15 @@ export default function OrderDetails() {
               <Text style={{ color: MUTED }}>No services</Text>
             )}
 
-            <TouchableOpacity style={styles.assignBack} onPress={() => setShowServicesSheet(false)}>
+            <TouchableOpacity
+              style={styles.assignBack}
+              onPress={() => setShowServicesSheet(false)}
+            >
               <Text style={styles.assignBackText}>Close</Text>
             </TouchableOpacity>
           </Modal>
         </Portal>
       </SafeAreaView>
-      <Toast />
     </PaperProvider>
   );
 }
@@ -530,11 +553,9 @@ function StatusBox({ label, icon, active }) {
       <Ionicons
         name={icon}
         size={18}
-        color={active ? BLACK : BLACKOP}   // was {BLACK}/{BLACKOP}
+        color={active ? BLACK : BLACKOP} // was {BLACK}/{BLACKOP}
       />
-      <Text style={[styles.statusLabel, active && { color: BLACK }]}>
-        {label}
-      </Text>
+      <Text style={[styles.statusLabel, active && { color: BLACK }]}>{label}</Text>
     </View>
   );
 }
@@ -611,7 +632,7 @@ const styles = StyleSheet.create({
   statusBox: {
     width: 64,
     height: 64,
-    backgroundColor: STATUSBOX,   // was {STATUSBOX}
+    backgroundColor: STATUSBOX, // was {STATUSBOX}
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -623,7 +644,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     marginTop: 6,
     fontSize: 10,
-    color: BLACKOP,    
+    color: BLACKOP,
     fontWeight: "600",
   },
   connector: {

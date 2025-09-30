@@ -1,4 +1,3 @@
-// src/screens/auth/UserRegistre.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
@@ -24,17 +23,18 @@ import RegistreTop from '../../components/UserTop/RegistreTop';
 import Or from '../../components/Button/Or';
 import CreateAc from '../../components/Button/CreateAc';
 import { useRegistration } from '../../context/RegistrationContext';
+import { isValidEmail, isValidPassword, TOAST, tokens } from '../../styles/theme';
+
 
 function UserRegistre({ navigation }) {
   const {
     isSwitchOn,
     setIsSwitchOn,
     basicInfo,
-    updateBasicInfo,  // optional helper if you added it
-    setBasicInfo,     // fallback merge
+    updateBasicInfo,
+    setBasicInfo,
   } = useRegistration();
 
-  // -------- Local form state --------
   const [laundryName, setLaundryName] = useState('');
   const [phone, setPhone] = useState('');
   const [phone2, setPhone2] = useState('');
@@ -47,7 +47,6 @@ function UserRegistre({ navigation }) {
 
   const outerScrollRef = useRef(null);
 
-  // seed from context on mount / when basicInfo changes
   useEffect(() => {
     if (!basicInfo) return;
     setLaundryName(basicInfo.laundryName ?? '');
@@ -63,9 +62,6 @@ function UserRegistre({ navigation }) {
     setServiceInputs(svc.length ? svc : ['']);
   }, [basicInfo]);
 
-  // -------- Validation helpers --------
-  const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-  const isValidPassword = (s) => /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(s);
   const isNonEmpty = (s) => typeof s === 'string' && s.trim().length > 0;
 
   // -------- Dynamic services handlers --------
@@ -103,23 +99,33 @@ function UserRegistre({ navigation }) {
     if (!isNonEmpty(phone)) errors.push('Phone');
 
     if (!isNonEmpty(email)) errors.push('Email');
-    else if (!isValidEmail(email.trim())) errors.push('Valid email');
+    else if (!isValidEmail(email)) {
+      Toast.show(
+        TOAST.errorBottom(
+          "Weak Password",
+          "Password must be at least 8 characters and include one symbol"
+        )
+      );
+      return;
+    };
 
     if (!isNonEmpty(password)) errors.push('Password');
-    else if (!isValidPassword(password)) errors.push('Strong password (8+ & 1 symbol)');
+    else if (!isValidPassword(password)) {
+      Toast.show(
+        TOAST.errorBottom(
+          "Weak Password",
+          "Password must be at least 8 characters and include one symbol"
+        )
+      );
+      return;
+    };
 
     const selectedNames = serviceInputs.map((s) => (s || '').trim()).filter(Boolean);
     const uniqueNames = Array.from(new Set(selectedNames));
     if (!uniqueNames.length) errors.push('At least one service');
 
     if (errors.length) {
-      Toast.show({
-        type: 'error',
-        text1: 'Smart Laundry',
-        text2: `Please provide: ${errors.join(', ')}`,
-        position: 'bottom',
-        visibilityTime: 2500,
-      });
+      Toast.show(TOAST.errorBottom("Smart Laundry", `Please provide: ${errors.join(', ')}`));
       return;
     }
 
@@ -146,14 +152,13 @@ function UserRegistre({ navigation }) {
 
   const onToggleSwitch = () => setIsSwitchOn((v) => !v);
 
-  const blurStyle = keyboardVisible ? { marginTop: -Math.round(0.4 * width) } : undefined;
+  const blurStyle = keyboardVisible ? { marginTop: -Math.round(0.4 * winW) } : undefined;
 
   return (
     <ScrollView
       ref={outerScrollRef}
       contentContainerStyle={[
         styles.scrollContainertop,
-        // paddingBottom equals keyboard height so the last button stops at the keyboard top
         { paddingBottom: keyboardHeight + 24 },
       ]}
       keyboardShouldPersistTaps="handled"
@@ -166,12 +171,12 @@ function UserRegistre({ navigation }) {
           <View
             style={[
               styles.switch,
-              { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' },
+              { backgroundColor: isSwitchOn ? tokens.colors.switchact : tokens.colors.switchoff },
             ]}
           >
             <Switch
-              trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
-              thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
+              trackColor={{ false: tokens.colors.switchoff, true: tokens.colors.switchact }}
+              thumbColor={isSwitchOn ? tokens.colors.switchthumb : tokens.colors.card}
               value={isSwitchOn}
               onValueChange={onToggleSwitch}
             />
@@ -187,7 +192,7 @@ function UserRegistre({ navigation }) {
         <Text style={styles.text}>The Smart Laundry.</Text>
         <Text style={styles.textsub}>Create Account</Text>
 
-        <BlurView style={blurStyle} intensity={keyboardVisible ? 20 : 0}>
+        <BlurView style={blurStyle} intensity={keyboardVisible ? tokens.blur.modal : tokens.blur.screen}>
           <TouchableOpacity activeOpacity={1}>
             {isSwitchOn && <RegistreTop navigation={navigation} />}
 
@@ -207,7 +212,7 @@ function UserRegistre({ navigation }) {
                     keyboardType="default"
                     value={laundryName}
                     onChangeText={setLaundryName}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                     autoCapitalize="words"
                     autoCorrect={false}
                   />
@@ -217,7 +222,7 @@ function UserRegistre({ navigation }) {
                     placeholder="Address"
                     value={address}
                     onChangeText={setAddress}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                     autoCapitalize="sentences"
                     autoCorrect={false}
                   />
@@ -227,7 +232,7 @@ function UserRegistre({ navigation }) {
                     keyboardType="phone-pad"
                     value={phone}
                     onChangeText={setPhone}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                   />
                   <TextInput
                     style={styles.input}
@@ -235,7 +240,7 @@ function UserRegistre({ navigation }) {
                     keyboardType="phone-pad"
                     value={phone2}
                     onChangeText={setPhone2}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                   />
                   <TextInput
                     style={styles.input}
@@ -243,7 +248,7 @@ function UserRegistre({ navigation }) {
                     keyboardType="email-address"
                     value={email}
                     onChangeText={setEmail}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
@@ -253,19 +258,19 @@ function UserRegistre({ navigation }) {
                     secureTextEntry
                     value={password}
                     onChangeText={setPassword}
-                    placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                    placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
 
-                  <Text style={{ marginTop: 8, marginBottom: 6, color: '#666' }}>Services Type</Text>
+                  <Text style={{ marginTop: 8, marginBottom: 6, color: tokens.colors.darkText }}>Services Type</Text>
 
                   {serviceInputs.map((val, idx) => (
                     <View key={`svc-${idx}`} style={styles.serviceRow}>
                       <TextInput
                         style={[styles.input, { flex: 1, marginBottom: 0 }]}
                         placeholder={`Service ${idx + 1} (e.g., Ironing)`}
-                        placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+                        placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
                         value={val}
                         onChangeText={(t) => updateServiceRow(idx, t)}
                         autoCapitalize="words"
@@ -282,10 +287,10 @@ function UserRegistre({ navigation }) {
                     onPress={addServiceRow}
                     style={[
                       styles.removeButton,
-                      { alignSelf: 'flex-start', backgroundColor: '#D9E0CF', marginTop: 10 },
+                      { alignSelf: 'flex-start', backgroundColor: tokens.colors.addbutton, marginTop: 10 },
                     ]}
                   >
-                    <Text style={[styles.removeText, { color: '#2E3329' }]}>+ Add another service</Text>
+                    <Text style={[styles.removeText, { color: tokens.colors.darkText }]}>+ Add another service</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -293,8 +298,6 @@ function UserRegistre({ navigation }) {
           </TouchableOpacity>
         </BlurView>
 
-        {/* These buttons are inside the OUTER ScrollView,
-            so they move with the form and stop at the keyboard */}
         {!isSwitchOn && (
           <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
             <Text style={styles.loginButtonText}>Next</Text>
@@ -303,7 +306,6 @@ function UserRegistre({ navigation }) {
 
         <Or />
         <CreateAc butname="For Login" navigation={navigation} path="Login" />
-        {/* Keep <Toast /> in the root App */}
       </View>
     </ScrollView>
   );
@@ -312,34 +314,50 @@ function UserRegistre({ navigation }) {
 const { width: winW } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  scrollContainertop: { flexGrow: 1, backgroundColor: '#ffff' }, // outer scroll content
-  switch: { position: 'absolute', right: 30, top: 50, zIndex: 100, borderRadius: 50 },
-  switchText: { fontSize: 15, position: 'absolute', right: 85, top: 58, zIndex: 90, color: '#F2EBBC' },
+  scrollContainertop: { flexGrow: 1, backgroundColor: tokens.colors.background }, // outer scroll content
+  switch: { position: 'absolute', right: 30, top: 50, zIndex: 100, borderRadius: tokens.radius.full },
+  switchText: { fontSize: tokens.components.Typography.body.fontSize, position: 'absolute', right: 85, top: 58, zIndex: 90, color: tokens.colors.switchact },
   switchset: { flexDirection: 'row' },
   loginButton: {
-    width: '75%', height: 42, backgroundColor: '#A3AE95',
-    borderRadius: 10, justifyContent: 'center', alignItems: 'center',
-    marginTop: 35, alignSelf: 'center',
+    width: "75%",
+    height: tokens.sizes.buttonHeight,
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: tokens.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: tokens.spacing.xxl,
+    alignSelf: 'center',
   },
-  loginButtonText: { fontSize: 15, fontWeight: 'bold', color: '#3C4234' },
+  loginButtonText: {
+    fontSize: tokens.components.Typography.body.fontSize,
+    ...tokens.components.Button.text.style,
+    color: tokens.components.Button.text.color,
+  },
   scrollContainer: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Math.round(winW * 0.1) },
   regback: { bottom: 0, width: '100%', height: '53%', position: 'absolute', marginBottom: '21%' },
   container: { flex: 1 },
   image: { position: 'absolute', width: '100%', height: '40%' },
   forback: { top: '6.5%', left: '6%', width: '8%', aspectRatio: 1, overflow: 'hidden' },
   imagein: { resizeMode: 'cover' },
-  text: { fontSize: 35, color: '#F2EBBC', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
-  backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
-  textsub: { fontSize: 15, color: '#F2EBBC', fontWeight: '500', top: '8%', marginLeft: '10%' },
+  text: {
+    fontSize: tokens.components.Typography.h1.fontSize,
+    ...tokens.components.Typography.h1,
+    color: tokens.colors.switchact,
+    top: '8%',
+    marginLeft: '10%'
+  },
+  backtop: { position: 'absolute', top: 0, backgroundColor: tokens.overlays.topdark, width: '100%', height: '40%' },
+  textsub: { fontSize: tokens.components.Typography.body.fontSize, color: tokens.colors.switchact, fontWeight: '500', top: '8%', marginLeft: '10%' },
   fields: { width: '80%', alignSelf: 'center', marginTop: '58%' },
   input: {
     height: 40, width: '100%', borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.3)', marginBottom: 15, paddingLeft: 15, fontSize: 16,
+    borderBottomColor: tokens.colors.bottomBorder, marginBottom: tokens.spacing.sm, 
+    paddingLeft: tokens.components.Input.paddingLeft, 
+    fontSize: tokens.components.Input.fontSize
   },
-  forget: { flexDirection: 'row', justifyContent: 'center', marginTop: -2, gap: 3, marginBottom: 20 },
-  removeButton: { backgroundColor: '#A3AE95', padding: 10, borderRadius: 5, marginLeft: 10 },
-  removeText: { color: '#3C4234', fontWeight: 'bold' },
-  serviceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  removeButton: { backgroundColor: tokens.colors.greenButton, padding: tokens.spacing.sm, borderRadius: tokens.radius.sm, marginLeft: tokens.spacing.sm },
+  removeText: { color: tokens.colors.darkText, ...tokens.fonts.bold },
+  serviceRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs, marginBottom: tokens.spacing.sm },
 });
 
 export default UserRegistre;
