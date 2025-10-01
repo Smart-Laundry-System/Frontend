@@ -18,6 +18,7 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { api, authGet, IMG_URL } from '../../Services/api';
 import SideMenu from '../../components/Menu/SideMenu';
 import { getAccessToken } from '../../Services/tokenStorage';
+import { useRegistration } from '../../context/RegistrationContext';
 
 const AVATAR_COLORS = ['#444', '#666', '#a3ae95', '#555', '#3C4234', '#A3AE95'];
 
@@ -36,9 +37,9 @@ const colorFor = (name = '') => {
 };
 
 const LaundryHome = ({ navigation }) => {
+  const { setLaundryId } = useRegistration();
   const [laundryInfo, setLaundryInfo] = useState(null);
   const [customerInfo, setCustomerInfo] = useState(null);
-  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fatchingLoad, setFatchingLoad] = useState(false);
 
@@ -121,6 +122,7 @@ const LaundryHome = ({ navigation }) => {
       // If your API returns customers under a different field, adjust below:
       setCustomerInfo(data?.userLaundries || data?.users || null);
       // setEmployees(employeeRes?.data || []);
+      setLaundryId(laundryInfo.id);
     } catch (error) {
       console.log('Error fetching data:', error?.response?.data || error?.message);
     } finally {
@@ -180,7 +182,7 @@ const LaundryHome = ({ navigation }) => {
         {/* Laundry Header */}
         <View style={styles.laundryHeader}>
           <Text style={styles.laundryName}>{laundryInfo?.name || 'Laundry Name'}</Text>
-          <TouchableOpacity style={styles.addEmployeeBtn} onPress={() => navigation.navigate("AddEmployee", { token, email })}>
+          <TouchableOpacity style={styles.addEmployeeBtn} onPress={() => navigation.navigate("AddEmployee", { token, laundryId: laundryInfo.id })}>
             <Text style={styles.addEmployeeText}>Add new employee</Text>
           </TouchableOpacity>
         </View>

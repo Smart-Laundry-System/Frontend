@@ -4,7 +4,7 @@ const RegistrationContext = createContext(null);
 
 export function RegistrationProvider({ children }) {
   const [isSwitchOn, setIsSwitchOn] = useState(true);
-
+  const [laundryId, setLaundryId] = useState(null);
   const [basicInfo, setBasicInfo] = useState({
     laundryName: "",
     email: "",
@@ -23,7 +23,6 @@ export function RegistrationProvider({ children }) {
     about: "",   
   });
   
-  // Merge a patch into basicInfo (preferred way to update)
   const updateBasicInfo = (patch = {}) =>
     setBasicInfo((prev) => ({ ...(prev ?? {}), ...patch }));
 
@@ -71,6 +70,8 @@ export function RegistrationProvider({ children }) {
       updateBasicInfo,    // merge helper (preferred)
       upsertServicePrice, // convenience for pricing
 
+      laundryId,
+      setLaundryId,
       resetAll,
     }),
     [isSwitchOn, basicInfo]

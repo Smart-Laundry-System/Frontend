@@ -7,8 +7,6 @@ import {
   deleteTokens,
 } from "./tokenStorage";
 
-/* ------------------------------ config ------------------------------ */
-
 const extra =
   (Constants.expoConfig && Constants.expoConfig.extra) ||
   (Constants.manifest && Constants.manifest.extra) ||
@@ -20,10 +18,8 @@ const IMAGE_UPLOAD_URL = extra.IMAGE_UPLOAD_URL || "";
 export const STRIPE_PUBLISHABLE_KEY = extra.STRIPE_PUBLISHABLE_KEY || "";
 export const STRIPE_DEFAULT_CURRENCY = (extra.STRIPE_DEFAULT_CURRENCY || "usd").toLowerCase();
 
-// Auth refresh path (adjust in app.json -> expo.extra if needed)
 const REFRESH_PATH = extra.REFRESH_PATH || "/auth/v1/refresh";
 
-// SSE subscribe endpoint (must match your Spring @GetMapping)
 export const SSE_PATH = extra.SSE_PATH || "/api/auth/notifications/subscribe";
 
 /* ------------------------------ axios ------------------------------ */

@@ -47,7 +47,7 @@ function HotelRegister2({ route, navigation }) {
     selectedOptions,
   } = route.params || {};
 
-  const { basicInfo, updateBasicInfo, isSwitchOn, setIsSwitchOn,setBasicInfo } = useRegistration();
+  const { basicInfo, updateBasicInfo, isSwitchOn, setIsSwitchOn } = useRegistration();
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);

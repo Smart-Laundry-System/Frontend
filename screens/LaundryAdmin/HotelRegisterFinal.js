@@ -47,7 +47,6 @@ function HotelRegisterFinal({ route, navigation }) {
     laundryImageUrl: pLaundryImageUrl, // string
   } = route.params || {};
 
-  // Context (preferred source of truth)
   const { basicInfo, updateBasicInfo, resetAll } = useRegistration();
 
   const [isSwitchOn, setIsSwitchOn] = useState(false);
