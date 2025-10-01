@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { api } from '../../Services/api';
 import Toast from 'react-native-toast-message';
+import { TOAST } from '../../styles/theme';
 
 
 const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
@@ -26,24 +27,16 @@ const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
     if (submitting) return;
 
     if (!subject.trim() || !message.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing fields',
-        text2: 'Please fill Subject and Message.',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing fields", "Please fill Subject and Message.")
+      );
       return;
     }
 
     if (!email) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing email',
-        text2: 'Laundry email is required.',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing email", "Laundry email is required.")
+      );
       return;
     }
 
@@ -63,39 +56,26 @@ const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
       });
 
       if (res?.status === 200 && res?.data) {
-        Toast.show({
-          type: 'success',
-          text1: 'Notification sent',
-          text2: 'Your public message has been posted.',
-          position: 'top',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.success("Notification sent", "Your public message has been posted.")
+        );
         // optionally notify parent & close/reset
         onSent?.(res.data);
         setSubject('');
         setMessage('');
         onClose?.();
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Send failed',
-          text2: 'Unexpected server response.',
-          position: 'bottom',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.errorBottom("Send failed", "Unexpected server response.")
+        );
       }
     } catch (err) {
       const serverMsg = err?.response?.data;
-      Toast.show({
-        type: 'error',
-        text1: 'Send failed',
-        text2:
-          (typeof serverMsg === 'string' && serverMsg) ||
+      Toast.show(
+        TOAST.errorBottom("Send failed",(typeof serverMsg === 'string' && serverMsg) ||
           err?.message ||
-          'Network/server error',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+          'Network/server error')
+      );
     } finally {
       setSubmitting(false);
     }

@@ -20,6 +20,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import Toast from "react-native-toast-message";
 import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
+import { TOAST, tokens } from "../../../styles/theme";
 
 // ---- design tokens ----
 const GREEN = "#A3AE95";
@@ -51,7 +52,9 @@ const ENDPOINTS = {
 export default function CustomerOrder() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { token, orderId } = route.params || {};
+  const routeToken = route?.params?.token ?? null;
+
+  const { orderId } = route.params || {};
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
@@ -63,6 +66,11 @@ export default function CustomerOrder() {
   // UI extras
   const [showServicesSheet, setShowServicesSheet] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // NEW: stage picker selection before committing
+  const [pickerTempDate, setPickerTempDate] = useState(null);
+
+  const [token, setToken] = useState(routeToken || null);
 
   // treat null/undefined/""/invalid as "no proposed date"
   const hasCustomerInterest = useMemo(() => {
@@ -78,25 +86,6 @@ export default function CustomerOrder() {
     () => ({ Authorization: `Bearer ${token}` }),
     [token]
   );
-
-  const toast = {
-    ok: (text1, text2) =>
-      Toast.show({
-        type: "success",
-        text1,
-        text2,
-        position: "top",
-        visibilityTime: 2000,
-      }),
-    err: (text1, text2) =>
-      Toast.show({
-        type: "error",
-        text1,
-        text2,
-        position: "top",
-        visibilityTime: 2000,
-      }),
-  };
 
   const toAbs = (rel) => {
     if (!rel) return PLACE_IMG;
@@ -120,13 +109,11 @@ export default function CustomerOrder() {
     paymentMethod: o?.paymentMethod || "By card",
     estimatedDate: o?.estimatedCompletedDate || o?.estimatedDate || null,
 
-    // 👇 include all possible server keys; we normalize to customerInterestDate
     customerInterestDate:
       o?.customerInterestDate || o?.requestDate || null,
   });
 
 
-  // build ?ids=1&ids=2 for Spring List<Long>
   const buildIdsParams = (key, arr) => {
     const p = new URLSearchParams();
     (arr || []).forEach((v) => p.append(key, v));
@@ -160,23 +147,75 @@ export default function CustomerOrder() {
       const msg = e?.response?.data?.message || e?.message || "Failed to load order";
       setError(msg);
       setOrder(null);
-      toast.err("Smart Laundry", msg);
+      Toast.show(TOAST.errorBottom("Smart Laundry", msg));
     } finally {
       setLoading(false);
     }
   }, [orderId, token, authHeader]);
 
-  useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder, actOnDate]);
+  // start of local “today” to avoid timezone/time-of-day glitches
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  const statusIndex = useMemo(() => {
-    const s = (order?.status || "").toUpperCase();
-    if (s.includes("REACHED")) return 3;
-    if (s.includes("ON") || s.includes("WAY")) return 2; // ON_THE_WAY
-    if (s.includes("WASH")) return 1;
-    return 0; // PICKUP
-  }, [order?.status]);
+  // Base date to show: if we have an estimated date, use it; else now
+  const basePickerDate = useMemo(() => {
+    return order?.estimatedDate ? new Date(order.estimatedDate) : new Date();
+  }, [order?.estimatedDate]);
+
+  // remount native picker when base date changes
+  const pickerKey = useMemo(
+    () => (basePickerDate && basePickerDate.toDateString()) || "now",
+    [basePickerDate]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      if (!routeToken) {
+        // NOTE: your original code references getAccessToken() but doesn't import it here.
+        // Keeping behavior unchanged per your request.
+        try {
+          const { getAccessToken } = await import("../../../Services/tokenStorage");
+          const t = await getAccessToken().catch(() => null);
+          if (mounted && t) setToken(t);
+        } catch (_) {
+          // ignore if not available; you already pass token by route sometimes
+        }
+      }
+    })();
+
+    fetchOrder();
+
+    return () => {
+      mounted = false;
+    }
+  }, [routeToken, fetchOrder, /* leaving actOnDate as-is in your deps */]);
+
+const statusIndex = useMemo(() => {
+  const norm = String(order?.status || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+
+  switch (norm) {
+    case "PICKUP":
+      return 0;
+    case "WASHING":
+      return 1;
+    case "ON_THE_WAY":
+      return 2;
+    case "REACHED":
+      return 3;
+    default:
+      return -1;
+  }
+}, [order?.status]);
+
 
   const isPickup = (order?.status || "").toUpperCase() === "PICKUP";
 
@@ -215,13 +254,13 @@ export default function CustomerOrder() {
         params: { orderID: order.id },
         headers: authHeader,
       });
-      toast.ok(
+      Toast.show(TOAST.success(
         "Welcome to Smart Laundry",
         kind === "accept" ? "Date accepted." : "Date rejected and sent back to laundry."
-      );
+      ));
       fetchOrder();
     } catch (e) {
-      toast.err("Smart Laundry", e?.response?.data?.message || e?.message || "Action failed");
+      Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data?.message || e?.message || "Action failed"));
     } finally {
       setBusyAction(false);
     }
@@ -237,15 +276,17 @@ export default function CustomerOrder() {
       });
       await fetchOrder();
     } catch (e) {
-      toast.err("Smart Laundry", e?.response?.data?.message || e?.message || "Could not update status");
+      Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data?.message || e?.message || "Could not update status"));
     } finally {
       setBusyAction(false);
     }
   };
 
+  // Open date picker – now prefill temp date
   const onPickEstimatedDate = () => {
-    // Only allow opening when status is PICKUP
-    if (isPickup) setShowDatePicker(true);
+    if (!isPickup) return;
+    setPickerTempDate(basePickerDate);
+    setShowDatePicker(true);
   };
 
   // Top pill pressed: ONLY active/clickable when PICKUP
@@ -261,22 +302,22 @@ export default function CustomerOrder() {
           headers: authHeader,
         });
         await fetchOrder();
-        toast.ok("Welcome to Smart Laundry", "Pickup set for selected date");
+        Toast.show(TOAST.success("Welcome to Smart Laundry", "Pickup set for selected date"));
       } catch (e) {
-        toast.err("Smart Laundry", e?.response?.data?.message || e?.message || "Could not set PICKUP");
+        Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data?.message || e?.message || "Could not set PICKUP"));
       } finally {
         setBusyAction(false);
       }
     } else {
-      // No date yet -> open calendar
+      // No date yet -> open calendar primed to now/base
+      setPickerTempDate(basePickerDate);
       setShowDatePicker(true);
     }
   };
 
-  const onDatePicked = async (_, selectedDate) => {
-    // Android dialog auto-dismisses; iOS uses modal wrapper with backdrop
-    if (Platform.OS === "android") setShowDatePicker(false);
-    if (!selectedDate || !order?.id) return;
+  // Commit function: called from Save button inside the modal
+  const commitEstimatedDate = async () => {
+    if (!order?.id || !pickerTempDate) return;
 
     try {
       setBusyAction(true);
@@ -285,7 +326,7 @@ export default function CustomerOrder() {
       await api.put(ENDPOINTS.updateEstimatedDate, null, {
         params: {
           orderID: order.id,
-          date: selectedDate.toISOString(),
+          date: pickerTempDate.toISOString(),
         },
         headers: authHeader,
       });
@@ -297,11 +338,11 @@ export default function CustomerOrder() {
       });
 
       await fetchOrder();
-      toast.ok("Welcome to Smart Laundry", "Pickup scheduled and date updated");
-
-      if (Platform.OS === "ios") setShowDatePicker(false);
+      Toast.show(TOAST.success("Welcome to Smart Laundry", "Pickup scheduled and date updated"));
+      setShowDatePicker(false);
+      setPickerTempDate(null);
     } catch (e) {
-      toast.err("Smart Laundry", e?.response?.data?.message || e?.message || "Could not update date");
+      Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data?.message || e?.message || "Could not update date"));
     } finally {
       setBusyAction(false);
     }
@@ -387,14 +428,16 @@ export default function CustomerOrder() {
             </View>
           </ImageBackground>
 
-          {/* Status */}
           <Text style={styles.sectionTitle}>Status</Text>
           <View style={styles.statusRow}>
             <StatusBox
               label="Pick up"
               icon="hand-left"
               active={statusIndex >= 0}
-              onPress={() => onAdvanceStatus("PICKUP")}
+              onPress={() => {
+                onAdvanceStatus("PICKUP");
+                setAssignOpen(true);
+              }}
             />
             <StatusConnector />
             <StatusBox
@@ -408,7 +451,10 @@ export default function CustomerOrder() {
               label="On the way"
               icon="car"
               active={statusIndex >= 2}
-              onPress={() => onAdvanceStatus("ON_THE_WAY")}
+              onPress={() => {
+                onAdvanceStatus("ON_THE_WAY");
+                setAssignOpen(true);
+              }}
             />
             <StatusConnector />
             <StatusBox
@@ -417,14 +463,6 @@ export default function CustomerOrder() {
               active={statusIndex >= 3}
               onPress={() => onAdvanceStatus("REACHED")}
             />
-
-            <TouchableOpacity
-              onPress={() => setAssignOpen(true)}
-              style={styles.addBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#000" />
-            </TouchableOpacity>
           </View>
 
           {/* Estimated Completed Date */}
@@ -501,7 +539,8 @@ export default function CustomerOrder() {
               >
                 <Text style={styles.secondaryActionText}>Reject the new date</Text>
               </TouchableOpacity>
-            </>)}
+            </>
+          )}
           {/* Order Summary */}
           <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Order Summary</Text>
           <View style={styles.sumRow}>
@@ -555,7 +594,6 @@ export default function CustomerOrder() {
 
         {/* Modals */}
         <Portal>
-          {/* Assign employee modal */}
           <Modal
             visible={assignOpen}
             onDismiss={() => setAssignOpen(false)}
@@ -567,7 +605,7 @@ export default function CustomerOrder() {
               style={styles.assignPrimary}
               onPress={() => {
                 setAssignOpen(false);
-                toast.ok("Welcome to Smart Laundry", "Open your assign-employee flow here.");
+                Toast.show(TOAST.success("Welcome to Smart Laundry", "Open your assign-employee flow here."));
               }}
             >
               <Text style={styles.assignPrimaryText}>Assign an Employee</Text>
@@ -610,24 +648,52 @@ export default function CustomerOrder() {
           {/* Date picker modal with backdrop (only shown when isPickup triggers it) */}
           <Modal
             visible={showDatePicker}
-            onDismiss={() => setShowDatePicker(false)}
+            onDismiss={() => {
+              setShowDatePicker(false);
+              setPickerTempDate(null);
+            }}
             dismissable
             contentContainerStyle={styles.datePickerSheet}
           >
             <DateTimePicker
-              value={order.estimatedDate ? new Date(order.estimatedDate) : new Date()}
+              key={pickerKey} // remount when base date changes
+              value={pickerTempDate || basePickerDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={onDatePicked}
-              minimumDate={new Date()}
+              onChange={(event, date) => {
+                if (event?.type === "dismissed") {
+                  setShowDatePicker(false);
+                  setPickerTempDate(null);
+                  return;
+                }
+                if (date) setPickerTempDate(date);
+              }}
+              minimumDate={startOfToday}
               style={{ backgroundColor: "#fff", borderRadius: 10 }}
             />
+            {/* Action row */}
+            <View style={{ flexDirection: "row", marginTop: 12, gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.assignBack, { flex: 1, borderColor: MUTED }]}
+                onPress={() => {
+                  setShowDatePicker(false);
+                  setPickerTempDate(null);
+                }}
+              >
+                <Text style={[styles.assignBackText, { color: MUTED }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.assignBack, { flex: 1 }]}
+                onPress={commitEstimatedDate}
+                disabled={!pickerTempDate || busyAction}
+              >
+                <Text style={styles.assignBackText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </Modal>
         </Portal>
       </SafeAreaView>
-
-      {/* Local Toast host (remove if already at app root) */}
-      <Toast />
     </PaperProvider>
   );
 }
@@ -802,12 +868,12 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: "#3C4234", paddingVertical: 0 },
 
-  assignSheet: { marginHorizontal: 16, borderRadius: 16, backgroundColor: "#A3AE95", padding: 20 },
-  assignTitle: { color: TEXT, fontWeight: "700", marginBottom: 10 },
+  assignSheet: { marginHorizontal: 16, borderRadius: 16, backgroundColor: tokens.colors.background, padding: 20 },
+  assignTitle: { color: tokens.colors.darkText, fontWeight: "700", marginBottom: 10 },
   assignPrimary: {
     height: 42,
     borderRadius: 10,
-    backgroundColor: "#E6ECE1",
+    backgroundColor: tokens.colors.greenButton,
     alignItems: "center",
     justifyContent: "center",
   },

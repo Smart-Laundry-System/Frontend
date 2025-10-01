@@ -33,7 +33,13 @@
       "API_URL": "http://172.20.10.3:8082",
       "APP_ENV": "development",
       "IMAGE_UPLOAD_URL": "http://172.20.10.3:3999/upload",
-      "API_URL_IMAGE": "http://172.20.10.3:3999"
-    }
+      "API_URL_IMAGE": "http://172.20.10.3:3999",
+      "STRIPE_PUBLISHABLE_KEY": "pk_test_51SBQkTLe9cACBiw5f3XQ0nzLZsRsYlfXtsgi5mcyUFKYLiGihNEEKzeGJ3vgr2275H4pd1N8bahyjD10mfpJlffs00vuI4Zbh1",
+      "STRIPE_DEFAULT_CURRENCY": "usd"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ]
   }
 }

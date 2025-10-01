@@ -10,7 +10,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import UserComplainModel from '../Notification/UserComplainModel'
 
-const SideMenuUser = ({ onClose, token, email }) => {
+const SideMenuUser = ({ onClose, token, email, name }) => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-300)).current;
@@ -43,12 +43,12 @@ const SideMenuUser = ({ onClose, token, email }) => {
         </TouchableOpacity>
 
 
-        <View style={styles.menuRow}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => go("UserOrders", { token, email, name })}>
           <Text style={styles.menuItem}>Order history</Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>2</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => go("NotificationFrmLaundry", { email, token })} style={styles.menuRow}>
           <Text style={styles.menuItem}>Notifications</Text>

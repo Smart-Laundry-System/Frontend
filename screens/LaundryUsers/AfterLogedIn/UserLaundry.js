@@ -11,17 +11,24 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
-  FlatList,
-  TextInput,
-  Switch,
+  FlatList
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useRoute } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import Toast from "react-native-toast-message";
-import { authGet, api, IMG_URL } from "../../../Services/api";
+import {
+  authGet,
+  api,
+  IMG_URL,
+  createPaymentIntent,
+  updateViolationStatus,
+  STRIPE_DEFAULT_CURRENCY
+} from "../../../Services/api";
 import BackLogin from "../../../assets/backLogin.png";
 import Or from "../../../components/Button/Or";
+import { initPaymentSheet, presentPaymentSheet } from "@stripe/stripe-react-native";
+import { TOAST } from "../../../styles/theme";
 
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
@@ -233,7 +240,7 @@ function ServicePickerModal({ visible, services, preselectId, onClose, onDone })
             activeOpacity={0.8}
             onPress={() => {
               if (selectedIds.length === 0) {
-                Toast.show({ type: "info", text1: "Select one or more services" });
+                Toast.show(TOAST.errorTop("Nothing is selected", "Select one or more services"));
                 return;
               }
               onDone?.(selectedIds);
@@ -331,7 +338,7 @@ function PaymentModal({ visible, onClose, onConfirm }) {
         <View style={styles.centerBoxGreen}>
           <Text style={styles.dateBar}>{formatLongDateTime()}</Text>
 
-          <View style={styles.payCard}>
+          {/* <View style={styles.payCard}>
             <Text style={styles.payTitle}>Enter card details</Text>
 
             <TextInput
@@ -370,14 +377,14 @@ function PaymentModal({ visible, onClose, onConfirm }) {
               <Switch value={saveForLater} onValueChange={setSaveForLater} thumbColor="#fff" />
               <Text style={styles.saveText}> Save this for later</Text>
             </View>
-          </View>
+          </View> */}
 
           <TouchableOpacity
             style={styles.primaryCta}
             activeOpacity={0.85}
             onPress={() => onConfirm?.({ num, exp, cvv, saveForLater })}
           >
-            <Text style={styles.primaryCtaText}>Confirm</Text>
+            <Text style={styles.primaryCtaText}>Confirm Payment</Text>
           </TouchableOpacity>
 
           <Or />
@@ -456,6 +463,9 @@ export default function UserLaundry({ navigation }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const orderTypeRef = useRef("PICKUP");
 
+  // Stripe payment state
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
   // Services carousel state
   const serviceListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -474,13 +484,7 @@ export default function UserLaundry({ navigation }) {
 
     async function run() {
       if (!id) {
-        Toast.show({
-          type: "error",
-          text1: "Missing laundry id",
-          text2: "Could not load this laundry. Please go back and try again.",
-          position: "bottom",
-          visibilityTime: 2000,
-        });
+        Toast.show(TOAST.errorTop("Missing laundry id", "Could not load this laundry. Please go back and try again."));
         setLoading(false);
         return;
       }
@@ -499,24 +503,12 @@ export default function UserLaundry({ navigation }) {
 
         if (!mounted) return;
         if (!payload) {
-          Toast.show({
-            type: "error",
-            text1: "Could not load laundry",
-            text2: "Please check your connection and try again.",
-            position: "bottom",
-            visibilityTime: 2000,
-          });
+          Toast.show(TOAST.errorTop("Could not load laundry", "Please check your connection and try again."));
         }
         setDetails(payload);
       } catch (e) {
         if (!mounted) return;
-        Toast.show({
-          type: "error",
-          text1: "Something went wrong",
-          text2: "Please try again later.",
-          position: "bottom",
-          visibilityTime: 2000,
-        });
+        Toast.show(TOAST.errorTop("Something went wrong", "Please try again later."));
         setDetails(null);
       } finally {
         if (mounted) setLoading(false);
@@ -604,13 +596,13 @@ export default function UserLaundry({ navigation }) {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         }
       );
-      Toast.show({ type: "success", text1: "Thanks!", text2: `You rated ${stars}★` });
+      Toast.show(TOAST.success("Thanks!", `You rated ${stars}★`));
       try {
         const r = await authGet("/api/auth/laundryById", token, { params: { id } });
         setDetails(r.data);
       } catch { }
     } catch (err) {
-      Toast.show({ type: "error", text1: "Couldn't submit rating", text2: "Please try again." });
+      Toast.show(TOAST.errorTop("Couldn't submit rating", "Please try again."));
     }
   };
 
@@ -660,8 +652,7 @@ export default function UserLaundry({ navigation }) {
       laundryId: details?.id || details?.laundryId || details?.ownerEmail,
     };
 
-    console.log("my...............................my................mt.......", bodye);
-
+    console.log("ttttttttttttttttt sdlkvnlkd skjsnflksds...........", body, bodye);
     // Update/attach the customer to the laundry (non-fatal if it fails)
     try {
       await api.put(ADD_CUSTOMER_END_POINT, bodye, {
@@ -687,13 +678,93 @@ export default function UserLaundry({ navigation }) {
       setSummaryOpen(false);
       setSelectedIds([]);
       setSelectedItems([]);
-      Toast.show({
-        type: "success",
-        text1: "Order placed",
-        text2: `Your ${orderTypeRef.current === "PICKUP" ? "pickup" : "advance"} order was created`,
-      });
+      Toast.show(TOAST.success("Order placed", `Your ${orderTypeRef.current === "PICKUP" ? "pickup" : "advance"} order was created`));
     } catch (err) {
-      Toast.show({ type: "error", text1: "Couldn't create order", text2: "Please try again." });
+      Toast.show(TOAST.errorTop("Couldn't create order", "Please try again."));
+    }
+  };
+
+  // ========= STRIPE PAYMENT FLOW =========
+  const getOrderAmountMinor = () => {
+    const total = selectedItems.reduce((s, it) => s + (Number(it.priceNum) || 0), 0);
+    // Stripe expects smallest unit (e.g., cents). For LKR-like (2 decimals) multiply by 100
+    return Math.round(total * 100);
+  };
+
+  const startStripePayment = async () => {
+    try {
+      setPaymentLoading(true);
+
+      const amountMinor = getOrderAmountMinor();
+      if (amountMinor <= 0) {
+        Toast.show(TOAST.errorTop("Empty services", "Please add at least one service"));
+        return;
+      }
+
+      const violationIdForPay = Number(details?.violationId ?? details?.id ?? details?.laundryId);
+      if (!Number.isFinite(violationIdForPay)) {
+        Toast.show(TOAST.errorTop("Payment Failed", "Missing payment reference id"));
+        return;
+      }
+
+      const resp = await createPaymentIntent({
+        violationId: violationIdForPay,
+        amountMinor,
+        currency: STRIPE_DEFAULT_CURRENCY,
+        description: `Order for ${title}`,
+        token,
+      });
+
+      const { success, clientSecret, data, message } = resp;
+      if (!success || !clientSecret) {
+        Toast.show(TOAST.errorTop("Payment init failed", message || "Try again"));
+        return;
+      }
+
+      // IMPORTANT: prefer the actual violation id returned by backend
+      const actualViolationId = Number(data?.violationId ?? violationIdForPay);
+      const stripePaymentIntentId = data?.stripePaymentIntentId;
+
+      const init = await initPaymentSheet({
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: "Smart Laundry",
+        allowsDelayedPaymentMethods: false,
+        // returnURL: "yourappscheme://stripe-redirect"  // iOS redirect methods (optional)
+      });
+      if (init.error) {
+        Toast.show(TOAST.errorTop("PaymentSheet error", init.error.message));
+        return;
+      }
+
+      const present = await presentPaymentSheet();
+      if (present.error) {
+        if (present.error.code !== "Canceled") {
+          Toast.show(TOAST.errorTop("Payment failed", present.error.message));
+        }
+        return;
+      }
+
+      // Try to update backend payment status, but DO NOT block order creation if this fails
+      try {
+        await updateViolationStatus({
+          violationId: actualViolationId,
+          status: "paid",
+          paymentStatus: "paid",
+          paymentDate: new Date().toISOString(),
+          stripePaymentIntentId,
+          token,
+        });
+      } catch (e) {
+        Toast.show(TOAST.errorTop("updateViolationStatus failed:", e?.response?.status, e?.response?.data || e?.message));
+        // continue anyway
+      }
+
+      // NOW create the order
+      await placeOrder();
+    } catch (e) {
+      Toast.show(TOAST.errorTop("Payment error", e?.message || "Try again"));
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -837,10 +908,11 @@ export default function UserLaundry({ navigation }) {
         }}
       />
 
+      {/* Change PaymentModal confirm to run Stripe flow */}
       <PaymentModal
         visible={payOpen}
         onClose={() => setPayOpen(false)}
-        onConfirm={() => placeOrder()}
+        onConfirm={() => startStripePayment()}
       />
     </SafeAreaView>
   );

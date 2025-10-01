@@ -1,5 +1,5 @@
 // LaundryHomeScreen.js
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,22 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Vector from '../../assets/Vector.png';
 import StartImage from '../../assets/startimage.png';
 import { BlurView } from 'expo-blur';
-import { useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { api, authGet, IMG_URL } from '../../Services/api';
 import SideMenu from '../../components/Menu/SideMenu';
+import { getAccessToken } from '../../Services/tokenStorage';
 
-const AVATAR_COLORS = ["#444", "#666", "#a3ae95", "#555","#3C4234","#A3AE95"];
+const AVATAR_COLORS = ['#444', '#666', '#a3ae95', '#555', '#3C4234', '#A3AE95'];
 
-const getInitials = (name = "") =>
+const getInitials = (name = '') =>
   name
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map(p => (p[0] || "").toUpperCase())
-    .join("") || "U";
+    .map((p) => (p[0] || '').toUpperCase())
+    .join('') || 'U';
 
-const colorFor = (name = "") => {
+const colorFor = (name = '') => {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
@@ -48,20 +49,39 @@ const LaundryHome = ({ navigation }) => {
   const employeeListRef = useRef(null);
 
   const route = useRoute();
-  const { email, token } = route.params ?? {};
+  const routeToken = route?.params?.token ?? null;
+  const { email } = route.params ?? {};
+  const [token, setToken] = useState(routeToken || null);
 
-  const testServices = [
-    { title: 'No services', category: 'No services', price: 'N/A' },
-  ];
+  const testServices = [{ title: 'No services', category: 'No services', price: 'N/A' }];
 
-  const ITEM_HEIGHT = 64;
-  const testCustomers = [
-    { name: 'No customers' },
-  ];
+  const ITEM_WIDTH = 150;
+  const testCustomers = [{ name: 'No customers' }];
 
-  const servicesData = (laundryInfo?.services?.length ? laundryInfo.services : testServices);
+  const servicesData = laundryInfo?.services?.length ? laundryInfo.services : testServices;
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        return true;
+      };
+
+      navigation.addListener('beforeRemove', onBackPress);
+
+      return () => navigation.removeListener('beforeRemove', onBackPress);
+    }, [navigation])
+  );
 
   useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      if (!routeToken) {
+        const t = await getAccessToken().catch(() => null);
+        if (mounted && t) setToken(t);
+      }
+    })();
+
     if (!fatchingLoad) {
       fetchLaundryData();
       setFatchingLoad(true);
@@ -70,7 +90,7 @@ const LaundryHome = ({ navigation }) => {
     if (!serviceListRef.current || servicesData.length < 2) return;
 
     const id = setInterval(() => {
-      setCurrentIndex(prev => {
+      setCurrentIndex((prev) => {
         const next = (prev + 1) % servicesData.length;
         try {
           serviceListRef.current?.scrollToIndex({ index: next, animated: true });
@@ -84,8 +104,11 @@ const LaundryHome = ({ navigation }) => {
       });
     }, 3000);
 
-    return () => clearInterval(id);
-  }, [servicesData.length, fatchingLoad]);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, [routeToken, servicesData.length, fatchingLoad]);
 
   const fetchLaundryData = async () => {
     try {
@@ -115,13 +138,19 @@ const LaundryHome = ({ navigation }) => {
 
   // Normalize customers array for FlatList
   const customers =
-    (Array.isArray(customerInfo?.user) && customerInfo.user.length ? customerInfo.user :
-      Array.isArray(customerInfo) && customerInfo.length ? customerInfo :
-        Array.isArray(laundryInfo?.users) && laundryInfo.users.length ? laundryInfo.users :
-          testCustomers);
+    (Array.isArray(customerInfo?.user) && customerInfo.user.length
+      ? customerInfo.user
+      : Array.isArray(customerInfo) && customerInfo.length
+        ? customerInfo
+        : Array.isArray(laundryInfo?.users) && laundryInfo.users.length
+          ? laundryInfo.users
+          : testCustomers
+    ).map((c) => ({
+      ...c,
+      name: c?.name || c?.fullName || c?.email || 'Customer',
+    }));
 
   return (
-
     <ScrollView style={styles.container}>
       <View style={styles.adjustBottom}>
         {/* Header Row */}
@@ -135,25 +164,34 @@ const LaundryHome = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.notificationWrapper} onPress={() => setIsMenuVisible(true)}>
-          <View style={styles.badge}><Text style={styles.badgeText}>2</Text></View>
+        <TouchableOpacity
+          style={styles.notificationWrapper}
+          onPress={() => setIsMenuVisible(true)}
+        >
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>2</Text>
+          </View>
           <Icon name="menu" style={styles.menuicon} size={28} />
         </TouchableOpacity>
-        {isMenuVisible && <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} />}
+        {isMenuVisible && (
+          <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} />
+        )}
 
         {/* Laundry Header */}
         <View style={styles.laundryHeader}>
           <Text style={styles.laundryName}>{laundryInfo?.name || 'Laundry Name'}</Text>
-          <TouchableOpacity style={styles.addEmployeeBtn}>
+          <TouchableOpacity style={styles.addEmployeeBtn} onPress={() => navigation.navigate("AddEmployee", { token, email })}>
             <Text style={styles.addEmployeeText}>Add new employee</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.serviceCard}>
           <Image
-            // source={require('../../assets/startimage.png')}
-            source={laundryInfo?.laundryImg ? { uri: `${IMG_URL}${laundryInfo.laundryImg}` } :
-              require('../../assets/startimage.png')}
+            source={
+              laundryInfo?.laundryImg
+                ? { uri: `${IMG_URL}${laundryInfo.laundryImg}` }
+                : StartImage
+            }
             style={styles.serviceImage}
           />
 
@@ -161,19 +199,23 @@ const LaundryHome = ({ navigation }) => {
             ref={serviceListRef}
             horizontal
             pagingEnabled
-            data={laundryInfo?.services?.length ? laundryInfo.services : testServices}
+            data={servicesData}
             keyExtractor={(item, i) => i.toString()}
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => {
-                  navigation.navigate('LaundryItems', { token, email, name: laundryInfo?.name || '' });
+                  navigation.navigate('LaundryItems', {
+                    token,
+                    email,
+                    name: laundryInfo?.name || '',
+                  });
                 }}
               >
                 <BlurView intensity={60} tint="light" style={styles.serviceItem}>
-                  {(servicesData?.length > 1) && (
+                  {servicesData.length > 1 && (
                     <View style={styles.paginationWrapper}>
-                      {(laundryInfo?.services || testServices).map((_, index) => (
+                      {servicesData.map((_, index) => (
                         <View
                           key={index}
                           style={[
@@ -185,16 +227,12 @@ const LaundryHome = ({ navigation }) => {
                     </View>
                   )}
                   <Text style={styles.serviceTitle}>{item?.title}</Text>
-                  {item?.category ?
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Icon name="scale-outline" size={14} color="#3C4234" />
-                      <Text style={styles.serviceSubtitle}>{item?.category}</Text>
-                    </View> :
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Icon name="scale-outline" size={14} color="#3C4234" />
-                      <Text style={styles.serviceSubtitle}>For each kg</Text>
-                    </View>
-                  }
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon name="scale-outline" size={14} color="#3C4234" />
+                    <Text style={styles.serviceSubtitle}>
+                      {item?.category || 'For each kg'}
+                    </Text>
+                  </View>
                   <Text style={styles.servicePrice}>${item?.price}</Text>
                 </BlurView>
               </TouchableOpacity>
@@ -210,7 +248,7 @@ const LaundryHome = ({ navigation }) => {
         </View>
 
         {/* Employees Button */}
-        <TouchableOpacity style={styles.employeesBtn}>
+        <TouchableOpacity style={styles.employeesBtn} onPress={() => navigation.navigate("Employees", { token, id: laundryInfo.id })}>
           <Text style={styles.employeesText}>Employees</Text>
         </TouchableOpacity>
 
@@ -224,14 +262,21 @@ const LaundryHome = ({ navigation }) => {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item, index) => (item?.id?.toString?.() ?? index.toString())}
           getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
+            length: ITEM_WIDTH,
+            offset: ITEM_WIDTH * index,
             index,
           })}
           renderItem={({ item }) => (
             <View style={styles.customerCard}>
-              <View style={[styles.avatarBox, { backgroundColor: colorFor(item?.name || 'Customer') }]}>
-                <Text style={styles.avatarInitials}>{getInitials(item?.name || 'Customer')}</Text>
+              <View
+                style={[
+                  styles.avatarBox,
+                  { backgroundColor: colorFor(item?.name || 'Customer') },
+                ]}
+              >
+                <Text style={styles.avatarInitials}>
+                  {getInitials(item?.name || 'Customer')}
+                </Text>
               </View>
               <View style={styles.customerNameWrapper}>
                 <Text style={styles.customerName}>{item?.name || 'Customer'}</Text>
@@ -251,12 +296,17 @@ const LaundryHome = ({ navigation }) => {
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>About Us</Text>
           <View style={styles.ratingRow}>
-            <Text style={{ color: '#FFC107', fontSize: 16 }}>⭐ {laundryInfo?.rating || '0.0'}</Text>
-            <Text style={{ color: '#555', marginLeft: 4 }}>({laundryInfo?.reviewCount || '0'} Reviews)</Text>
+            <Text style={{ color: '#FFC107', fontSize: 16 }}>
+              ⭐ {laundryInfo?.rating || '0.0'}
+            </Text>
+            <Text style={{ color: '#555', marginLeft: 4 }}>
+              ({laundryInfo?.reviewCount || '0'} Reviews)
+            </Text>
           </View>
-          <Text style={styles.aboutText}>{laundryInfo?.about || 'Laundry description not available.'}</Text>
+          <Text style={styles.aboutText}>
+            {laundryInfo?.about || 'Laundry description not available.'}
+          </Text>
         </View>
-
       </View>
     </ScrollView>
   );
@@ -265,7 +315,7 @@ const LaundryHome = ({ navigation }) => {
 const styles = StyleSheet.create({
   adjustBottom: {
     bottom: 30,
-    marginTop: 16
+    marginTop: 16,
   },
   paginationWrapper: {
     flexDirection: 'row',
@@ -304,7 +354,11 @@ const styles = StyleSheet.create({
   },
 
   topRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', top: 32, zIndex: 9000,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    top: 32,
+    zIndex: 9000,
   },
   notificationWrapper: { position: 'absolute' },
   badge: {
@@ -330,11 +384,27 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: { fontSize: 12, marginTop: 2 },
-  editBtn: { backgroundColor: '#A3AE95', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
+  editBtn: {
+    backgroundColor: '#A3AE95',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
   editBtnText: { color: '#fff', fontWeight: 'bold' },
-  laundryHeader: { marginTop: 85, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  laundryHeader: {
+    marginTop: 85,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   laundryName: { fontSize: 22, fontWeight: 'bold', color: '#3C4234' },
-  addEmployeeBtn: { borderWidth: 1, borderColor: '#3C4234', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
+  addEmployeeBtn: {
+    borderWidth: 1,
+    borderColor: '#3C4234',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
   addEmployeeText: { color: '#3C4234', fontWeight: 'bold' },
 
   serviceItem: {
@@ -351,12 +421,11 @@ const styles = StyleSheet.create({
 
   serviceCard: {
     marginTop: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     width: '100%',
     height: 250,
     position: 'relative',
     marginBottom: 20,
-    borderRadius: 20,
 
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 4 },
@@ -413,16 +482,16 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: "#a3ae95",
+    borderColor: '#a3ae95',
     zIndex: 10,
   },
   avatarInitials: {
     fontSize: 42,
-    fontWeight: "800",
-    color: "#ffffff",
+    fontWeight: '800',
+    color: '#ffffff',
     letterSpacing: 1,
   },
 
@@ -444,17 +513,23 @@ const styles = StyleSheet.create({
     color: '#3C4234',
     textAlign: 'center',
   },
-
-  serviceTitle: { fontSize: 18, fontWeight: '600', color: '#3C4234' },
+  serviceTitle: { fontSize: 16, fontWeight: '600', color: '#3C4234', marginBottom: 4 },
   serviceSubtitle: { fontSize: 12, fontWeight: '600', color: '#666', margin: 5 },
   servicePrice: {
     fontSize: 20,
     color: '#3C4234',
     fontWeight: '600',
     right: 12,
+    marginTop: 20,
     position: 'absolute',
   },
-  employeesBtn: { backgroundColor: '#A3AE95', marginTop: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  employeesBtn: {
+    backgroundColor: '#A3AE95',
+    marginTop: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
   employeesText: { color: '#fff', fontWeight: 'bold' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 24, color: '#3C4234' },
   aboutSection: { marginTop: 24 },

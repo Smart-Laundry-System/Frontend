@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import Toast from "react-native-toast-message";
 import {
   Image,
   Keyboard,
@@ -32,8 +31,11 @@ import {
   tokens,
   isValidEmail,
   isValidPassword,
-  TOAST,
+  TOAST
 } from "../styles/theme";
+import { saveTokens, deleteTokens } from "../Services/tokenStorage";
+import { useFocusEffect } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
 
 const USE_PORTAL = true;
 
@@ -75,12 +77,10 @@ function Login({ navigation }) {
       setRpEmail(email);
       setModalVisiblenext(true);
     } catch (e) {
-      Toast.show(
-        TOAST.errorTop(
-          "Smart Laundry",
-          e?.response?.data || e?.message || "Failed to send OTP"
-        )
-      );
+      Toast.show(TOAST.errorTop(
+        "Smart Laundry",
+        e?.response?.data || e?.message || "Failed to send OTP"
+      ));
     } finally {
       setIsSendingOtp(false);
     }
@@ -101,12 +101,10 @@ function Login({ navigation }) {
       return;
     }
     if (!isValidPassword(pass)) {
-      Toast.show(
-        TOAST.errorTop(
-          "Weak Password",
-          "Password must be at least 8 characters and include one symbol"
-        )
-      );
+      Toast.show(TOAST.errorTop(
+        "Weak Password",
+        "Password must be at least 8 characters and include one symbol"
+      ));
       return;
     }
     if (pass !== confirm) {
@@ -128,16 +126,28 @@ function Login({ navigation }) {
       setRpPass("");
       setRpConfirm("");
     } catch (e) {
-      Toast.show(
-        TOAST.errorTop(
-          "Smart Laundry",
-          e?.response?.data || e?.message || "Password update failed"
-        )
-      );
+      Toast.show(TOAST.errorTop(
+        "Smart Laundry",
+        e?.response?.data || e?.message || "Password update failed"
+      ));
     } finally {
       setIsResetting(false);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+        const type = e?.data?.action?.type;
+        if (type === "GO_BACK" || type === "POP") {
+          e.preventDefault();
+        }
+      });
+
+      return unsubscribe;
+    }, [navigation])
+  );
+
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () =>
@@ -179,12 +189,10 @@ function Login({ navigation }) {
       return;
     }
     if (!isValidPassword(pwd)) {
-      Toast.show(
-        TOAST.errorBottom(
-          "Weak Password",
-          "Password must be at least 8 characters and include one symbol"
-        )
-      );
+      Toast.show(TOAST.errorBottom(
+        "Weak Password",
+        "Password must be at least 8 characters and include one symbol"
+      ));
       return;
     }
 
@@ -196,10 +204,19 @@ function Login({ navigation }) {
         password: pwd,
       });
 
-      const receivedToken = response?.data;
-      if (!receivedToken) throw new Error("No token returned");
+      const data = response?.data;
+      const accessToken =
+        typeof data === "string" ? data : data?.accessToken || data?.token;
+      const refreshToken =
+        typeof data === "string" ? null : data?.refreshToken || data?.refresh || null;
 
-      const decodedToken = jwtDecode(receivedToken);
+      if (!accessToken) throw new Error("No token returned");
+
+      await deleteTokens();
+      await saveTokens({ accessToken, refreshToken });
+
+      // (Optional) decode to branch on role for navigation now
+      const decodedToken = jwtDecode(accessToken);
 
       await sleep(200);
 
@@ -217,25 +234,25 @@ function Login({ navigation }) {
               params: {
                 email: decodedToken.email,
                 name: decodedToken.name,
-                token: receivedToken,
+                token: accessToken
               },
             },
           ],
         });
 
-        Toast.show(
-          TOAST.success("Welcome to Smart Laundry", "Check your notifications first")
-        );
+        Toast.show(TOAST.success("Welcome to Smart Laundry", "Check your notifications first"));
       } else if (decodedToken.role === "LAUNDRY") {
         navigation.reset({
           index: 0,
           routes: [
             {
               name: "LaundryHome",
-              params: { email: decodedToken.email, token: receivedToken },
+              params: { email: decodedToken.email, token: accessToken },
             },
           ],
         });
+      } else if (decodedToken.role === "EMPLOYEE") {
+        Toast.show(TOAST.errorBottom("The feature will unlocked in future", "Emploee not allowed to access"));
       } else {
         navLockedRef.current = false;
         Toast.show(TOAST.errorBottom("Login Failed", "Unknown user role"));
@@ -335,7 +352,7 @@ function Login({ navigation }) {
         </View>
       </View>
       <TouchableOpacity
-        style={[styles.send, { opacity: isResetting ? tokens.opacities.disabled : 1 }]}
+        style={[styles.send, { opacity: isResetting ? tokens.opacities.disabled : tokens.opacities.fullscreen }]}
         onPress={onResetPassword}
         disabled={isResetting}
       >
@@ -451,7 +468,7 @@ function Login({ navigation }) {
               style={styles.input}
               placeholder="Email"
               keyboardType="email-address"
-              placeholderTextColor={keyboardVisible ? "black" : undefined}
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
               autoCapitalize="none"
               autoCorrect={false}
               value={userName}
@@ -462,7 +479,7 @@ function Login({ navigation }) {
               style={styles.input}
               placeholder="Password"
               secureTextEntry
-              placeholderTextColor={keyboardVisible ? "black" : undefined}
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
               autoCapitalize="none"
               autoCorrect={false}
               value={password}
@@ -508,8 +525,6 @@ function Login({ navigation }) {
 
       {renderForgotModal()}
       {renderResetModal()}
-
-      <Toast />
     </View>
   );
 
@@ -535,11 +550,11 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 35,
+    marginTop: tokens.spacing.xxl,
     alignSelf: "center",
   },
   loginButtonText: {
-    fontSize: 15,
+    fontSize: tokens.components.Typography.body.fontSize,
     ...tokens.components.Button.text.style,
     color: tokens.components.Button.text.color,
   },
@@ -549,18 +564,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "48%",
   },
-  imageBack: { position: "absolute", width: "100%", height: "60%", opacity: 0.9 },
+  imageBack: { position: "absolute", width: "100%", height: "60%", opacity: tokens.opacities.overlay },
   backtop: {
     position: "absolute",
     top: 0,
-    backgroundColor: tokens.overlays.top,
+    backgroundColor: tokens.overlays.toplight,
     width: "100%",
     height: "70%",
   },
   image: { resizeMode: "cover" },
   title: {
     fontSize: tokens.components.Typography.h1.fontSize,
-    color: tokens.colors.text,
     ...tokens.components.Typography.h1,
     top: "8%",
     marginLeft: "10%",
@@ -589,12 +603,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   forgetfont: {
-    fontSize: 15,
+    fontSize: tokens.components.Typography.body.fontSize,
     color: tokens.colors.notification,
     ...tokens.fonts.bold,
   },
   resetfont: {
-    fontSize: 15,
+    fontSize: tokens.components.Typography.body.fontSize,
     ...tokens.fonts.bold,
     color: tokens.colors.greenButton,
     borderBottomWidth: 1.5,

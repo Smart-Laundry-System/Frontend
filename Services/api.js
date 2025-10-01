@@ -1,7 +1,11 @@
-// Services/api.js
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import {
+  getAccessToken,
+  getRefreshToken,
+  saveTokens,
+  deleteTokens,
+} from "./tokenStorage";
 
 /* ------------------------------ config ------------------------------ */
 
@@ -12,14 +16,15 @@ const extra =
 
 export const API_URL = (extra.API_URL || "").replace(/\/$/, "");
 export const IMG_URL = extra.API_URL_IMAGE || "";
-const IMAGE_UPLOAD_URL = extra.IMAGE_UPLOAD_URL || ""; // <-- added
+const IMAGE_UPLOAD_URL = extra.IMAGE_UPLOAD_URL || "";
+export const STRIPE_PUBLISHABLE_KEY = extra.STRIPE_PUBLISHABLE_KEY || "";
+export const STRIPE_DEFAULT_CURRENCY = (extra.STRIPE_DEFAULT_CURRENCY || "usd").toLowerCase();
 
 // Auth refresh path (adjust in app.json -> expo.extra if needed)
 const REFRESH_PATH = extra.REFRESH_PATH || "/auth/v1/refresh";
 
 // SSE subscribe endpoint (must match your Spring @GetMapping)
-export const SSE_PATH =
-  (extra.SSE_PATH || "/api/auth/notifications/subscribe");
+export const SSE_PATH = extra.SSE_PATH || "/api/auth/notifications/subscribe";
 
 /* ------------------------------ axios ------------------------------ */
 
@@ -30,27 +35,32 @@ export const api = axios.create({
 });
 
 /* -------------------------- token helpers -------------------------- */
+/** Keep an in-memory access token for quick header injection */
+let _accessToken = null;
 
-export const getAccessToken = async () => AsyncStorage.getItem("accessToken");
-export const getRefreshToken = async () => AsyncStorage.getItem("refreshToken");
-
-export const setAuthTokens = async ({ accessToken, refreshToken }) => {
-  if (accessToken) await AsyncStorage.setItem("accessToken", accessToken);
-  if (refreshToken) await AsyncStorage.setItem("refreshToken", refreshToken);
+/** Set default auth header on the axios instance */
+const setDefaultAuthHeader = (token, tokenType = "Bearer") => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `${tokenType} ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
 };
-
-export const clearAuthTokens = async () =>
-  AsyncStorage.multiRemove(["accessToken", "refreshToken"]);
 
 /* --------------- request: inject bearer if missing --------------- */
 
 api.interceptors.request.use(async (config) => {
-  if (!config.headers?.Authorization) {
-    const at = await getAccessToken();
-    if (at) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${at}`;
-    }
+  // If another layer already set Authorization, keep it
+  if (config.headers?.Authorization) return config;
+
+  // Prefer in-memory token, otherwise pull once from SecureStore
+  if (!_accessToken) {
+    const t = await getAccessToken().catch(() => null);
+    if (t) _accessToken = t;
+  }
+  if (_accessToken) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${_accessToken}`;
   }
   return config;
 });
@@ -58,12 +68,20 @@ api.interceptors.request.use(async (config) => {
 /* --------- response: one-time refresh on 401 then retry --------- */
 
 let isRefreshing = false;
-let waitQueue = []; // { resolve, reject }
+let waitQueue = []; // { resolve, reject, cfg }
 
-const flushQueue = (error, token) => {
-  waitQueue.forEach(({ resolve, reject }) =>
-    error ? reject(error) : resolve(token)
-  );
+const flushQueue = (error, newToken) => {
+  waitQueue.forEach(({ resolve, reject, cfg }) => {
+    if (error) {
+      reject(error);
+    } else {
+      if (newToken) {
+        cfg.headers = cfg.headers || {};
+        cfg.headers.Authorization = `Bearer ${newToken}`;
+      }
+      resolve(api(cfg));
+    }
+  });
   waitQueue = [];
 };
 
@@ -77,16 +95,10 @@ api.interceptors.response.use(
 
     config._retry = true;
 
+    // If a refresh is already running, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
-        waitQueue.push({
-          resolve: (newToken) => {
-            config.headers = config.headers || {};
-            if (newToken) config.headers.Authorization = `Bearer ${newToken}`;
-            resolve(api(config));
-          },
-          reject,
-        });
+        waitQueue.push({ resolve, reject, cfg: config });
       });
     }
 
@@ -95,26 +107,31 @@ api.interceptors.response.use(
       const rt = await getRefreshToken();
       if (!rt) throw error;
 
-      const { data } = await axios.post(`${API_URL}${REFRESH_PATH}`, {
-        refreshToken: rt,
-      });
+      const refreshUrl = `${API_URL}${REFRESH_PATH}`;
+      const { data } = await axios.post(refreshUrl, { refreshToken: rt });
 
-      const tokenType = (data?.tokenType || 'Bearer').trim();
+      const tokenType = (data?.tokenType || "Bearer").trim();
       const newAT = data?.accessToken;
       const newRT = data?.refreshToken || rt;
       if (!newAT) throw new Error("Refresh failed: no accessToken returned");
 
-      await setAuthTokens({ accessToken: newAT, refreshToken: newRT });
-      api.defaults.headers.common.Authorization = `${tokenType} ${newAT}`;
+      // persist + set defaults + update in-memory
+      await saveTokens({ accessToken: newAT, refreshToken: newRT });
+      _accessToken = newAT;
+      setDefaultAuthHeader(newAT, tokenType);
 
+      // serve queued requests
       flushQueue(null, newAT);
 
+      // retry original
       config.headers = config.headers || {};
       config.headers.Authorization = `${tokenType} ${newAT}`;
       return api(config);
     } catch (e) {
       flushQueue(e, null);
-      await clearAuthTokens();
+      _accessToken = null;
+      setDefaultAuthHeader(null);
+      await deleteTokens();
       throw e;
     } finally {
       isRefreshing = false;
@@ -123,6 +140,7 @@ api.interceptors.response.use(
 );
 
 /* --------------------- convenience HTTP wrappers --------------------- */
+/** token is optional now — if omitted, the interceptor injects from SecureStore */
 
 export const authGet = (url, token, config = {}) =>
   api.get(url, {
@@ -166,23 +184,23 @@ export const authDelete = (url, token, config = {}) =>
 
 export function connectUnseenCount({
   email,
-  token,
+  token,              // optional; interceptor can inject too
   onUpdate,
   pollEveryMs = 15000,
 }) {
   if (!API_URL || !email) {
-    // nothing to do
     return { close: () => { } };
   }
 
   const q = encodeURIComponent(email);
-  const sseURL = `${API_URL}${SSE_PATH}?email=${q}${token ? `&access_token=${encodeURIComponent(token)}` : ''}`;
+  const sseURL = `${API_URL}${SSE_PATH}?email=${q}${token ? `&access_token=${encodeURIComponent(token)}` : ""
+    }`;
 
   let es = null;
   let pollTimer = null;
 
   const parseAndSet = (data) => {
-    if (typeof onUpdate !== 'function') return;
+    if (typeof onUpdate !== "function") return;
     try {
       let n = Number.NaN;
       if (typeof data === "number") n = data;
@@ -203,16 +221,12 @@ export function connectUnseenCount({
   const startPolling = async () => {
     if (pollTimer) clearInterval(pollTimer);
     try {
-      const res = await authGet("/api/auth/unseenCount", token, {
-        params: { email },
-      });
+      const res = await authGet("/api/auth/unseenCount", token, { params: { email } });
       parseAndSet(res?.data);
     } catch { }
     pollTimer = setInterval(async () => {
       try {
-        const res = await authGet("/api/auth/unseenCount", token, {
-          params: { email },
-        });
+        const res = await authGet("/api/auth/unseenCount", token, { params: { email } });
         parseAndSet(res?.data);
       } catch { }
     }, pollEveryMs);
@@ -246,8 +260,8 @@ export function connectUnseenCount({
 
   // 2) React Native: soft-require polyfill (optional dependency)
   try {
-    const softRequire = eval("require"); // avoid Metro resolving at build time
-    const RNES = softRequire("react-native-event-source"); // install to use SSE on device
+    const softRequire = eval("require");
+    const RNES = softRequire("react-native-event-source");
     const RNEventSource = RNES?.default || RNES;
 
     es = new RNEventSource(sseURL, {
@@ -281,12 +295,58 @@ export function connectUnseenCount({
   }
 }
 
+/* ----------------- Payments ----------------- */
+export async function createPaymentIntent({
+  violationId,
+  amountMinor,
+  currency = STRIPE_DEFAULT_CURRENCY,
+  description,
+  token,
+}) {
+  try {
+    const res = await api.post(
+      "/api/payments/create-intent",
+      {
+        violationId,
+        amount: amountMinor, // backend expects "amount"
+        currency,
+        description,
+      },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    );
+    const d = res?.data || {};
+    return {
+      success: !!d.success,
+      clientSecret: d.clientSecret,
+      data: d.data,
+      message: d.message,
+    };
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || "Request failed";
+    // throw (so caller can show toast and bail cleanly)
+    throw new Error(msg);
+  }
+}
+
+export async function updateViolationStatus({
+  violationId,
+  status,
+  paymentStatus,
+  paymentDate,
+  stripePaymentaIntentId,
+  token,
+}) {
+  const res = await api.post(
+    "/api/violations/update-status",
+    { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
+    { violationId, status, paymentStatus, paymentDate, stripePaymentIntentId }
+  );
+  return res?.data;
+}
+
 /* --------------------- IMAGE UPLOAD HELPER (added) -------------------- */
-/**
- * Upload a local image file to your image server (field name "file")
- * and return the same structure as your Postman response (plus absolute url):
- * { name, url, absoluteUrl }
- */
 export async function uploadImageFile(localUri) {
   if (!localUri) throw new Error("No localUri provided");
   if (!IMAGE_UPLOAD_URL) {
@@ -296,14 +356,12 @@ export async function uploadImageFile(localUri) {
   const ext = (name.split(".").pop() || "jpg").toLowerCase();
   const mime =
     ext === "png" ? "image/png" :
-    ext === "jpg" || ext === "jpeg" ? "image/jpeg" :
-    "application/octet-stream";
+      ext === "jpg" || ext === "jpeg" ? "image/jpeg" :
+        "application/octet-stream";
 
   const form = new FormData();
-  // IMPORTANT: key must be 'file' (matches your Postman screenshot)
   form.append("file", { uri: localUri, name, type: mime });
 
-  // Let fetch set the multipart boundary; don't set Content-Type manually
   const res = await fetch(IMAGE_UPLOAD_URL, { method: "POST", body: form });
 
   if (!res.ok) {
@@ -311,15 +369,14 @@ export async function uploadImageFile(localUri) {
     throw new Error(`Upload failed (${res.status}): ${t}`);
   }
 
-  // Expected: { message, file: { name, url } }
   const json = await res.json();
   const file = json?.file || {};
-  const relativeUrl = file.url;      // e.g. "/files/175...-spring.png"
-  const fname = file.name;           // e.g. "175...-spring.png"
+  const relativeUrl = file.url;
+  const fname = file.name;
 
   if (!relativeUrl) throw new Error("Server returned no file.url");
 
-  const base = (IMG_URL || "").replace(/\/$/, ""); // e.g. http://172.20.10.3:3999
+  const base = (IMG_URL || "").replace(/\/$/, "");
   const absoluteUrl = `${base}${relativeUrl}`;
 
   return { name: fname, url: relativeUrl, absoluteUrl };

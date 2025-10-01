@@ -2,16 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { api } from '../../Services/api';
+import { TOAST, tokens } from '../../styles/theme';
 
 function RegistreTop({ navigation }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [firstName, setFirstName] = useState('');
-  const [lastName,  setLastName ]  = useState('');
-  const [phone,     setPhone    ]  = useState('');
-  const [phone2,    setPhone2   ]  = useState('');
-  const [email,     setEmail    ]  = useState('');
-  const [password,  setPassword ]  = useState('');
-  const [address,   setAddress  ]  = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phone2, setPhone2] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -26,13 +27,9 @@ function RegistreTop({ navigation }) {
     // Basic validation
     if (!email.trim() || !firstName.trim() || !lastName.trim()
       || !password.trim() || !phone.trim() || !address.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Registration failed',
-        text2: 'Please fill all required fields',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Registration failed", "Please fill all required fields")
+      );
       return;
     }
 
@@ -52,32 +49,20 @@ function RegistreTop({ navigation }) {
       const res = await api.post('/auth/v1/addUser', payload);
 
       if (res?.status === 200 && res?.data) {
-        Toast.show({
-          type: 'success',
-          text1: 'Registration successful',
-          text2: 'Use your credentials to login',
-          position: 'top',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.success("Registration successful", "Use your credentials to login")
+        );
         navigation.navigate('Login');
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Registration failed',
-          text2: 'Unexpected server response',
-          position: 'bottom',
-          visibilityTime: 2000,
-        });
+        Toast.show(
+          TOAST.errorBottom("Registration failed", "Unexpected server response")
+        );
       }
     } catch (err) {
       const serverMsg = err?.response?.data;
-      Toast.show({
-        type: 'error',
-        text1: 'Registration failed',
-        text2: (typeof serverMsg === 'string' && serverMsg) || err?.message || 'Network/server error',
-        position: 'bottom',
-        visibilityTime: 2000,
-      });
+      Toast.show(
+        TOAST.errorBottom("Registration failed", (typeof serverMsg === 'string' && serverMsg) || err?.message || 'Network/server error')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +81,7 @@ function RegistreTop({ navigation }) {
             placeholder="First Name"
             value={firstName}
             onChangeText={setFirstName}
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="words"
           />
           <TextInput
@@ -104,7 +89,7 @@ function RegistreTop({ navigation }) {
             placeholder="Last Name"
             value={lastName}
             onChangeText={setLastName}
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="words"
           />
           <TextInput
@@ -112,7 +97,7 @@ function RegistreTop({ navigation }) {
             placeholder="Address"
             value={address}
             onChangeText={setAddress}
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="sentences"
           />
           <TextInput
@@ -121,7 +106,7 @@ function RegistreTop({ navigation }) {
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="none"
           />
           <TextInput
@@ -130,7 +115,7 @@ function RegistreTop({ navigation }) {
             value={phone2}
             onChangeText={setPhone2}
             keyboardType="phone-pad"
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="none"
           />
           <TextInput
@@ -139,7 +124,7 @@ function RegistreTop({ navigation }) {
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="none"
           />
           <TextInput
@@ -148,14 +133,14 @@ function RegistreTop({ navigation }) {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholderTextColor={keyboardVisible ? 'black' : '#999'}
+            placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
             autoCapitalize="none"
           />
         </View>
       </ScrollView>
 
       <TouchableOpacity
-        style={[styles.loginButton, { opacity: submitting ? 0.6 : 1 }]}
+        style={[styles.loginButton, { opacity: submitting ? tokens.opacities.disabled : tokens.opacities.fullscreen }]}
         onPress={controlLogin}
         disabled={submitting}
       >
@@ -174,19 +159,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: '10%',
   },
   loginButton: {
-    width: '75%',
-    height: 42,
-    backgroundColor: '#A3AE95',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 35,        // ← number (not string)
-    alignSelf: 'center',
+    width: "75%",
+    height: tokens.sizes.buttonHeight,
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: tokens.radius.md,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: tokens.spacing.xxl,
+    alignSelf: "center",
   },
   loginButtonText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#3C4234',
+    fontSize: tokens.components.Typography.body.fontSize,
+    ...tokens.components.Button.text.style,
+    color: tokens.components.Button.text.color,
   },
   fields: {
     width: '80%',
@@ -194,13 +179,13 @@ const styles = StyleSheet.create({
     marginTop: '58%',
   },
   input: {
-    height: 40,
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.3)',
-    marginBottom: 15,
-    paddingLeft: 15,
-    fontSize: 16,
+    height: tokens.sizes.inputHeight,
+    width: "100%",
+    borderBottomWidth: tokens.components.Input.borderBottomWidth,
+    borderBottomColor: tokens.colors.bottomBorder,
+    marginBottom: tokens.spacing.sm,
+    paddingLeft: tokens.components.Input.paddingLeft,
+    fontSize: tokens.components.Input.fontSize
   },
 });
 

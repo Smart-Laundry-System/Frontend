@@ -23,6 +23,7 @@ import CreateAc from '../../components/Button/CreateAc';
 import { api } from '../../Services/api';
 import Toast from 'react-native-toast-message';
 import { useRegistration } from '../../context/RegistrationContext';
+import { TOAST } from '../../styles/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -103,50 +104,35 @@ function HotelRegisterFinal({ route, navigation }) {
       s => s.title && (!s.price || String(s.price).trim() === '')
     );
     if (unpriced.length) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing prices',
-        text2: 'Please price all services.',
-        position: 'bottom',
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing prices", "Please price all services.")
+      );
       return;
     }
     if (!availableItems || availableItems.length === 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'Missing items',
-        text2: 'Pick at least one available item.',
-        position: 'bottom',
-      });
+      Toast.show(
+        TOAST.errorBottom("Missing items", "Pick at least one available item.")
+      );
       return;
     }
     // NotBlank + @Size(min=60, max=1200) mirrored here:
     if (message.trim().length === 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'About is required',
-        text2: 'Please write a short description.',
-        position: 'bottom',
-      });
+      Toast.show(
+        TOAST.errorBottom("About is required", "Please write a short description.")
+      );
       return;
     }
     if (charCount < ABOUT_MIN) {
-      Toast.show({
-        type: 'error',
-        text1: 'About is too short',
-        text2: `Minimum ${ABOUT_MIN} characters (you have ${charCount}).`,
-        position: 'bottom',
-      });
+      Toast.show(
+        TOAST.errorBottom("About is too short", `Minimum ${ABOUT_MIN} characters (you have ${charCount}).`)
+      );
       return;
     }
     // no need to check > ABOUT_MAX because maxLength prevents it, but safe-guard:
     if (charCount > ABOUT_MAX) {
-      Toast.show({
-        type: 'error',
-        text1: 'About is too long',
-        text2: `Maximum ${ABOUT_MAX} characters.`,
-        position: 'bottom',
-      });
+      Toast.show(
+        TOAST.errorBottom("About is too long", `Maximum ${ABOUT_MAX} characters.`)
+      );
       return;
     }
 
@@ -166,8 +152,8 @@ function HotelRegisterFinal({ route, navigation }) {
       otherItems,
       laundryImg: laundryImageUrl,
       about: message,
-      openTime:openTime,
-      closeTime:closeTime
+      openTime: openTime,
+      closeTime: closeTime
     };
 
     try {
@@ -175,32 +161,22 @@ function HotelRegisterFinal({ route, navigation }) {
       const res = await api.post('/auth/v1/addLaundry', payload);
       if (res?.status === 200 && res?.data) {
         resetAll();
-        Toast.show({
-          type: 'success',
-          text1: 'Registration successful',
-          text2: 'Use your credentials to login',
-          position: 'top',
-        });
+        Toast.show(
+          TOAST.success("Registration successful", "Use your credentials to login")
+        );
         navigation.navigate('Login');
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Registration failed',
-          text2: 'Unexpected server response',
-          position: 'bottom',
-        });
+        Toast.show(
+          TOAST.errorBottom("Unexpected server response", "Unexpected server response")
+        );
       }
     } catch (err) {
       const serverMsg = err?.response?.data;
-      Toast.show({
-        type: 'error',
-        text1: 'Registration failed',
-        text2:
-          (typeof serverMsg === 'string' && serverMsg) ||
+      Toast.show(
+        TOAST.errorBottom("Registration failed",(typeof serverMsg === 'string' && serverMsg) ||
           err?.message ||
-          'Network/server error',
-        position: 'bottom',
-      });
+          'Network/server error')
+      );
     } finally {
       setSubmitting(false);
     }
