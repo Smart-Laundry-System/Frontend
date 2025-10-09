@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -43,13 +44,14 @@ const ENDPOINTS = {
   acceptDate: "/api/auth/order/acceptNewDate",
   rejectDate: "/api/auth/order/rejectNewDate",
   updateEstimatedDate: "/api/auth/order/updateEstimatedDate",
+  employeesPaged: (laundryId) => `/api/auth/laundries/${laundryId}/allEmployees`,
+  assignTask: "/api/auth/assignTask",
 };
 
 export default function CustomerOrder() {
   const navigation = useNavigation();
   const route = useRoute();
   const routeToken = route?.params?.token ?? null;
-
   const { orderId } = route.params || {};
 
   const [loading, setLoading] = useState(true);
@@ -63,16 +65,17 @@ export default function CustomerOrder() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [pickerTempDate, setPickerTempDate] = useState(null);
-
   const [token, setToken] = useState(routeToken || null);
 
-  const hasCustomerInterest = useMemo(() => {
-    const v = order?.customerInterestDate;
-    if (v === null || v === undefined) return false;
-    if (typeof v === "string" && v.trim() === "") return false;
-    const dt = new Date(v);
-    return !isNaN(dt.getTime());
-  }, [order?.customerInterestDate]);
+  const [laundryId, setLaundryId] = useState(route?.params?.laundryId || null);
+
+  const [empLoading, setEmpLoading] = useState(false);
+  const [empPage, setEmpPage] = useState(0);
+  const [empHasNext, setEmpHasNext] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [empError, setEmpError] = useState("");
+  const PAGE_SIZE = 10;
+  const empListRef = useRef(null);
 
   const authHeader = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
@@ -96,15 +99,13 @@ export default function CustomerOrder() {
     laundryName: o?.laundryName || "Laundry",
     laundryAddress: o?.laundryAddress || "Location",
     laundryImg: o?.laundryImg || "",
+    laundryId: o?.laundryId ?? null,
     totPrice: Number(o?.totPrice ?? 0),
     status: (o?.status || "PICKUP").toString(),
     paymentMethod: o?.paymentMethod || "By card",
     estimatedDate: o?.estimatedCompletedDate || o?.estimatedDate || null,
-
-    customerInterestDate:
-      o?.customerInterestDate || o?.requestDate || null,
+    customerInterestDate: o?.customerInterestDate || o?.requestDate || null,
   });
-
 
   const buildIdsParams = (key, arr) => {
     const p = new URLSearchParams();
@@ -124,8 +125,10 @@ export default function CustomerOrder() {
       const o =
         Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data;
       if (!o) throw new Error("Order not found");
+
       const mapped = mapToUi(o);
       setOrder(mapped);
+      setLaundryId((prev) => prev ?? mapped.laundryId ?? null);
 
       if (mapped.serviceIds.length) {
         const qs = buildIdsParams("ids", mapped.serviceIds);
@@ -162,24 +165,19 @@ export default function CustomerOrder() {
 
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       if (!routeToken) {
         try {
           const { getAccessToken } = await import("../../../Services/tokenStorage");
           const t = await getAccessToken().catch(() => null);
           if (mounted && t) setToken(t);
-        } catch (_) {
-        }
+        } catch (_) { }
       }
     })();
 
     fetchOrder();
-
-    return () => {
-      mounted = false;
-    }
-  }, [routeToken, fetchOrder, ]);
+    return () => { mounted = false; };
+  }, [routeToken, fetchOrder]);
 
   const statusIndex = useMemo(() => {
     const norm = String(order?.status || "")
@@ -187,21 +185,14 @@ export default function CustomerOrder() {
       .replace(/[^A-Z]/g, "_")
       .replace(/_+/g, "_")
       .replace(/^_|_$/g, "");
-
     switch (norm) {
-      case "PICKUP":
-        return 0;
-      case "WASHING":
-        return 1;
-      case "ON_THE_WAY":
-        return 2;
-      case "REACHED":
-        return 3;
-      default:
-        return -1;
+      case "PICKUP": return 0;
+      case "WASHING": return 1;
+      case "ON_THE_WAY": return 2;
+      case "REACHED": return 3;
+      default: return -1;
     }
   }, [order?.status]);
-
 
   const isPickup = (order?.status || "").toUpperCase() === "PICKUP";
 
@@ -276,7 +267,6 @@ export default function CustomerOrder() {
 
   const onPressPickupBadge = async () => {
     if (!order?.id || !isPickup) return;
-
     if (order?.estimatedDate) {
       try {
         setBusyAction(true);
@@ -299,23 +289,16 @@ export default function CustomerOrder() {
 
   const commitEstimatedDate = async () => {
     if (!order?.id || !pickerTempDate) return;
-
     try {
       setBusyAction(true);
-
       await api.put(ENDPOINTS.updateEstimatedDate, null, {
-        params: {
-          orderID: order.id,
-          date: pickerTempDate.toISOString(),
-        },
+        params: { orderID: order.id, date: pickerTempDate.toISOString() },
         headers: authHeader,
       });
-
       await api.put(ENDPOINTS.updateStatus, null, {
         params: { orderID: order.id, status: "PICKUP" },
         headers: authHeader,
       });
-
       await fetchOrder();
       Toast.show(TOAST.success("Welcome to Smart Laundry", "Pickup scheduled and date updated"));
       setShowDatePicker(false);
@@ -326,6 +309,82 @@ export default function CustomerOrder() {
       setBusyAction(false);
     }
   };
+
+  const hasCustomerInterest = useMemo(() => {
+    const v = order?.customerInterestDate;
+    if (v == null) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    const dt = new Date(v);
+    return !isNaN(dt.getTime());
+  }, [order?.customerInterestDate]);
+
+  const loadEmployeesPage = useCallback(async (nextPage = 0) => {
+    if (!token || !laundryId || empLoading || (!empHasNext && nextPage > 0)) return;
+    try {
+      setEmpLoading(true);
+      setEmpError("");
+
+      const res = await api.get(ENDPOINTS.employeesPaged(laundryId), {
+        params: { page: nextPage, size: PAGE_SIZE },
+        headers: authHeader,
+      });
+
+      const pageObj = res?.data;
+      let list = [];
+      let last = true;
+      let number = nextPage;
+
+      if (Array.isArray(pageObj?.content)) {
+        list = pageObj.content;
+        last = !!pageObj.last;
+        number = Number.isFinite(pageObj.number) ? pageObj.number : nextPage;
+      } else if (Array.isArray(pageObj)) {
+        list = pageObj;
+        last = pageObj.length < PAGE_SIZE;
+        number = nextPage;
+      }
+
+      setEmployees((prev) => (nextPage === 0 ? list : [...prev, ...list]));
+      setEmpHasNext(!last);
+      setEmpPage(number);
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || "Failed to load employees";
+      setEmpError(msg);
+      Toast.show(TOAST.errorBottom("Smart Laundry", msg));
+    } finally {
+      setEmpLoading(false);
+    }
+  }, [token, laundryId, empLoading, empHasNext, authHeader]);
+
+  const openAssignModal = useCallback(() => {
+    setAssignOpen(true);
+    setEmployees([]);
+    setEmpHasNext(true);
+    setEmpPage(0);
+    setTimeout(() => loadEmployeesPage(0), 0);
+  }, [loadEmployeesPage]);
+
+  const onEndReached = () => {
+    if (!empLoading && empHasNext) loadEmployeesPage(empPage + 1);
+  };
+
+  const doAssign = async (employeeId) => {
+    if (!employeeId || !order?.id) return;
+    try {
+      setBusyAction(true);
+      await api.put(ENDPOINTS.assignTask, null, {
+        params: { employeeId, orderId: order.id },
+        headers: authHeader,
+      });
+      Toast.show(TOAST.success("Smart Laundry", "Task assigned to employee"));
+      setAssignOpen(false);
+    } catch (e) {
+      Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data || e?.message || "Could not assign"));
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -409,7 +468,7 @@ export default function CustomerOrder() {
               active={statusIndex >= 0}
               onPress={() => {
                 onAdvanceStatus("PICKUP");
-                setAssignOpen(true);
+                openAssignModal();
               }}
             />
             <StatusConnector />
@@ -426,7 +485,7 @@ export default function CustomerOrder() {
               active={statusIndex >= 2}
               onPress={() => {
                 onAdvanceStatus("ON_THE_WAY");
-                setAssignOpen(true);
+                openAssignModal();
               }}
             />
             <StatusConnector />
@@ -512,6 +571,7 @@ export default function CustomerOrder() {
               </TouchableOpacity>
             </>
           )}
+
           <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Order Summary</Text>
           <View style={styles.sumRow}>
             <Text style={styles.sumLabel}>Services</Text>
@@ -568,16 +628,74 @@ export default function CustomerOrder() {
             dismissable
             contentContainerStyle={styles.assignSheet}
           >
-            <Text style={styles.assignTitle}>Assign employee to customer</Text>
-            <TouchableOpacity
-              style={styles.assignPrimary}
-              onPress={() => {
-                setAssignOpen(false);
-                Toast.show(TOAST.success("Welcome to Smart Laundry", "Open your assign-employee flow here."));
-              }}
-            >
-              <Text style={styles.assignPrimaryText}>Assign an Employee</Text>
-            </TouchableOpacity>
+            <Text style={styles.assignTitle}>Assign employee to this order</Text>
+
+            {!laundryId && (
+              <Text style={{ color: "#B00020", marginBottom: 8 }}>
+                Laundry ID missing. Pass `laundryId` in route params or include in order payload.
+              </Text>
+            )}
+
+            {empError ? (
+              <Text style={{ color: "#B00020", marginBottom: 8 }}>{empError}</Text>
+            ) : null}
+
+            <View style={styles.listWrap}>
+              <FlatList
+                ref={empListRef}
+                data={employees}
+                keyExtractor={(item, idx) => String(item?.id ?? idx)}
+                onEndReached={onEndReached}
+                onEndReachedThreshold={0.6}
+                ListEmptyComponent={
+                  empLoading ? null : (
+                    <Text style={{ color: MUTED, textAlign: "center", paddingVertical: 12 }}>
+                      {laundryId ? "No employees found" : "Cannot load without laundryId"}
+                    </Text>
+                  )
+                }
+                renderItem={({ item }) => {
+                  const initials = (item?.name || item?.fullName || "NA")
+                    .split(" ")
+                    .map((s) => s[0])
+                    .join("")
+                    .substring(0, 2)
+                    .toUpperCase();
+
+                  return (
+                    <View style={styles.empRow}>
+                      <View style={styles.empAvatar}>
+                        <Text style={styles.empAvatarText}>{initials}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.empName} numberOfLines={1}>
+                          {item?.name || item?.fullName || "Employee"}
+                        </Text>
+                        <Text style={styles.empMeta} numberOfLines={1}>
+                          {item?.email || "—"} • {item?.phone || "—"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => doAssign(item?.id)}
+                        style={styles.empAssignBtn}
+                      >
+                        <Text style={styles.empAssignBtnText}>Assign</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+                ListFooterComponent={
+                  empLoading ? (
+                    <View style={{ paddingVertical: 10 }}>
+                      <ActivityIndicator />
+                    </View>
+                  ) : null
+                }
+                contentContainerStyle={{ paddingBottom: 6 }}
+                style={{ maxHeight: 320 }}
+              />
+            </View>
+
             <TouchableOpacity style={styles.assignBack} onPress={() => setAssignOpen(false)}>
               <Text style={styles.assignBackText}>Back</Text>
             </TouchableOpacity>
@@ -696,9 +814,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 10,
   },
-  badgeDisabled: {
-    opacity: 0.6,
-  },
+  badgeDisabled: { opacity: 0.6 },
   badgePillText: { color: TEXT, fontWeight: "700" },
 
   title: { marginTop: 10, fontSize: 24, color: TEXT, fontWeight: "800" },
@@ -752,15 +868,6 @@ const styles = StyleSheet.create({
   statusBoxActive: { backgroundColor: "#C8D2C1" },
   statusLabel: { marginTop: 6, fontSize: 10, color: "rgba(0,0,0,0.35)", fontWeight: "600" },
   connector: { width: 22, height: 2, backgroundColor: "#B9C1AF", marginHorizontal: 6 },
-  addBtn: {
-    marginLeft: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#E6ECE1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   smallUpper: { color: MUTED, fontSize: 10, textTransform: "uppercase", marginBottom: 6 },
   dateBox: {
@@ -773,10 +880,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#fff",
   },
-  dateBoxDisabled: {
-    backgroundColor: "#F5F5F2",
-    borderColor: "#E3E3DD",
-  },
+  dateBoxDisabled: { backgroundColor: "#F5F5F2", borderColor: "#E3E3DD" },
   dateText: { color: TEXT, fontWeight: "700" },
 
   payNote: { color: "#D64D55", fontSize: 12, marginTop: 8, marginBottom: 6 },
@@ -831,18 +935,50 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: "#3C4234", paddingVertical: 0 },
 
-  assignSheet: { marginHorizontal: 16, borderRadius: 16, backgroundColor: tokens.colors.background, padding: 20 },
-  assignTitle: { color: tokens.colors.darkText, fontWeight: "700", marginBottom: 10 },
-  assignPrimary: {
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: tokens.colors.greenButton,
-    alignItems: "center",
-    justifyContent: "center",
+  assignSheet: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: tokens.colors.background,
+    padding: 16,
   },
-  assignPrimaryText: { color: TEXT, fontWeight: "700" },
+  assignTitle: { color: tokens.colors.darkText, fontWeight: "700", marginBottom: 10 },
+
+  listWrap: {
+    borderWidth: 1,
+    borderColor: "#E6EAE6",
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  empRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F1EE",
+  },
+  empAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#F2F4F1",
+    alignItems: "center", justifyContent: "center",
+    marginRight: 10,
+  },
+  empAvatarText: { color: TEXT, fontWeight: "800" },
+  empName: { color: TEXT, fontWeight: "700" },
+  empMeta: { color: MUTED, fontSize: 12, marginTop: 2 },
+
+  empAssignBtn: {
+    marginLeft: "auto",
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  empAssignBtnText: { color: TEXT, fontWeight: "700" },
+
   assignBack: {
-    marginTop: 12,
     height: 42,
     borderRadius: 10,
     borderWidth: 1.5,
