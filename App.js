@@ -25,6 +25,9 @@ import Constants from "expo-constants";
 import Toast from 'react-native-toast-message';
 import Employees from './screens/LaundryAdmin/AfterLogedIn/Employees';
 import AddEmployee from './screens/LaundryAdmin/AfterLogedIn/AddEmployee';
+import { useState } from 'react';
+import LoadingScreen from './LoadingScreen';
+import UpdateUser from './screens/LaundryUsers/AfterLogedIn/UpdateUser';
 
 const Stack = createStackNavigator();
 
@@ -64,6 +67,7 @@ export default function App() {
               <Stack.Screen name="UserLaundry" component={UserLaundry} options={{ headerShown: false }} />
               <Stack.Screen name="Employees" component={Employees} options={{ headerShown: false }} />
               <Stack.Screen name="AddEmployee" component={AddEmployee} options={{ headerShown: false }} />
+              <Stack.Screen name="UpdateUser" component={UpdateUser} options={{ headerShown: false }} />
             </Stack.Navigator>
             <Toast topOffset={50} bottomOffset={50} />
           </NavigationContainer>

@@ -1,4 +1,3 @@
-// ComplaintsPage.js
 import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
@@ -11,9 +10,9 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { BlurView } from 'expo-blur'; // If not using Expo: use @react-native-community/blur
+import { BlurView } from 'expo-blur';
 import Back from '../../../../assets/Vector.png';
 import DropDown from '../../../../components/Menu/DropDown';
 
@@ -86,7 +85,7 @@ const dummyComplaints = [
     email: 'amal@example.com',
     object: 'Washer #12',
     description: 'Machine does not start; error code E02.',
-    avatar: null, // or a require(...) / URL
+    avatar: null,
   },
   {
     id: '6',
@@ -152,7 +151,6 @@ const matchesSearch = (item, query, keys) => {
   return keys.some((k) => item[k] != null && norm(item[k]).includes(q));
 };
 
-// Shown in dropdown
 const FILTER_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Name', value: 'name' },
@@ -161,8 +159,6 @@ const FILTER_OPTIONS = [
   { label: 'Subject', value: 'subject' },
   { label: 'Date', value: 'date' },
   { label: 'Time', value: 'time' },
-  // You can add hidden fields too if you want to search them explicitly:
-  // { label: 'Object', value: 'object' },
 ];
 
 const ComplaintsPage = () => {
@@ -177,23 +173,19 @@ const ComplaintsPage = () => {
 
   const filterRef = useRef(null);
 
-  // ===== Filtering logic with "All" =====
   const filteredComplaints = useMemo(() => {
     return dummyComplaints.filter((item) => {
       const filterValue = selectedFilter?.value;
 
-      // If 'all' or no selection: search across all keys that exist on the item
       if (!filterValue || filterValue === 'all') {
         const keysPresent = DEFAULT_SEARCH_KEYS.filter((k) => item[k] != null);
         return matchesSearch(item, search, keysPresent);
       }
 
-      // Specific field chosen
       return matchesSearch(item, search, [filterValue]);
     });
   }, [search, selectedFilter]);
 
-  // ===== Item press -> open detail modal =====
   const openDetail = (item) => {
     setSelectedItem(item);
     setDetailVisible(true);
@@ -206,7 +198,6 @@ const ComplaintsPage = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image source={Back} />
@@ -215,7 +206,6 @@ const ComplaintsPage = () => {
 
       <Text style={styles.headerTitle}>Complaints</Text>
 
-      {/* Search Bar */}
       <View style={styles.searchBar}>
         <Icon name="search" size={20} color="#aaa" />
         <TextInput
@@ -251,7 +241,6 @@ const ComplaintsPage = () => {
         Your complaints{selectedFilter?.value && selectedFilter.value !== 'all' ? ` • ${selectedFilter.label}` : ''}
       </Text>
 
-      {/* Complaint List */}
       <FlatList
         data={filteredComplaints}
         keyExtractor={(item) => item.id}
@@ -270,7 +259,6 @@ const ComplaintsPage = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Detail Modal with blur background */}
       <Modal
         visible={detailVisible}
         transparent
@@ -283,7 +271,6 @@ const ComplaintsPage = () => {
           style={StyleSheet.absoluteFill}
         />
 
-        {/* This TouchableOpacity is the backdrop — clicking it closes the modal */}
         <TouchableOpacity
           style={styles.modalCenter}
           activeOpacity={1}
@@ -314,7 +301,6 @@ const ComplaintsPage = () => {
               </TouchableOpacity>
             </View>
 
-            {/* fields */}
             <View style={styles.detailBody}>
               {!!selectedItem?.name && (
                 <Text style={styles.fieldLine}><Text style={styles.fieldLabel}>Name: </Text>{selectedItem.name}</Text>
@@ -367,7 +353,6 @@ const styles = StyleSheet.create({
   cardDate: { fontSize: 12, color: '#666' },
   cardTime: { fontSize: 12, color: '#3C4234' },
 
-  // Modal
   modalCenter: {
     flex: 1,
     justifyContent: 'center',

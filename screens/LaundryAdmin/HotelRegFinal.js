@@ -11,14 +11,14 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 
 import { api } from '../../../Services/api';
 import { TOAST, tokens } from '../../../styles/theme';
 
-// hero image like other auth/registration screens
-import StartImage from '../../../assets/startimage.png'; // swap if your header image differs
+import StartImage from '../../../assets/startimage.png';
+import { getAccessToken } from '../../Services/tokenStorage';
 
 const ROLES = [
   { label: 'Admin', value: 'ADMIN' },
@@ -27,17 +27,17 @@ const ROLES = [
 
 export default function AddEmployee({ navigation }) {
   const route = useRoute();
-  const token = route?.params?.token || null;          // optional auth
-  const laundryEmail = route?.params?.email || '';     // who is creating
+  const token = route?.params?.token || getAccessToken() || null;
+  const laundryEmail = route?.params?.email || '';
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [firstName, setFirstName] = useState('');
-  const [lastName,  setLastName]  = useState('');
-  const [address,   setAddress]   = useState('');
-  const [phone,     setPhone]     = useState('');
-  const [email,     setEmail]     = useState('');
-  const [role,      setRole]      = useState(ROLES[0]);
-  const [roleOpen,  setRoleOpen]  = useState(false);
+  const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState(ROLES[0]);
+  const [roleOpen, setRoleOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,12 +74,12 @@ export default function AddEmployee({ navigation }) {
 
     const payload = {
       firstName: firstName.trim(),
-      lastName : lastName.trim(),
-      address  : address.trim(),
-      phone    : phone.trim(),
-      email    : email.trim(),
-      role     : role.value,
-      laundryEmail,                 // include if your backend needs it
+      lastName: lastName.trim(),
+      address: address.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      role: role.value,
+      laundryEmail,
     };
 
     try {
@@ -93,7 +93,6 @@ export default function AddEmployee({ navigation }) {
       Toast.show(TOAST.success('Employee added', `${firstName} ${lastName} created`));
       resetForm();
 
-      // go to the list to see the result
       navigation.navigate('Employees', { token, email: laundryEmail, refresh: Date.now() });
     } catch (err) {
       const msg = err?.response?.data;
@@ -110,7 +109,6 @@ export default function AddEmployee({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Top hero with title (same vibe as your registration/login pages) */}
       <View style={styles.heroWrap}>
         <Image source={StartImage} style={styles.heroImg} resizeMode="cover" />
         <View style={styles.heroOverlay} />
@@ -194,7 +192,6 @@ export default function AddEmployee({ navigation }) {
             />
           </View>
 
-          {/* Designation dropdown */}
           <Pressable style={styles.inputRow} onPress={() => setRoleOpen((v) => !v)}>
             <Ionicons name="briefcase-outline" size={18} color="#98A29D" style={styles.leftIcon} />
             <Text style={[styles.input, { paddingTop: 14 }]}>
@@ -253,7 +250,6 @@ export default function AddEmployee({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  /** hero */
   heroWrap: { height: 200, position: 'relative' },
   heroImg: { position: 'absolute', width: '100%', height: '100%' },
   heroOverlay: {
@@ -279,7 +275,6 @@ const styles = StyleSheet.create({
   },
   backBtn: { position: 'absolute', left: 8, top: 12, padding: 8 },
 
-  /** form */
   scrollContainer: { paddingBottom: 28 },
   fields: { width: '80%', alignSelf: 'center', marginTop: '10%' },
   inputRow: {
@@ -312,7 +307,6 @@ const styles = StyleSheet.create({
   },
   dropdownItem: { paddingVertical: 12, paddingHorizontal: 10 },
 
-  /** buttons */
   primaryBtn: {
     width: '75%',
     height: tokens.sizes.buttonHeight,

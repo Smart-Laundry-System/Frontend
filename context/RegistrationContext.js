@@ -5,6 +5,8 @@ const RegistrationContext = createContext(null);
 export function RegistrationProvider({ children }) {
   const [isSwitchOn, setIsSwitchOn] = useState(true);
   const [laundryId, setLaundryId] = useState(null);
+  const [customerId, setCustomerId] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
   const [basicInfo, setBasicInfo] = useState({
     laundryName: "",
     email: "",
@@ -26,7 +28,6 @@ export function RegistrationProvider({ children }) {
   const updateBasicInfo = (patch = {}) =>
     setBasicInfo((prev) => ({ ...(prev ?? {}), ...patch }));
 
-  // Upsert one service price by title (keeps the array normalized)
   const upsertServicePrice = (title, price) =>
     setBasicInfo((prev) => {
       const list = Array.isArray(prev.services) ? prev.services : [];
@@ -38,7 +39,6 @@ export function RegistrationProvider({ children }) {
       return { ...prev, services: next };
     });
 
-  // Clear everything (useful after successful signup / logout)
   const resetAll = () => {
     setIsSwitchOn(false);
     setBasicInfo({
@@ -66,12 +66,16 @@ export function RegistrationProvider({ children }) {
       setIsSwitchOn,
 
       basicInfo,
-      setBasicInfo,       // raw setter (use sparingly)
-      updateBasicInfo,    // merge helper (preferred)
-      upsertServicePrice, // convenience for pricing
+      setBasicInfo,    
+      updateBasicInfo, 
+      upsertServicePrice,
 
       laundryId,
       setLaundryId,
+      customerId,
+      setCustomerId,
+      setUserEmail,
+      userEmail,
       resetAll,
     }),
     [isSwitchOn, basicInfo]

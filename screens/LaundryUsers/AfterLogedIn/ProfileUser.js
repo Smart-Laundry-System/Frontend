@@ -1,4 +1,3 @@
-// screens/profile/ProfileUser.js
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -8,29 +7,25 @@ import {
   ImageBackground,
   TextInput,
   FlatList,
-  SafeAreaView,
   Platform,
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from "@react-navigation/native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
-
-// ✅ use the shared axios instance and authGet
 import { authGet, api } from "../../../Services/api";
-
-// paper modal
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
+import { TOAST } from "../../../styles/theme";
+import { useRegistration } from "../../../context/RegistrationContext";
+import { getAccessToken } from "../../../Services/tokenStorage";
 
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
 const CARD_BG = "#FFFBEA";
-
-/** --- Layout constants --- */
 const SCREEN_W = Dimensions.get("window").width;
 const H_PAD = 16;
 const VIEW_W = SCREEN_W - H_PAD * 2;
@@ -42,9 +37,11 @@ const MAX_HEIGHT_CAP = 220;
 
 export default function ProfileUser() {
   const navigation = useNavigation();
-  const route = useRoute();
-  const { email, token } = route.params || {};
 
+  const { userEmail } = useRegistration();
+  const route = useRoute();
+  const email = route?.params?.email || userEmail || "";
+  const token = route?.params?.token || getAccessToken() || "";
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisiblenext, setModalVisiblenext] = useState(false);
 
@@ -61,8 +58,6 @@ export default function ProfileUser() {
     phone: "075 021 3273",
     address: "Location",
   });
-
-  // ===== Forgot/Reset password state =====
   const [fpEmail, setFpEmail] = useState("");
   const [rpEmail, setRpEmail] = useState("");
   const [rpOtp, setRpOtp] = useState("");
@@ -80,7 +75,6 @@ export default function ProfileUser() {
     []
   );
 
-  // ✅ send OTP (same path as Login)
   const sendemail = async () => {
     if (!fpEmail.trim()) {
       Toast.show({
@@ -103,7 +97,6 @@ export default function ProfileUser() {
         position: "top",
         visibilityTime: 2000,
       });
-      // Prefill for reset flow
       setRpEmail(fpEmail.trim());
       setModalVisible(false);
       setModalVisiblenext(true);
@@ -120,7 +113,6 @@ export default function ProfileUser() {
     }
   };
 
-  // ✅ reset password (use /auth/v1/resetPassword directly here)
   const onResetPassword = async () => {
     if (!rpEmail.trim() || !rpOtp.trim() || !rpPass.trim() || !rpConfirm.trim()) {
       Toast.show({
@@ -176,7 +168,6 @@ export default function ProfileUser() {
     [profileBanners]
   );
 
-  // fetch profile
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -186,7 +177,7 @@ export default function ProfileUser() {
       }
       try {
         const res = await authGet(
-          `/api/auth/retriveUser?laundryEmail=${email}`,
+          `/api/auth/retriveUser?email=${email}`,
           token
         );
         if (!mounted) return;
@@ -202,7 +193,7 @@ export default function ProfileUser() {
           address: u?.address || "",
         });
       } catch {
-        if (mounted) Alert.alert("Profile", "Failed to load profile");
+        if (mounted) Toast.show(TOAST.errorBottom("Profile", "Failed to load profile"));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -212,7 +203,6 @@ export default function ProfileUser() {
     };
   }, [token, email]);
 
-  // compute tallest scaled height
   useEffect(() => {
     let maxH = 0;
     for (const src of profileBanners) {
@@ -225,7 +215,6 @@ export default function ProfileUser() {
     setHeight(Math.min(maxH || 170, MAX_HEIGHT_CAP));
   }, [profileBanners]);
 
-  // auto-advance
   useEffect(() => {
     if (!profileBannersData.length) return;
     if (autoRef.current) clearInterval(autoRef.current);
@@ -261,6 +250,7 @@ export default function ProfileUser() {
     return palette[h % palette.length];
   }, [profile.name]);
 
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -275,7 +265,6 @@ export default function ProfileUser() {
     <PaperProvider>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          {/* Header */}
           <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
@@ -286,7 +275,7 @@ export default function ProfileUser() {
 
             <TouchableOpacity
               style={styles.editBtn}
-              onPress={() => navigation.navigate("EditProfile", { token })}
+              onPress={() => navigation.navigate("UpdateUser", { token, email })}
             >
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
@@ -294,7 +283,6 @@ export default function ProfileUser() {
 
           <Text style={styles.greeting}>Hi {profile.name}</Text>
 
-          {/* Carousel */}
           <View
             style={[
               styles.carouselWrap,
@@ -325,7 +313,6 @@ export default function ProfileUser() {
               )}
             />
 
-            {/* Dots */}
             <View style={styles.dotsRow}>
               {profileBannersData.map((_, i) => (
                 <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
@@ -333,7 +320,6 @@ export default function ProfileUser() {
             </View>
           </View>
 
-          {/* Info Card */}
           <View style={styles.card}>
             <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
               <Text style={styles.avatarText}>{initial}</Text>
@@ -387,8 +373,7 @@ export default function ProfileUser() {
               </TouchableOpacity>
             </View>
           </View>
-          
-          {/* --- PAPER MODALS --- */}
+
           <Portal>
             <Modal
               visible={modalVisible}
@@ -487,14 +472,11 @@ export default function ProfileUser() {
               </View>
             </Modal>
           </Portal>
-          {/* --- end modals --- */}
         </View>
       </SafeAreaView>
     </PaperProvider>
   );
 }
-
-/* styles & helpers */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: H_PAD },
@@ -575,7 +557,6 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#fff", fontWeight: "bold" },
 
-  // === modal styles ===
   sheet: {
     marginHorizontal: 16,
     borderRadius: 16,

@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import UserComplainModel from '../Notification/UserComplainModel'
 
@@ -60,15 +60,8 @@ const SideMenuUser = ({ onClose, token, email, name }) => {
         <TouchableOpacity onPress={() => navigation.navigate("Login")}>
           <Text style={styles.menuItem}>Logout</Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity onPress={() => setModalVisible(true)}>
-          <Text style={styles.menuItem}>Public Notification</Text>
-        </TouchableOpacity> */}
       </Animated.View>
 
-      <UserComplainModel
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-      />
     </>
   );
 };
@@ -111,7 +104,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: 20,
     height: 20,
-    // padding: 7,
     alignItems: 'center',
     borderColor: 'red',
     borderWidth: 2

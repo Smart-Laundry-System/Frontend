@@ -1,4 +1,3 @@
-// LaundryHomeScreen.js
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -10,7 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import Vector from '../../assets/Vector.png';
 import StartImage from '../../assets/startimage.png';
 import { BlurView } from 'expo-blur';
@@ -19,6 +18,8 @@ import { api, authGet, IMG_URL } from '../../Services/api';
 import SideMenu from '../../components/Menu/SideMenu';
 import { getAccessToken } from '../../Services/tokenStorage';
 import { useRegistration } from '../../context/RegistrationContext';
+import Toast from 'react-native-toast-message';
+import { TOAST } from '../../styles/theme';
 
 const AVATAR_COLORS = ['#444', '#666', '#a3ae95', '#555', '#3C4234', '#A3AE95'];
 
@@ -37,7 +38,7 @@ const colorFor = (name = '') => {
 };
 
 const LaundryHome = ({ navigation }) => {
-  const { setLaundryId } = useRegistration();
+  const { setLaundryId, userEmail } = useRegistration();
   const [laundryInfo, setLaundryInfo] = useState(null);
   const [customerInfo, setCustomerInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ const LaundryHome = ({ navigation }) => {
 
   const route = useRoute();
   const routeToken = route?.params?.token ?? null;
-  const { email } = route.params ?? {};
+  const { email } = route.params ?? userEmail ?? {};
   const [token, setToken] = useState(routeToken || null);
 
   const testServices = [{ title: 'No services', category: 'No services', price: 'N/A' }];
@@ -97,7 +98,7 @@ const LaundryHome = ({ navigation }) => {
           serviceListRef.current?.scrollToIndex({ index: next, animated: true });
         } catch (e) {
           serviceListRef.current?.scrollToOffset({
-            offset: next * 335, // width of one item
+            offset: next * 335,
             animated: true,
           });
         }
@@ -108,6 +109,7 @@ const LaundryHome = ({ navigation }) => {
     return () => {
       mounted = false;
       clearInterval(id);
+      setLaundryId(laundryInfo.id);
     };
   }, [routeToken, servicesData.length, fatchingLoad]);
 
@@ -118,13 +120,12 @@ const LaundryHome = ({ navigation }) => {
         : await api.get('/api/auth/details', { params: { email } });
 
       const data = res?.data || null;
+
+
       setLaundryInfo(data);
-      // If your API returns customers under a different field, adjust below:
       setCustomerInfo(data?.userLaundries || data?.users || null);
-      // setEmployees(employeeRes?.data || []);
-      setLaundryId(laundryInfo.id);
     } catch (error) {
-      console.log('Error fetching data:', error?.response?.data || error?.message);
+      Toast.show(TOAST.errorBottom('Error fetching data:', error?.response?.data || error?.message));
     } finally {
       setLoading(false);
     }
@@ -138,7 +139,6 @@ const LaundryHome = ({ navigation }) => {
     );
   }
 
-  // Normalize customers array for FlatList
   const customers =
     (Array.isArray(customerInfo?.user) && customerInfo.user.length
       ? customerInfo.user
@@ -155,7 +155,6 @@ const LaundryHome = ({ navigation }) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.adjustBottom}>
-        {/* Header Row */}
         <View style={styles.topRow}>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
             <Image style={styles.image} source={Vector} />
@@ -176,10 +175,9 @@ const LaundryHome = ({ navigation }) => {
           <Icon name="menu" style={styles.menuicon} size={28} />
         </TouchableOpacity>
         {isMenuVisible && (
-          <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} />
+          <SideMenu onClose={() => setIsMenuVisible(false)} token={token} email={email} laundryId={laundryInfo.id} />
         )}
 
-        {/* Laundry Header */}
         <View style={styles.laundryHeader}>
           <Text style={styles.laundryName}>{laundryInfo?.name || 'Laundry Name'}</Text>
           <TouchableOpacity style={styles.addEmployeeBtn} onPress={() => navigation.navigate("AddEmployee", { token, laundryId: laundryInfo.id })}>
@@ -249,12 +247,10 @@ const LaundryHome = ({ navigation }) => {
           />
         </View>
 
-        {/* Employees Button */}
         <TouchableOpacity style={styles.employeesBtn} onPress={() => navigation.navigate("Employees", { token, id: laundryInfo.id })}>
           <Text style={styles.employeesText}>Employees</Text>
         </TouchableOpacity>
 
-        {/* Customers / Employees List */}
         <Text style={styles.sectionTitle}>Customers</Text>
         <FlatList
           ref={employeeListRef}
@@ -293,8 +289,7 @@ const LaundryHome = ({ navigation }) => {
           }}
           style={styles.overlaycus}
         />
-
-        {/* About Section */}
+        
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>About Us</Text>
           <View style={styles.ratingRow}>

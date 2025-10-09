@@ -1,4 +1,3 @@
-// UserLaundry.js
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -6,14 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ImageBackground,
-  SafeAreaView,
   ScrollView,
   Modal,
   Pressable,
   ActivityIndicator,
-  FlatList
+  FlatList,
+  useWindowDimensions,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import Toast from "react-native-toast-message";
@@ -23,7 +23,7 @@ import {
   IMG_URL,
   createPaymentIntent,
   updateViolationStatus,
-  STRIPE_DEFAULT_CURRENCY
+  STRIPE_DEFAULT_CURRENCY,
 } from "../../../Services/api";
 import BackLogin from "../../../assets/backLogin.png";
 import Or from "../../../components/Button/Or";
@@ -34,13 +34,10 @@ const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
 
-/* ===================== helpers: open/close status ===================== */
 const pad2 = (n) => String(n).padStart(2, "0");
 
-// Accepts "08:00", "08:00:00", [8,0], [8,0,0], {hour:8, minute:0}
 const parseTimeToMinutes = (t) => {
   if (t == null) return null;
-
   if (Array.isArray(t)) {
     const hh = Number(t[0]);
     const mm = Number(t[1] ?? 0);
@@ -48,7 +45,6 @@ const parseTimeToMinutes = (t) => {
     if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
     return hh * 60 + mm;
   }
-
   if (typeof t === "object") {
     const hh = Number(t.hour ?? t.hours ?? t.H ?? t.h);
     const mm = Number(t.minute ?? t.minutes ?? t.M ?? t.m ?? 0);
@@ -56,21 +52,18 @@ const parseTimeToMinutes = (t) => {
     if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
     return hh * 60 + mm;
   }
-
   if (typeof t === "string") {
     const s = t.trim();
-    const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s); // HH:mm or HH:mm:ss
+    const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s);
     if (!m) return null;
     const hh = Number(m[1]);
     const mm = Number(m[2]);
     if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
     return hh * 60 + mm;
   }
-
   return null;
 };
 
-// For UI display as HH:mm regardless of source shape
 const formatTimeHHmm = (t) => {
   if (t == null) return "";
   if (Array.isArray(t)) return `${pad2(t[0])}:${pad2(t[1] ?? 0)}`;
@@ -97,24 +90,22 @@ const computeOpenStatus = (openVal, closeVal, nowMin) => {
   const o = parseTimeToMinutes(openVal);
   const c = parseTimeToMinutes(closeVal);
   if (o == null || c == null) return { isOpen: false, valid: false };
-  if (o === c) return { isOpen: true, valid: true }; // 24h open
-
+  if (o === c) return { isOpen: true, valid: true }; 
   let isOpen;
-  if (o < c) {
-    isOpen = nowMin >= o && nowMin < c;
-  } else {
-    isOpen = nowMin >= o || nowMin < c; // overnight range
-  }
+  if (o < c) isOpen = nowMin >= o && nowMin < c;
+  else isOpen = nowMin >= o || nowMin < c;
   return { isOpen, valid: true };
 };
 
-/* ===================== misc helpers ===================== */
 const parsePriceNum = (x) => {
   const n = Number(x);
   return Number.isFinite(n) ? n : 0;
 };
 const money = (n) => `$${n.toFixed(2)}`;
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 const formatLongDateTime = (d = new Date()) => {
   const h = d.getHours();
   const m = d.getMinutes();
@@ -123,7 +114,6 @@ const formatLongDateTime = (d = new Date()) => {
   return `Date: ${monthNames[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} | Time: ${hh}:${pad2(m)} ${ampm}`;
 };
 
-/* ===================== Stars ===================== */
 function Stars({ value = 0, size = 16, color = "#E8DF9D" }) {
   const v = Number(value) || 0;
   const full = Math.floor(v);
@@ -143,7 +133,6 @@ function Stars({ value = 0, size = 16, color = "#E8DF9D" }) {
   );
 }
 
-/* ===================== Rating Modal (center + blurred bg) ===================== */
 function RatingSheet({ visible, onClose, onSubmit }) {
   const [rating, setRating] = useState(0);
   useEffect(() => {
@@ -183,7 +172,6 @@ function RatingSheet({ visible, onClose, onSubmit }) {
   );
 }
 
-/* ===================== Service Picker Modal (center + blurred bg) ===================== */
 function ServicePickerModal({ visible, services, preselectId, onClose, onDone }) {
   const [checked, setChecked] = useState({});
 
@@ -260,8 +248,9 @@ function ServicePickerModal({ visible, services, preselectId, onClose, onDone })
   );
 }
 
-/* ===================== Order Summary Modal (center + blurred bg) ===================== */
 function OrderSummaryModal({ visible, items, onBack, onPickup, onAdvance }) {
+  const { width } = useWindowDimensions();
+  const isXS = width <= 360;
   const total = items.reduce((s, it) => s + it.priceNum, 0);
 
   return (
@@ -276,22 +265,31 @@ function OrderSummaryModal({ visible, items, onBack, onPickup, onAdvance }) {
             <Text style={styles.summaryHeading}>Ordered Laundry Item</Text>
 
             {items.map((it, idx) => (
-              <View key={idx} style={styles.summaryRow}>
-                <View>
-                  <Text style={styles.summaryItemTitle}>{it.title}</Text>
+              <View key={idx} style={[styles.summaryRow, isXS && styles.summaryRowXS]}>
+                <View style={[styles.summaryLeft, isXS && styles.summaryLeftXS]}>
+                  <Text
+                    style={[styles.summaryItemTitle, isXS && styles.summaryItemTitleXS]}
+                  >
+                    {it.title}
+                  </Text>
                   <Text style={styles.summaryItemSub}>
                     Per each {it.category?.toLowerCase().includes("kg") ? "kg" : "item"}
                   </Text>
                 </View>
-                <Text style={styles.summaryItemPrice}>{money(it.priceNum)}</Text>
+
+                <Text style={[styles.summaryItemPrice, isXS && styles.summaryPriceXS]}>
+                  {money(it.priceNum)}
+                </Text>
               </View>
             ))}
 
             <View style={styles.summaryDivider} />
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryTotalLabel}>Total</Text>
-              <Text style={styles.summaryItemPrice}>{money(total)}</Text>
+            <View style={[styles.summaryRow, isXS && styles.summaryRowXS]}>
+              <Text style={[styles.summaryTotalLabel, isXS && styles.summaryLeftXS]}>Total</Text>
+              <Text style={[styles.summaryItemPrice, isXS && styles.summaryPriceXS]}>
+                {money(total)}
+              </Text>
             </View>
 
             <View style={styles.priceNote}>
@@ -314,7 +312,6 @@ function OrderSummaryModal({ visible, items, onBack, onPickup, onAdvance }) {
   );
 }
 
-/* ===================== Payment Modal (center + blurred bg) ===================== */
 function PaymentModal({ visible, onClose, onConfirm }) {
   const [num, setNum] = useState("");
   const [exp, setExp] = useState("");
@@ -338,47 +335,6 @@ function PaymentModal({ visible, onClose, onConfirm }) {
         <View style={styles.centerBoxGreen}>
           <Text style={styles.dateBar}>{formatLongDateTime()}</Text>
 
-          {/* <View style={styles.payCard}>
-            <Text style={styles.payTitle}>Enter card details</Text>
-
-            <TextInput
-              value={num}
-              onChangeText={setNum}
-              placeholder="Card Number"
-              style={styles.inputBox}
-              keyboardType="number-pad"
-            />
-
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
-              <TextInput
-                value={exp}
-                onChangeText={setExp}
-                placeholder="Expiry"
-                style={[styles.inputBox, { flex: 1 }]}
-              />
-              <TextInput
-                value={cvv}
-                onChangeText={setCvv}
-                placeholder="CVV"
-                style={[styles.inputBox, { width: 90 }]}
-                keyboardType="number-pad"
-                secureTextEntry
-              />
-            </View>
-
-            <TextInput
-              value={num}
-              editable={false}
-              placeholder="Card Number"
-              style={[styles.inputBox, { marginTop: 10, opacity: 0.6 }]}
-            />
-
-            <View style={styles.saveRow}>
-              <Switch value={saveForLater} onValueChange={setSaveForLater} thumbColor="#fff" />
-              <Text style={styles.saveText}> Save this for later</Text>
-            </View>
-          </View> */}
-
           <TouchableOpacity
             style={styles.primaryCta}
             activeOpacity={0.85}
@@ -398,7 +354,6 @@ function PaymentModal({ visible, onClose, onConfirm }) {
   );
 }
 
-/* ===================== ExpandableText ===================== */
 function ExpandableText({ text, collapsedLines = 4, textStyle, linkStyle }) {
   const [expanded, setExpanded] = useState(false);
   const [fullLineCount, setFullLineCount] = useState(0);
@@ -432,10 +387,7 @@ function ExpandableText({ text, collapsedLines = 4, textStyle, linkStyle }) {
       </Text>
 
       {showToggle ? (
-        <Text
-          style={[textStyle, { marginTop: 4 }]}
-          onPress={() => setExpanded((v) => !v)}
-        >
+        <Text style={[textStyle, { marginTop: 4 }]} onPress={() => setExpanded((v) => !v)}>
           <Text style={linkStyle}>{expanded ? " See less.." : " See more.."}</Text>
         </Text>
       ) : null}
@@ -443,7 +395,6 @@ function ExpandableText({ text, collapsedLines = 4, textStyle, linkStyle }) {
   );
 }
 
-/* ===================== Screen ===================== */
 export default function UserLaundry({ navigation }) {
   const { params } = useRoute();
   const token = params?.token;
@@ -453,8 +404,6 @@ export default function UserLaundry({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  // Order flow state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [preselectSvcId, setPreselectSvcId] = useState(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -463,28 +412,28 @@ export default function UserLaundry({ navigation }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const orderTypeRef = useRef("PICKUP");
 
-  // Stripe payment state
   const [paymentLoading, setPaymentLoading] = useState(false);
-
-  // Services carousel state
   const serviceListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const autoTimerRef = useRef(null);
 
-  // Recompute open/closed every 30s
   const [nowTick, setNowTick] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNowTick(Date.now()), 30 * 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Fetch only via /api/auth/laundryById
   useEffect(() => {
     let mounted = true;
 
     async function run() {
       if (!id) {
-        Toast.show(TOAST.errorTop("Missing laundry id", "Could not load this laundry. Please go back and try again."));
+        Toast.show(
+          TOAST.errorTop(
+            "Missing laundry id",
+            "Could not load this laundry. Please go back and try again."
+          )
+        );
         setLoading(false);
         return;
       }
@@ -503,7 +452,9 @@ export default function UserLaundry({ navigation }) {
 
         if (!mounted) return;
         if (!payload) {
-          Toast.show(TOAST.errorTop("Could not load laundry", "Please check your connection and try again."));
+          Toast.show(
+            TOAST.errorTop("Could not load laundry", "Please check your connection and try again.")
+          );
         }
         setDetails(payload);
       } catch (e) {
@@ -521,17 +472,13 @@ export default function UserLaundry({ navigation }) {
       clearInterval(autoTimerRef.current);
     };
   }, [id, token]);
-
-  // Parse fields
   const title = details?.name || "Laundry name";
   const ratingAvg = Number(details?.rating ?? 0.0);
   const aboutText =
     details?.about ||
     "We have redefined Laundry and Dry cleaning services.We are among the top Online Dry cleaners. We use advanced technology for Laundry and Dry cleaning to enhance and maintain beauty of your garments. Finally we are delivering you unforgettable and";
-  const heroImage =
-    details?.laundryImg ? { uri: `${IMG_URL}${details.laundryImg}` } : BackLogin;
+  const heroImage = details?.laundryImg ? { uri: `${IMG_URL}${details.laundryImg}` } : BackLogin;
 
-  // services normalize
   const services = useMemo(() => {
     const raw = details?.services;
     if (!raw) return [];
@@ -539,7 +486,13 @@ export default function UserLaundry({ navigation }) {
       return raw.map((s, i) => {
         if (typeof s === "string") {
           const priceNum = 10;
-          return { id: i + 1, title: s, category: "For each kg", price: String(priceNum), priceNum };
+          return {
+            id: i + 1,
+            title: s,
+            category: "For each kg",
+            price: String(priceNum),
+            priceNum,
+          };
         }
         const priceNum = parsePriceNum(s.price ?? s.amount ?? s.cost ?? 10);
         return {
@@ -562,7 +515,6 @@ export default function UserLaundry({ navigation }) {
     ? services
     : [{ id: "N/A", title: "No Services", category: "For each kg", price: "N/A", priceNum: 0 }];
 
-  // Autoplay
   useEffect(() => {
     if (!serviceListRef.current || servicesData.length < 2) return;
     clearInterval(autoTimerRef.current);
@@ -588,25 +540,20 @@ export default function UserLaundry({ navigation }) {
     if (!Number.isFinite(stars) || stars <= 0) return;
 
     try {
-      await api.put(
-        "/api/auth/addRating",
-        null,
-        {
-          params: { rating: stars, id, customerEmail: userEmail },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        }
-      );
+      await api.put("/api/auth/addRating", null, {
+        params: { rating: stars, id, customerEmail: userEmail },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       Toast.show(TOAST.success("Thanks!", `You rated ${stars}★`));
       try {
         const r = await authGet("/api/auth/laundryById", token, { params: { id } });
         setDetails(r.data);
-      } catch { }
+      } catch {}
     } catch (err) {
       Toast.show(TOAST.errorTop("Couldn't submit rating", "Please try again."));
     }
   };
 
-  /* ------------------------- OPEN/CLOSED (local time) ------------------------- */
   const { statusLabel, isOpen } = useMemo(() => {
     const nowMin = minutesNowLocal();
     const { isOpen, valid } = computeOpenStatus(details?.openTime, details?.closeTime, nowMin);
@@ -621,7 +568,6 @@ export default function UserLaundry({ navigation }) {
     return `${o} – ${c}`;
   }, [details?.openTime, details?.closeTime]);
 
-  // ---------------------- ORDER FLOW HELPERS ----------------------
   const openPicker = (preId = null) => {
     setPreselectSvcId(preId);
     setPickerOpen(true);
@@ -652,25 +598,29 @@ export default function UserLaundry({ navigation }) {
       laundryId: details?.id || details?.laundryId || details?.ownerEmail,
     };
 
-    console.log("ttttttttttttttttt sdlkvnlkd skjsnflksds...........", body, bodye);
-    // Update/attach the customer to the laundry (non-fatal if it fails)
     try {
       await api.put(ADD_CUSTOMER_END_POINT, bodye, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
     } catch (e) {
-      console.log("updateCustomer error", e?.response?.status, e?.response?.data);
+      Toast.show(TOAST.errorBottom("updateCustomer error", e?.response?.status + e?.response?.data));
     }
 
     try {
-      let ok = false, lastErr = null;
+      let ok = false,
+        lastErr = null;
       for (const url of ORDER_ENDPOINTS) {
         try {
           const res = await api.post(url, body, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           });
-          if ((res?.status ?? 500) < 300) { ok = true; break; }
-        } catch (e) { lastErr = e; }
+          if ((res?.status ?? 500) < 300) {
+            ok = true;
+            break;
+          }
+        } catch (e) {
+          lastErr = e;
+        }
       }
       if (!ok) throw lastErr || new Error("No endpoint accepted the request");
 
@@ -678,16 +628,19 @@ export default function UserLaundry({ navigation }) {
       setSummaryOpen(false);
       setSelectedIds([]);
       setSelectedItems([]);
-      Toast.show(TOAST.success("Order placed", `Your ${orderTypeRef.current === "PICKUP" ? "pickup" : "advance"} order was created`));
+      Toast.show(
+        TOAST.success(
+          "Order placed",
+          `Your ${orderTypeRef.current === "PICKUP" ? "pickup" : "advance"} order was created`
+        )
+      );
     } catch (err) {
       Toast.show(TOAST.errorTop("Couldn't create order", "Please try again."));
     }
   };
 
-  // ========= STRIPE PAYMENT FLOW =========
   const getOrderAmountMinor = () => {
     const total = selectedItems.reduce((s, it) => s + (Number(it.priceNum) || 0), 0);
-    // Stripe expects smallest unit (e.g., cents). For LKR-like (2 decimals) multiply by 100
     return Math.round(total * 100);
   };
 
@@ -721,7 +674,6 @@ export default function UserLaundry({ navigation }) {
         return;
       }
 
-      // IMPORTANT: prefer the actual violation id returned by backend
       const actualViolationId = Number(data?.violationId ?? violationIdForPay);
       const stripePaymentIntentId = data?.stripePaymentIntentId;
 
@@ -729,7 +681,6 @@ export default function UserLaundry({ navigation }) {
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: "Smart Laundry",
         allowsDelayedPaymentMethods: false,
-        // returnURL: "yourappscheme://stripe-redirect"  // iOS redirect methods (optional)
       });
       if (init.error) {
         Toast.show(TOAST.errorTop("PaymentSheet error", init.error.message));
@@ -744,7 +695,6 @@ export default function UserLaundry({ navigation }) {
         return;
       }
 
-      // Try to update backend payment status, but DO NOT block order creation if this fails
       try {
         await updateViolationStatus({
           violationId: actualViolationId,
@@ -754,12 +704,17 @@ export default function UserLaundry({ navigation }) {
           stripePaymentIntentId,
           token,
         });
+        Toast.show(TOAST.success("payment success full", "Thank you you will got quick service"));
       } catch (e) {
-        Toast.show(TOAST.errorTop("updateViolationStatus failed:", e?.response?.status, e?.response?.data || e?.message));
-        // continue anyway
+        Toast.show(
+          TOAST.errorTop(
+            "updateViolationStatus failed:",
+            e?.response?.status,
+            e?.response?.data || e?.message
+          )
+        );
       }
 
-      // NOW create the order
       await placeOrder();
     } catch (e) {
       Toast.show(TOAST.errorTop("Payment error", e?.message || "Try again"));
@@ -781,7 +736,6 @@ export default function UserLaundry({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={TEXT} />
@@ -797,7 +751,6 @@ export default function UserLaundry({ navigation }) {
           </View>
         </View>
 
-        {/* Hero image + services blur pill carousel */}
         <View style={styles.cardShadow}>
           <ImageBackground
             source={heroImage}
@@ -849,22 +802,22 @@ export default function UserLaundry({ navigation }) {
           </ImageBackground>
         </View>
 
-        {/* Add Services button */}
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.6} onPress={() => openPicker(null)}>
           <Text style={styles.addBtnText}>Add Order</Text>
         </TouchableOpacity>
 
         <Or />
-
-        {/* Add Your Rating */}
-        <TouchableOpacity style={styles.rateBtn} activeOpacity={0.9} onPress={() => setSheetOpen(true)}>
+        <TouchableOpacity
+          style={styles.rateBtn}
+          activeOpacity={0.9}
+          onPress={() => setSheetOpen(true)}
+        >
           <Text style={styles.rateText}>Add Your Rating</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Stars value={4} size={16} />
           </View>
         </TouchableOpacity>
 
-        {/* About Us */}
         <View style={{ marginTop: 18, paddingHorizontal: 16 }}>
           <Text style={styles.aboutTitle}>About Us</Text>
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 }}>
@@ -881,7 +834,6 @@ export default function UserLaundry({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* Modals with blur */}
       <RatingSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} onSubmit={submitRating} />
 
       <ServicePickerModal
@@ -908,7 +860,6 @@ export default function UserLaundry({ navigation }) {
         }}
       />
 
-      {/* Change PaymentModal confirm to run Stripe flow */}
       <PaymentModal
         visible={payOpen}
         onClose={() => setPayOpen(false)}
@@ -989,10 +940,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     marginTop: 64,
   },
-  serviceTitle: { fontSize: 18, fontWeight: "600", color: "#3C4234" },
+  serviceTitle: { fontSize: 16, fontWeight: "600", color: "#3C4234" },
   serviceSubtitle: { fontSize: 12, fontWeight: "600", color: "#666" },
   servicePrice: {
-    fontSize: 20,
+    marginTop: 18,
+    fontSize: 18,
     color: "#3C4234",
     fontWeight: "600",
     right: 12,
@@ -1043,7 +995,6 @@ const styles = StyleSheet.create({
   aboutText: { color: TEXT, marginTop: 8, lineHeight: 20 },
   seeMore: { color: GREEN, fontWeight: "700" },
 
-  // hidden measurer
   hiddenMeasure: {
     position: "absolute",
     opacity: 0,
@@ -1051,7 +1002,6 @@ const styles = StyleSheet.create({
     pointerEvents: "none",
   },
 
-  /* ---------- Centered-modal helpers ---------- */
   modalCenter: {
     flex: 1,
     justifyContent: "center",
@@ -1067,7 +1017,7 @@ const styles = StyleSheet.create({
   orderBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(60,66,52,0.45)",
-  }, // kept as fallback (not used now)
+  },
 
   centerBoxGreen: {
     width: "92%",
@@ -1097,7 +1047,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
 
-  /* ---------- legacy bottom-sheet styles (left intact) ---------- */
   orderSheetWrap: {
     position: "absolute",
     left: 0,
@@ -1164,15 +1113,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   summaryHeading: { color: TEXT, fontWeight: "700", marginBottom: 8 },
+
   summaryRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 8,
+    width: "100%",
+  },
+
+  summaryRowXS: {
+    flexWrap: "wrap",
+  },
+  summaryLeft: {},
+  summaryLeftXS: {
+    flexBasis: "50%",
   },
   summaryItemTitle: { color: TEXT, fontWeight: "600" },
+  summaryItemTitleXS: {
+    flexShrink: 1,
+  },
   summaryItemSub: { color: MUTED, fontSize: 11, marginTop: 2 },
   summaryItemPrice: { color: TEXT, fontWeight: "600" },
+  summaryPriceXS: {
+    flexBasis: "50%",
+    textAlign: "right",
+  },
+
   summaryDivider: {
     borderBottomColor: "#C9D0C4",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1217,7 +1184,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
-  payTitle: { color: TEXT, fontSize: 20, fontWeight: "700", textAlign: "center", marginBottom: 12 },
+  payTitle: {
+    color: TEXT,
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 12,
+  },
   inputBox: {
     height: 44,
     borderRadius: 8,

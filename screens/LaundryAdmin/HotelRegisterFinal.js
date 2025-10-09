@@ -1,4 +1,3 @@
-// src/screens/auth/HotelRegisterFinal.jsx
 import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -27,12 +26,10 @@ import { TOAST } from '../../styles/theme';
 
 const { width } = Dimensions.get('window');
 
-// Match backend constraints
 const ABOUT_MIN = 60;
 const ABOUT_MAX = 1200;
 
 function HotelRegisterFinal({ route, navigation }) {
-  // Route params from previous screen (fallbacks)
   const {
     laundryName: pLaundryName,
     address: pAddress,
@@ -43,8 +40,8 @@ function HotelRegisterFinal({ route, navigation }) {
     role: pRole,
     availableItems: pAvailableItems,
     otherItems: pOtherItems,
-    services: pServices,               // [{ title, price }]
-    laundryImageUrl: pLaundryImageUrl, // string
+    services: pServices,
+    laundryImageUrl: pLaundryImageUrl,
   } = route.params || {};
 
   const { basicInfo, updateBasicInfo, resetAll } = useRegistration();
@@ -56,7 +53,6 @@ function HotelRegisterFinal({ route, navigation }) {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Keyboard → keep buttons above the keyboard, same logic as before
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -75,7 +71,6 @@ function HotelRegisterFinal({ route, navigation }) {
 
   const onToggleSwitch = () => setIsSwitchOn(v => !v);
 
-  // Prefer context values; fallback to route params
   const laundryName = basicInfo?.laundryName ?? pLaundryName ?? '';
   const address = basicInfo?.address ?? pAddress ?? '';
   const phone = basicInfo?.phone ?? pPhone ?? '';
@@ -92,7 +87,6 @@ function HotelRegisterFinal({ route, navigation }) {
   const laundryImageUrl = basicInfo?.laundryImageUrl ?? pLaundryImageUrl ?? '';
   const openTime = basicInfo?.openTime;
   const closeTime = basicInfo?.closeTime;
-  // Live character count (backend counts raw length, not trimmed)
   const charCount = message.length;
   const tooShort = charCount < ABOUT_MIN;
 
@@ -114,7 +108,6 @@ function HotelRegisterFinal({ route, navigation }) {
       );
       return;
     }
-    // NotBlank + @Size(min=60, max=1200) mirrored here:
     if (message.trim().length === 0) {
       Toast.show(
         TOAST.errorBottom("About is required", "Please write a short description.")
@@ -127,7 +120,6 @@ function HotelRegisterFinal({ route, navigation }) {
       );
       return;
     }
-    // no need to check > ABOUT_MAX because maxLength prevents it, but safe-guard:
     if (charCount > ABOUT_MAX) {
       Toast.show(
         TOAST.errorBottom("About is too long", `Maximum ${ABOUT_MAX} characters.`)
@@ -135,7 +127,6 @@ function HotelRegisterFinal({ route, navigation }) {
       return;
     }
 
-    // Persist "about" into context as well
     updateBasicInfo({ about: message });
 
     const payload = {
@@ -172,7 +163,7 @@ function HotelRegisterFinal({ route, navigation }) {
     } catch (err) {
       const serverMsg = err?.response?.data;
       Toast.show(
-        TOAST.errorBottom("Registration failed",(typeof serverMsg === 'string' && serverMsg) ||
+        TOAST.errorBottom("Registration failed", (typeof serverMsg === 'string' && serverMsg) ||
           err?.message ||
           'Network/server error')
       );
@@ -182,7 +173,6 @@ function HotelRegisterFinal({ route, navigation }) {
   };
 
   return (
-    // OUTER scroll handles keyboard; buttons scroll with the form and stop above keyboard
     <ScrollView
       contentContainerStyle={[styles.scrollContainerBlur, { paddingBottom: keyboardHeight + 24 }]}
       keyboardShouldPersistTaps="handled"
@@ -191,7 +181,6 @@ function HotelRegisterFinal({ route, navigation }) {
       <View style={styles.container}>
         <Image source={registeroverlay} style={styles.image} />
 
-        {/* switch header (unchanged) */}
         <View style={styles.switchset}>
           <Text style={styles.switchText}>{!isSwitchOn ? 'Hotel Admin' : 'Personal'}</Text>
           <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
@@ -215,7 +204,6 @@ function HotelRegisterFinal({ route, navigation }) {
         <Text style={styles.textsub}>Create Account</Text>
 
         <BlurView style={{ marginTop: keyboardVisible ? '-35%' : undefined }} intensity={keyboardVisible ? 20 : 0}>
-          {/* pass switch props if RegistreTop needs them */}
           {isSwitchOn && (
             <RegistreTop
               navigation={navigation}
@@ -225,7 +213,6 @@ function HotelRegisterFinal({ route, navigation }) {
           )}
 
           {!isSwitchOn && (
-            // inner form not scrollable; outer scroll takes over
             <ScrollView
               contentContainerStyle={styles.scrollContainer}
               keyboardShouldPersistTaps="handled"
@@ -250,10 +237,9 @@ function HotelRegisterFinal({ route, navigation }) {
                   placeholderTextColor={keyboardVisible ? 'black' : '#999'}
                   autoCapitalize="sentences"
                   autoCorrect
-                  maxLength={ABOUT_MAX}    // ← hard-cap at 1200
+                  maxLength={ABOUT_MAX}
                 />
 
-                {/* right-aligned helper / counter (no style changes elsewhere) */}
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{ fontSize: 10, opacity: tooShort ? 1 : 0.7, color: tooShort ? '#B00020' : '#333' }}>
                     {charCount}/{ABOUT_MAX}{tooShort ? `  • need ${ABOUT_MIN - charCount} more` : ''}
@@ -264,7 +250,6 @@ function HotelRegisterFinal({ route, navigation }) {
           )}
         </BlurView>
 
-        {/* Buttons live inside the OUTER ScrollView */}
         <TouchableOpacity
           style={[styles.loginButton, submitting && { opacity: 0.6 }]}
           onPress={controlLogin}
@@ -287,8 +272,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   image: { position: 'absolute', width: '100%', height: '40%' },
   backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
-
-  // same header coordinates
   switchset: { flexDirection: 'row' },
   switchText: { fontSize: 15, position: 'absolute', right: 85, top: 58, zIndex: 90, color: '#F2EBBC' },
   switch: { position: 'absolute', right: 30, top: 50, zIndex: 100, borderRadius: 50 },
@@ -307,7 +290,7 @@ const styles = StyleSheet.create({
   inputin: {
     height: 150,
     width: '100%',
-    marginBottom: 8, // tightened slightly so the counter sits closer (no global style changes)
+    marginBottom: 8,
     paddingLeft: 15,
     fontSize: 16,
     borderColor: 'rgba(0,0,0,0.3)',

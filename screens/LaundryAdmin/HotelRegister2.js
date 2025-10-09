@@ -1,4 +1,3 @@
-// src/screens/auth/HotelRegister2.jsx
 import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -9,11 +8,10 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  Alert,
   Dimensions,
   Platform,
   Pressable,
-  Image as RNImage, // alias to avoid confusion with import name "Image"
+  Image as RNImage,
 } from 'react-native';
 import registeroverlay from '../../assets/backReg.png';
 import inerbutton from '../../assets/Vector1.png';
@@ -30,6 +28,8 @@ import RegistreTop from '../../components/UserTop/RegistreTop';
 import Or from '../../components/Button/Or';
 import { uploadImageFile } from '../../Services/api';
 import { useRegistration } from '../../context/RegistrationContext';
+import Toast from 'react-native-toast-message';
+import { TOAST } from '../../styles/theme';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 const GREEN = '#A3AE95';
@@ -52,13 +52,12 @@ function HotelRegister2({ route, navigation }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const [availableItems, setAvailableItems] = useState([]); // string[]
+  const [availableItems, setAvailableItems] = useState([]);
   const [isDropdownVisiblet, setDropdownVisiblet] = useState(false);
-  const [otherItems, setOtherItems] = useState([]); // dynamic others
+  const [otherItems, setOtherItems] = useState([]);
   const [imageUri, setImageUri] = useState('');
   const [services, setServices] = useState([]);
 
-  // ---------- Open/Close time (HH:mm) ----------
   const [openTimeStr, setOpenTimeStr] = useState(basicInfo?.openTime || '');
   const [closeTimeStr, setCloseTimeStr] = useState(basicInfo?.closeTime || '');
   const [showOpenPicker, setShowOpenPicker] = useState(false);
@@ -78,7 +77,6 @@ function HotelRegister2({ route, navigation }) {
     return d;
   };
 
-  // Seed services from selectedOptions / context
   useEffect(() => {
     const source =
       Array.isArray(selectedOptions) && selectedOptions.length
@@ -104,7 +102,6 @@ function HotelRegister2({ route, navigation }) {
     setServices(merged);
   }, [selectedOptions, basicInfo?.selectedOptions, basicInfo?.services]);
 
-  // Keyboard listeners
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -124,7 +121,6 @@ function HotelRegister2({ route, navigation }) {
     };
   }, []);
 
-  // ---- Selection handling ----
   const toggleItem = (option) => {
     setAvailableItems((prev) => {
       const exists = prev.includes(option);
@@ -148,11 +144,10 @@ function HotelRegister2({ route, navigation }) {
     setServices((prev) => prev.map((s) => (s.title === title ? { ...s, price: sanitized } : s)));
   };
 
-  // Single image
   const pickImageL = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission required', 'Enable Photo Library permission.');
+      Toast.show(TOAST.errorBottom('Permission required', 'Enable Photo Library permission.'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -164,14 +159,12 @@ function HotelRegister2({ route, navigation }) {
   };
   const removeImage = () => setImageUri('');
 
-  // “Others” helpers
   const addOtherItem = () => setOtherItems((prev) => [...prev, '']);
   const updateOtherItem = (idx, text) =>
     setOtherItems((prev) => prev.map((v, i) => (i === idx ? text : v)));
   const removeOtherItem = (idx) =>
     setOtherItems((prev) => prev.filter((_, i) => i !== idx));
 
-  // Time pickers — confirm writes value; close only on outside/backdrop (cancel)
   const onPickOpenConfirm = (date) => setOpenTimeStr(toHHmm(date));
   const onPickCloseConfirm = (date) => setCloseTimeStr(toHHmm(date));
   const closeOpenPicker = () => setShowOpenPicker(false);
@@ -180,7 +173,7 @@ function HotelRegister2({ route, navigation }) {
   const handleNext = async () => {
     try {
       if (!openTimeStr || !closeTimeStr) {
-        Alert.alert('Missing time', 'Please select both open time and close time.');
+        Toast.show(TOAST.errorBottom('Missing time', 'Please select both open time and close time.'));
         return;
       }
 
@@ -190,7 +183,7 @@ function HotelRegister2({ route, navigation }) {
 
       const emptyPrices = services.filter((s) => s.title && (s.price ?? '').trim() === '');
       if (emptyPrices.length > 0) {
-        Alert.alert('Missing prices', 'Please enter a price for all selected services.');
+        Toast.show(TOAST.errorBottom('Missing prices', 'Please enter a price for all selected services.'));
         return;
       }
 
@@ -215,7 +208,7 @@ function HotelRegister2({ route, navigation }) {
         openTime: openTimeStr,
         closeTime: closeTimeStr,
       });
-      
+
       navigation.navigate('HotelRegisterFinal', {
         laundryName,
         address,
@@ -232,18 +225,16 @@ function HotelRegister2({ route, navigation }) {
         closeTime: closeTimeStr,
       });
     } catch (err) {
-      console.error(err);
-      Alert.alert('Upload error', err?.message ?? 'Failed while uploading image.');
+      Toast.show(TOAST.errorBottom('Upload error', err?.message ?? 'Failed while uploading image.'));
     }
   };
 
-  // --------------------------- Dynamic spacing ---------------------------
   const hasOthers = availableItems.includes('Others(Add more cloths)');
   const otherCount = hasOthers ? otherItems.length : 0;
   const hasImage = !!imageUri;
 
   const BASE_PT = 0.2 * SCREEN_H;
-  const PER_OTHER_PT = 0.06 * SCREEN_H;
+  const PER_OTHER_PT = 0.1 * SCREEN_H;
   const EXTRA_WITH_IMAGE_PT = hasImage ? 0.12 * SCREEN_H : 0;
 
   const dynamicPaddingTop = isDropdownVisiblet
@@ -298,7 +289,6 @@ function HotelRegister2({ route, navigation }) {
                 >
                   <View style={[styles.fields, { paddingTop: dynamicPaddingTop }]}>
 
-                    {/* ---------- Open / Close Time with labels ---------- */}
                     <View style={styles.timeRow}>
                       <View style={styles.timeCol}>
                         <Pressable style={styles.timeBox} onPress={() => setShowOpenPicker(true)}>
@@ -321,7 +311,6 @@ function HotelRegister2({ route, navigation }) {
                       </View>
                     </View>
 
-                    {/* Services & prices */}
                     <TextInput
                       style={styles.input}
                       placeholder="Selected Services & Prices"
@@ -346,7 +335,6 @@ function HotelRegister2({ route, navigation }) {
                       </View>
                     ))}
 
-                    {/* Types + Clothes (with Others textboxes) */}
                     <View style={styles.dropdownContainer}>
                       <View style={styles.dropdownMenu}>
                         {types.map((option) => (
@@ -433,7 +421,6 @@ function HotelRegister2({ route, navigation }) {
                       )}
                     </View>
 
-                    {/* Single Laundry image */}
                     <TouchableOpacity onPress={pickImageL}>
                       <TextInput
                         style={styles.input}
@@ -473,24 +460,38 @@ function HotelRegister2({ route, navigation }) {
           <Or />
           <CreateAc butname="For Login" navigation={navigation} path="Login" />
         </View>
-
-        {/* ---------- DateTimePickerModal (MATCHED UI) ---------- */}
         <DateTimePickerModal
           isVisible={showOpenPicker}
           mode="time"
           is24Hour
           date={openTimeStr ? fromHHmm(openTimeStr) : new Date()}
-          onConfirm={onPickOpenConfirm}     // keep open on confirm
-          onCancel={closeOpenPicker}        // close only on outside/back
+          onConfirm={(d) => {
+            onPickOpenConfirm(d);
+            setShowOpenPicker(false);
+          }}
+          onCancel={() => setShowOpenPicker(false)}
+          customCancelButtonIOS={() => null}
+          customConfirmButtonIOS={({ onPress }) => (
+            <TouchableOpacity style={styles.iosFullWidthBtn} onPress={onPress} activeOpacity={0.9}>
+              <Text style={styles.iosFullWidthBtnText}>Save</Text>
+            </TouchableOpacity>
+          )}
+          headerTextIOS="Opening time"
           display={Platform.OS === 'android' ? 'spinner' : 'spinner'}
           minuteInterval={1}
-          headerTextIOS="Opening time"
-          confirmTextIOS="Save"
-          cancelTextIOS="Close"
           buttonTextColorIOS={TEXT}
-          pickerContainerStyleIOS={styles.pickerContainerIOS}
           textColor={TEXT}
           themeVariant="light"
+          pickerContainerStyleIOS={[
+            styles.pickerContainerIOS,
+            { marginBottom: keyboardVisible ? 300 : 0 },
+          ]}
+          modalProps={{
+            presentationStyle: 'overFullScreen',
+            style: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+          }}
+          onBackdropPress={() => setShowOpenPicker(false)}
+          onBackButtonPress={() => setShowOpenPicker(false)}
         />
 
         <DateTimePickerModal
@@ -498,18 +499,35 @@ function HotelRegister2({ route, navigation }) {
           mode="time"
           is24Hour
           date={closeTimeStr ? fromHHmm(closeTimeStr) : new Date()}
-          onConfirm={onPickCloseConfirm}    // keep open on confirm
-          onCancel={closeClosedPicker}      // close only on outside/back
+          onConfirm={(d) => {
+            onPickCloseConfirm(d);
+            setShowClosePicker(false);
+          }}
+          onCancel={() => setShowClosePicker(false)}
+          customCancelButtonIOS={() => null}
+          customConfirmButtonIOS={({ onPress }) => (
+            <TouchableOpacity style={styles.iosFullWidthBtn} onPress={onPress} activeOpacity={0.9}>
+              <Text style={styles.iosFullWidthBtnText}>Save</Text>
+            </TouchableOpacity>
+          )}
+          headerTextIOS="Closing time"
           display={Platform.OS === 'android' ? 'spinner' : 'spinner'}
           minuteInterval={1}
-          headerTextIOS="Closing time"
-          confirmTextIOS="Save"
-          cancelTextIOS="Close"
           buttonTextColorIOS={TEXT}
-          pickerContainerStyleIOS={styles.pickerContainerIOS}
           textColor={TEXT}
           themeVariant="light"
+          pickerContainerStyleIOS={[
+            styles.pickerContainerIOS,
+            { marginBottom: keyboardVisible ? 300 : 0 },
+          ]}
+          modalProps={{
+            presentationStyle: 'overFullScreen',
+            style: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+          }}
+          onBackdropPress={() => setShowClosePicker(false)}
+          onBackButtonPress={() => setShowClosePicker(false)}
         />
+
       </ScrollView>
     </PaperProvider>
   );
@@ -556,7 +574,6 @@ const styles = StyleSheet.create({
   fields: { width: '80%', alignSelf: 'center' },
   input: { height: 50, width: '100%', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.3)', marginBottom: 15, paddingLeft: 15, fontSize: 16 },
 
-  /* ---- Time row + labels ---- */
   timeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -578,12 +595,27 @@ const styles = StyleSheet.create({
   timeLabel: { marginTop: 6, fontSize: 12, color: '#666' },
   vertDivider: { width: 1, height: 44, backgroundColor: '#DADADA', marginHorizontal: 10, alignSelf: 'center' },
 
-  /* ---- iOS picker container to match your UI ---- */
   pickerContainerIOS: {
     backgroundColor: LIGHT,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 20,
   },
+
+  iosFullWidthBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosFullWidthBtnText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: TEXT,
+  }
 });
 
 export default HotelRegister2;

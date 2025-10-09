@@ -1,4 +1,3 @@
-// screens/profile/Profile.js
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -10,15 +9,19 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
+import { Ionicons as Icon } from '@expo/vector-icons';
 import Vector from "../../../assets/Vector.png";
 import { BlurView } from "expo-blur";
 import { api, authGet, API_URL, IMG_URL } from "../../../Services/api";
 import CreateAc from "../../../components/Button/CreateAc";
 import { TOAST, tokens } from "../../../styles/theme";
 import Toast from "react-native-toast-message";
+import { getAccessToken } from "../../../Services/tokenStorage";
+import { useRegistration } from "../../../context/RegistrationContext";
 
 const Profile = ({ navigation, route }) => {
+
+  const { userEmail } = useRegistration();
   const [profile, setProfile] = useState({
     email: "abcd@gmail.com",
     phone: "075 021 3273",
@@ -32,10 +35,22 @@ const Profile = ({ navigation, route }) => {
   const [modalVisiblenext, setModalVisiblenext] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  const token = route?.params?.token || null;
-  const email = route?.params?.email || null;
+
+  const [token, setToken] = useState(route?.params?.token ?? "");
+  const email = route?.params?.email || userEmail || null;
 
   useEffect(() => {
+
+    let mounted = true;
+    if (!token) {
+      (async () => {
+        try {
+          const t = await getAccessToken();
+          if (mounted) setToken(t);
+        } catch { }
+      })();
+    }
+
     const fetchProfile = async () => {
       try {
         const res = token
@@ -43,15 +58,15 @@ const Profile = ({ navigation, route }) => {
           : await api.get("/api/auth/details", token, { params: { email: email }, });
 
         setProfile(res?.data || {});
-        console.log(profile);
       } catch (error) {
-        console.error("Failed to load profile:", error?.response?.data || error?.message);
+        Toast.show(TOAST.errorTop("Failed to load profile:", error?.response?.data || error?.message));
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfile();
+    return () => { mounted = false; };
   }, [token]);
 
   const sendemail = async () => {
@@ -116,10 +131,6 @@ const Profile = ({ navigation, route }) => {
       });
       Toast.show(TOAST.success("Smart Laundry", res?.data || "Password updated"));
       setModalVisiblenext(false);
-      setRpEmail("");
-      setRpOtp("");
-      setRpPass("");
-      setRpConfirm("");
     } catch (e) {
       Toast.show(TOAST.errorTop(
         "Smart Laundry",
@@ -148,24 +159,20 @@ const Profile = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      {/* Top Row */}
       <View style={styles.topRow}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image style={styles.image} source={Vector} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.editBtn}>
+        <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate("UpdateUser", { token, email })}>
           <Text style={styles.editBtnText}>Edit</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{profile.name}</Text>
       </View>
 
-      {/* Card */}
       <View style={styles.card}>
-        {/* Use remote image if you want: source={{ uri: profile.imageUrl }} */}
         <Image
           source={require("../../../assets/startimage.png")}
           style={styles.profileImage}
@@ -201,12 +208,10 @@ const Profile = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Button */}
       <TouchableOpacity style={styles.updateButton} onPress={() => setModalVisible(true)}>
         <Text style={styles.updateButtonText}>Update the password</Text>
       </TouchableOpacity>
 
-      {/* First Modal */}
       <Modal
         animationType="slide"
         transparent
@@ -239,7 +244,6 @@ const Profile = ({ navigation, route }) => {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
-                  // You can bind this to state if you wire up the flow
                   />
                 </View>
                 <TouchableOpacity style={styles.send} onPress={sendemail}>
@@ -251,7 +255,6 @@ const Profile = ({ navigation, route }) => {
         </BlurView>
       </Modal>
 
-      {/* Second Modal */}
       <Modal
         animationType="none"
         transparent
@@ -447,7 +450,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalBackground: { flex: 1, justifyContent: "center" },
-  // 🔧 Fix numeric values (no quotes)
   modalView: {
     height: 250,
     backgroundColor: "#A3AE95",

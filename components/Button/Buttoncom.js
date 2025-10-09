@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     button: {
         width: 200,
         height: 50,
-        borderRadius: 15, // Make it rounded
+        borderRadius: 15, 
         position: 'absolute',
         left: '30%',
         marginTop: '20%',
@@ -37,15 +37,13 @@ const styles = StyleSheet.create({
         backgroundColor:"#3C4234"
     },
     linecon: {
-        // alignItems: 'center', // Vertically center the content
-        // justifyContent: 'center',
         flexDirection: 'row',
         marginTop: 'auto',
         marginBottom: 'auto',
         marginLeft: '15'
     },
     arrow: {
-        width: 25, // Adjust size of the arrow icon
+        width: 25,
         height: 30,
         marginRight: '-8',
         resizeMode: 'contain',

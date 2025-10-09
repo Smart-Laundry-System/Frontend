@@ -64,14 +64,12 @@ function UserRegistre({ navigation }) {
 
   const isNonEmpty = (s) => typeof s === 'string' && s.trim().length > 0;
 
-  // -------- Dynamic services handlers --------
   const addServiceRow = () => setServiceInputs((prev) => [...prev, '']);
   const updateServiceRow = (idx, text) =>
     setServiceInputs((prev) => prev.map((v, i) => (i === idx ? text : v)));
   const removeServiceRow = (idx) =>
     setServiceInputs((prev) => prev.filter((_, i) => i !== idx));
 
-  // -------- Keyboard spacing (limit max scroll to the keyboard top) --------
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -91,7 +89,6 @@ function UserRegistre({ navigation }) {
     };
   }, []);
 
-  // -------- Submit --------
   const controlLogin = () => {
     const errors = [];
     if (!isNonEmpty(laundryName)) errors.push('Laundry name');
@@ -197,12 +194,10 @@ function UserRegistre({ navigation }) {
             {isSwitchOn && <RegistreTop navigation={navigation} />}
 
             {!isSwitchOn && (
-              // keep inner ScrollView for your form; it doesn't need to scroll when keyboard is open
               <ScrollView
                 contentContainerStyle={styles.scrollContainer}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                // prevent nested scroll fighting; outer scroll handles the keyboard
                 scrollEnabled={false}
               >
                 <View style={styles.fields}>
@@ -314,7 +309,7 @@ function UserRegistre({ navigation }) {
 const { width: winW } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  scrollContainertop: { flexGrow: 1, backgroundColor: tokens.colors.background }, // outer scroll content
+  scrollContainertop: { flexGrow: 1, backgroundColor: tokens.colors.background },
   switch: { position: 'absolute', right: 30, top: 50, zIndex: 100, borderRadius: tokens.radius.full },
   switchText: { fontSize: tokens.components.Typography.body.fontSize, position: 'absolute', right: 85, top: 58, zIndex: 90, color: tokens.colors.switchact },
   switchset: { flexDirection: 'row' },
@@ -351,8 +346,8 @@ const styles = StyleSheet.create({
   fields: { width: '80%', alignSelf: 'center', marginTop: '58%' },
   input: {
     height: 40, width: '100%', borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.bottomBorder, marginBottom: tokens.spacing.sm, 
-    paddingLeft: tokens.components.Input.paddingLeft, 
+    borderBottomColor: tokens.colors.bottomBorder, marginBottom: tokens.spacing.sm,
+    paddingLeft: tokens.components.Input.paddingLeft,
     fontSize: tokens.components.Input.fontSize
   },
   removeButton: { backgroundColor: tokens.colors.greenButton, padding: tokens.spacing.sm, borderRadius: tokens.radius.sm, marginLeft: tokens.spacing.sm },

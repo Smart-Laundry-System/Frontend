@@ -11,7 +11,7 @@ import registeroverlay from '../../../assets/backLogin.png';
 import overlap from '../../../assets/registeroverlay.png';
 import inerbutton from '../../../assets/Vector1.png';
 import { BlurView } from 'expo-blur';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import CreateAc from '../../../components/Button/CreateAc';
 
 function AddEmployee({ navigation }) {
@@ -29,7 +29,7 @@ function AddEmployee({ navigation }) {
 
   const route = useRoute();
   const routeToken = route?.params?.token ?? null;
-  const id = route.params.laundryId || laundryId || null;
+  const id = laundryId || route.params.laundryId || null;
 
   const [token, setToken] = useState(routeToken || null);
 
@@ -73,15 +73,13 @@ function AddEmployee({ navigation }) {
 
   const controlLogin = async () => {
     if (submitting) return;
-    // Basic validation
     if (!email.trim() || !firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim()) {
       Toast.show(
         TOAST.errorBottom("Registration failed", "Please fill all required fields")
       );
       return;
     }
-    
-    console.log("Hi mmmmmm hi");
+
     const payload = {
       email: email.trim(),
       name: `${firstName.trim()} ${lastName.trim()}`.trim(),
@@ -89,9 +87,6 @@ function AddEmployee({ navigation }) {
       phone: phone.trim(),
       address: address.trim(),
     };
-
-    
-    console.log("Hi hhh hi");
     try {
       setSubmitting(true);
 
@@ -107,7 +102,7 @@ function AddEmployee({ navigation }) {
           TOAST.success("Registration successful", "You can assign employee to an order")
         );
         resetForm();
-        navigation.navigate('Login');
+        navigation.goBack();
       } else {
         Toast.show(
           TOAST.errorBottom("Registration failed", "Unexpected server response")
@@ -192,7 +187,6 @@ function AddEmployee({ navigation }) {
             />
 
             <Pressable onPress={() => setRoleOpen((v) => !v)}>
-              {/* <Ionicons name="briefcase-outline" size={18} color="#98A29D" style={styles.leftIcon} /> */}
               <Text style={[styles.input, { paddingTop: 14 }]}>
                 {role?.label || 'Designation'}
               </Text>
@@ -246,21 +240,17 @@ function AddEmployee({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffff', // Light background
+    backgroundColor: '#ffff',
   },
   image: {
     position: 'absolute',
     width: '100%',
     height: '40%',
-    // opacity: '0.9'
   },
   backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
   imagein: {
     marginTop: '15%',
     marginLeft: '5%',
-    // width: '10%',
-    // height: '20%',
-    // resizeMode: 'contain', // Maintain aspect ratio
   },
   regback: { bottom: 0, width: '100%', height: '53%', position: 'absolute', marginBottom: '21%' },
   text: { fontSize: 35, color: '#F2EBBC', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
@@ -268,7 +258,6 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    // paddingHorizontal: '10%',
   },
   loginButton: {
     width: "75%",

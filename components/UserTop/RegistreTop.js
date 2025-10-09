@@ -24,7 +24,6 @@ function RegistreTop({ navigation }) {
   const controlLogin = async () => {
     if (submitting) return;
 
-    // Basic validation
     if (!email.trim() || !firstName.trim() || !lastName.trim()
       || !password.trim() || !phone.trim() || !address.trim()) {
       Toast.show(
