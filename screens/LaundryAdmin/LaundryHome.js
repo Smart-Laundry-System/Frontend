@@ -265,21 +265,23 @@ const LaundryHome = ({ navigation }) => {
             index,
           })}
           renderItem={({ item }) => (
-            <View style={styles.customerCard}>
-              <View
-                style={[
-                  styles.avatarBox,
-                  { backgroundColor: colorFor(item?.name || 'Customer') },
-                ]}
-              >
-                <Text style={styles.avatarInitials}>
-                  {getInitials(item?.name || 'Customer')}
-                </Text>
+            <TouchableOpacity  onPress={() => navigation.navigate("Customers", { token, email })}>
+              <View style={styles.customerCard}>
+                <View
+                  style={[
+                    styles.avatarBox,
+                    { backgroundColor: colorFor(item?.name || 'Customer') },
+                  ]}
+                >
+                  <Text style={styles.avatarInitials}>
+                    {getInitials(item?.name || 'Customer')}
+                  </Text>
+                </View>
+                <View style={styles.customerNameWrapper}>
+                  <Text style={styles.customerName}>{item?.name || 'Customer'}</Text>
+                </View>
               </View>
-              <View style={styles.customerNameWrapper}>
-                <Text style={styles.customerName}>{item?.name || 'Customer'}</Text>
-              </View>
-            </View>
+            </TouchableOpacity>
           )}
           onScroll={(e) => {
             const index = Math.floor(
@@ -289,7 +291,7 @@ const LaundryHome = ({ navigation }) => {
           }}
           style={styles.overlaycus}
         />
-        
+
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>About Us</Text>
           <View style={styles.ratingRow}>

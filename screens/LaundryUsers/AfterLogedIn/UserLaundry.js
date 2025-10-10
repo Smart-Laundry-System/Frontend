@@ -29,6 +29,8 @@ import BackLogin from "../../../assets/backLogin.png";
 import Or from "../../../components/Button/Or";
 import { initPaymentSheet, presentPaymentSheet } from "@stripe/stripe-react-native";
 import { TOAST } from "../../../styles/theme";
+import { getAccessToken } from "../../../Services/tokenStorage";
+import { useRegistration } from "../../../context/RegistrationContext";
 
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
@@ -90,7 +92,7 @@ const computeOpenStatus = (openVal, closeVal, nowMin) => {
   const o = parseTimeToMinutes(openVal);
   const c = parseTimeToMinutes(closeVal);
   if (o == null || c == null) return { isOpen: false, valid: false };
-  if (o === c) return { isOpen: true, valid: true }; 
+  if (o === c) return { isOpen: true, valid: true };
   let isOpen;
   if (o < c) isOpen = nowMin >= o && nowMin < c;
   else isOpen = nowMin >= o || nowMin < c;
@@ -396,10 +398,11 @@ function ExpandableText({ text, collapsedLines = 4, textStyle, linkStyle }) {
 }
 
 export default function UserLaundry({ navigation }) {
-  const { params } = useRoute();
-  const token = params?.token;
-  const id = params?.id;
-  const userEmail = params?.userEmail;
+  const route = useRoute();
+  const { userEmail } = useRegistration();
+  const token = route?.params?.token ?? getAccessToken();
+  const id = route?.params?.id;
+  const myEmail = route?.params?.customerEmail ?? userEmail;
 
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
@@ -538,17 +541,16 @@ export default function UserLaundry({ navigation }) {
   const submitRating = async (stars) => {
     setSheetOpen(false);
     if (!Number.isFinite(stars) || stars <= 0) return;
-
     try {
       await api.put("/api/auth/addRating", null, {
-        params: { rating: stars, id, customerEmail: userEmail },
+        params: { rating: stars, id, customerEmail: myEmail },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       Toast.show(TOAST.success("Thanks!", `You rated ${stars}★`));
       try {
         const r = await authGet("/api/auth/laundryById", token, { params: { id } });
         setDetails(r.data);
-      } catch {}
+      } catch { }
     } catch (err) {
       Toast.show(TOAST.errorTop("Couldn't submit rating", "Please try again."));
     }
@@ -589,12 +591,12 @@ export default function UserLaundry({ navigation }) {
   const placeOrder = async () => {
     const body = {
       serviceIds: selectedIds.map((n) => Number(n)),
-      customerEmail: params?.userEmail,
+      customerEmail: myEmail,
       id: details?.id || details?.laundryId || details?.ownerEmail,
     };
 
     const bodye = {
-      customerEmail: params?.userEmail,
+      customerEmail: myEmail,
       laundryId: details?.id || details?.laundryId || details?.ownerEmail,
     };
 

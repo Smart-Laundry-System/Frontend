@@ -156,7 +156,7 @@ export default function UserHome({ navigation }) {
         setOrders(list.map(mapApiOrderToUi));
       } catch { }
     }
-    
+
     if (token) fetchLaundriesPage(0, false);
 
     fetchOrders();
@@ -174,10 +174,10 @@ export default function UserHome({ navigation }) {
     };
   }, [routeToken, token, customerEmail, refreshNotifications]);
 
-  const [allCache, setAllCache] = useState([]);     
+  const [allCache, setAllCache] = useState([]);
   const [allLoaded, setAllLoaded] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
-  const [searchPage, setSearchPage] = useState(0);  
+  const [searchPage, setSearchPage] = useState(0);
 
   const dedupeById = (rows) => {
     const seen = new Set();
@@ -222,7 +222,7 @@ export default function UserHome({ navigation }) {
         const data = res?.data;
         const content = Array.isArray(data?.content)
           ? data.content
-          : Array.isArray(data) 
+          : Array.isArray(data)
             ? data.slice(pageToLoad * PAGE_SIZE, (pageToLoad + 1) * PAGE_SIZE)
             : data?.users || data?.data || [];
 
@@ -595,7 +595,7 @@ export default function UserHome({ navigation }) {
                   navigation.navigate("UserLaundry", {
                     token,
                     id: l.id,
-                    customerEmail,
+                    customerEmail: customerEmail,
                   })
                 }
               >

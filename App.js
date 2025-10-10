@@ -28,6 +28,7 @@ import AddEmployee from './screens/LaundryAdmin/AfterLogedIn/AddEmployee';
 import { useState } from 'react';
 import LoadingScreen from './LoadingScreen';
 import UpdateUser from './screens/LaundryUsers/AfterLogedIn/UpdateUser';
+import Customers from './screens/LaundryAdmin/AfterLogedIn/Customers';
 
 const Stack = createStackNavigator();
 
@@ -68,6 +69,7 @@ export default function App() {
               <Stack.Screen name="Employees" component={Employees} options={{ headerShown: false }} />
               <Stack.Screen name="AddEmployee" component={AddEmployee} options={{ headerShown: false }} />
               <Stack.Screen name="UpdateUser" component={UpdateUser} options={{ headerShown: false }} />
+              <Stack.Screen name="Customers" component={Customers} options={{ headerShown: false }} />
             </Stack.Navigator>
             <Toast topOffset={50} bottomOffset={50} />
           </NavigationContainer>
