@@ -160,7 +160,7 @@ const LaundryHome = ({ navigation }) => {
             <Image style={styles.image} source={Vector} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.editBtn}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate("EditLaundry", { token, email })}>
             <Text style={styles.editBtnText}>Edit</Text>
           </TouchableOpacity>
         </View>

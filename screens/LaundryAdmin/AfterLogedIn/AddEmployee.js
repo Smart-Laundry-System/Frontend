@@ -193,7 +193,7 @@ function AddEmployee({ navigation }) {
               <Ionicons
                 name={roleOpen ? 'chevron-up' : 'chevron-down'}
                 size={18}
-                color="#98A29D"
+                color={tokens.colors.mutedText}
                 style={styles.rightIcon}
               />
             </Pressable>
@@ -209,7 +209,7 @@ function AddEmployee({ navigation }) {
                       setRoleOpen(false);
                     }}
                   >
-                    <Text style={{ color: '#3C4234' }}>{r.label}</Text>
+                    <Text style={{ color: tokens.colors.darkText }}>{r.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -240,21 +240,21 @@ function AddEmployee({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffff',
+    backgroundColor: tokens.colors.bodyBackground,
   },
   image: {
     position: 'absolute',
     width: '100%',
     height: '40%',
   },
-  backtop: { position: 'absolute', top: 0, backgroundColor: 'rgba(60,66,52,0.7)', width: '100%', height: '40%' },
+  backtop: { position: 'absolute', top: 0, backgroundColor: tokens.colors.overlayTopd, width: '100%', height: '40%' },
   imagein: {
     marginTop: '15%',
     marginLeft: '5%',
   },
   regback: { bottom: 0, width: '100%', height: '53%', position: 'absolute', marginBottom: '21%' },
-  text: { fontSize: 35, color: '#F2EBBC', fontWeight: 'bold', top: '8%', marginLeft: '10%' },
-  textsub: { fontSize: 15, color: '#F2EBBC', fontWeight: '500', top: '8%', marginLeft: '10%' },
+  text: { fontSize: tokens.components.Typography.h1.fontSize, color: tokens.colors.switchact, fontWeight: 'bold', top: '8%', marginLeft: '10%' },
+  textsub: { fontSize: tokens.components.Typography.body.fontSize, color: tokens.colors.switchact, fontWeight: '500', top: '8%', marginLeft: '10%' },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingLeft: tokens.components.Input.paddingLeft,
     fontSize: tokens.components.Input.fontSize
   },
-  rightIcon: { position: 'absolute', right: 0, top: 16 },
+  rightIcon: { position: 'absolute', right: 0, top: tokens.spacing.md },
   dropdown: {
     width: '100%',
     alignSelf: 'center',
@@ -298,9 +298,9 @@ const styles = StyleSheet.create({
     borderColor: '#E6EAE6',
     paddingVertical: 6,
     marginTop: -8,
-    marginBottom: 8,
+    marginBottom: tokens.spacing.xs,
   },
-  dropdownItem: { paddingVertical: 12, paddingHorizontal: 10 },
+  dropdownItem: { paddingVertical: tokens.spacing.sm, paddingHorizontal: 10 },
 });
 
 export default AddEmployee;

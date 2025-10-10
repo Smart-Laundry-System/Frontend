@@ -29,6 +29,7 @@ import { useState } from 'react';
 import LoadingScreen from './LoadingScreen';
 import UpdateUser from './screens/LaundryUsers/AfterLogedIn/UpdateUser';
 import Customers from './screens/LaundryAdmin/AfterLogedIn/Customers';
+import EditLaundry from './screens/LaundryAdmin/AfterLogedIn/Edit/EditLaundry';
 
 const Stack = createStackNavigator();
 
@@ -70,6 +71,7 @@ export default function App() {
               <Stack.Screen name="AddEmployee" component={AddEmployee} options={{ headerShown: false }} />
               <Stack.Screen name="UpdateUser" component={UpdateUser} options={{ headerShown: false }} />
               <Stack.Screen name="Customers" component={Customers} options={{ headerShown: false }} />
+              <Stack.Screen name="EditLaundry" component={EditLaundry} options={{ headerShown: false }} />
             </Stack.Navigator>
             <Toast topOffset={50} bottomOffset={50} />
           </NavigationContainer>

@@ -461,7 +461,7 @@ export default function UserHome({ navigation }) {
 
           <View style={styles.searchRow}>
             <View className="searchBox" style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={tokens.colors.placeholder} style={{ marginRight: 8 }} />
+              <Ionicons name="search" size={18} color={tokens.colors.placeholder} style={{ marginRight: tokens.spacing.xs }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search Laundry..."
@@ -497,7 +497,7 @@ export default function UserHome({ navigation }) {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 12 }}
+                contentContainerStyle={{ paddingHorizontal: tokens.spacing.xs, paddingBottom: tokens.spacing.sm }}
                 getItemLayout={getItemLayout}
                 initialScrollIndex={0}
                 onViewableItemsChanged={onViewableItemsChanged}
@@ -514,7 +514,7 @@ export default function UserHome({ navigation }) {
                       <View style={styles.orderCardBottom}>
                         <Text style={styles.orderTitle}>{item.title}</Text>
                         <View style={styles.orderMetaRow}>
-                          <Ionicons name="location-outline" size={14} color="#fff" />
+                          <Ionicons name="location-outline" size={14} color={tokens.colors.bodyBackground} />
                           <Text style={styles.orderMeta}>{item.location}</Text>
                         </View>
 
@@ -536,12 +536,12 @@ export default function UserHome({ navigation }) {
                           role: "CUSTOMER",
                         }),
                     }
-                    : { activeOpacity: 0.9 };
+                    : { activeOpacity: tokens.opacities.overlay };
 
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      activeOpacity={0.9}
+                      activeOpacity={tokens.opacities.overlay}
                       style={{ marginRight: tokens.screenconstants.cardgap }}
                       {...wrapperProps}
                       onPressIn={() => {
@@ -576,15 +576,15 @@ export default function UserHome({ navigation }) {
             <Text>Orders</Text>
           </TouchableOpacity>
 
-          <View style={{ marginBottom: 8 }}>
+          <View style={{ marginBottom: tokens.spacing.xs }}>
             <Text style={[styles.sectionTitle, { marginTop: 38 }]}>Laundries</Text>
 
             {(!q && refreshing && laundries.length === 0) ? (
-              <ActivityIndicator style={{ marginTop: 12 }} />
+              <ActivityIndicator style={{ marginTop: tokens.spacing.sm }} />
             ) : null}
 
             {(q && loadingAll && allCache.length === 0) ? (
-              <ActivityIndicator style={{ marginTop: 12 }} />
+              <ActivityIndicator style={{ marginTop: tokens.spacing.sm }} />
             ) : null}
 
             {listToRender.map((l) => (
@@ -615,7 +615,7 @@ export default function UserHome({ navigation }) {
             ))}
 
             {!q && hasNext ? (
-              <View style={{ paddingVertical: 16 }}>
+              <View style={{ paddingVertical: tokens.spacing.md }}>
                 {loadingMore ? (
                   <ActivityIndicator />
                 ) : (
@@ -627,7 +627,7 @@ export default function UserHome({ navigation }) {
             ) : null}
 
             {q && searchHasNext ? (
-              <View style={{ paddingVertical: 16 }}>
+              <View style={{ paddingVertical: tokens.spacing.md }}>
                 <TouchableOpacity style={styles.loginButton} onPress={loadMoreSearch}>
                   <Text>Load more results</Text>
                 </TouchableOpacity>
@@ -645,11 +645,11 @@ export default function UserHome({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  safe: { flex: 1, backgroundColor: tokens.colors.bodyBackground },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    backgroundColor: tokens.colors.bodyBackground,
+    paddingHorizontal: tokens.spacing.md,
     paddingTop: Platform.select({ ios: 4, android: 8 }),
   },
   topRow: {
@@ -671,53 +671,53 @@ const styles = StyleSheet.create({
     borderColor: "red",
     borderWidth: 2,
   },
-  badgeText: { fontSize: 12, marginTop: 2 },
+  badgeText: { fontSize: tokens.components.Typography.small.fontSize, marginTop: 2 },
   menuicon: {
-    color: "#3C4234",
+    color: tokens.colors.darkText,
     top: 20,
-    backgroundColor: "#a3ae95",
+    backgroundColor: tokens.colors.greenButton,
     paddingRight: 10,
     paddingLeft: 30,
     marginLeft: -35,
     borderRadius: 20,
   },
   profileBtn: { padding: 2, borderRadius: 16 },
-  greeting: { fontSize: 18, color: "#3C4234", fontWeight: "600" },
+  greeting: { fontSize: 18, color: tokens.colors.darkText, fontWeight: "600" },
 
   welcomeWrap: { marginTop: 75, flexDirection: "row", alignItems: "center" },
-  srollesty: { marginBottom: 16 },
-  welcome1: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
-  welcome2: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
+  srollesty: { marginBottom: tokens.spacing.md },
+  welcome1: { fontSize: 22, color: tokens.colors.darkText, fontWeight: "700" },
+  welcome2: { fontSize: 22, color: tokens.colors.darkText, fontWeight: "700" },
   illustration: {
     width: 54,
     height: 54,
-    borderRadius: 12,
+    borderRadius: tokens.spacing.sm,
     backgroundColor: "#f8f8f8",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  searchRow: { marginTop: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  searchRow: { marginTop: tokens.spacing.md, flexDirection: "row", alignItems: "center", gap: tokens.screenconstants.cardgap },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F1F3F1",
     borderRadius: 14,
-    paddingHorizontal: 12,
+    paddingHorizontal: tokens.spacing.sm,
     height: 44,
   },
-  searchInput: { flex: 1, color: "#3C4234", paddingVertical: 0 },
+  searchInput: { flex: 1, color: tokens.colors.darkText, paddingVertical: 0 },
   filterBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#A3AE95",
+    backgroundColor: tokens.colors.greenButton,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  sectionTitle: { marginTop: 16, marginBottom: 8, color: "#3C4234", fontSize: 16, fontWeight: "600" },
+  sectionTitle: { marginTop: tokens.spacing.md, marginBottom: tokens.spacing.xs, color: tokens.colors.darkText, fontSize: 16, fontWeight: "600" },
 
   orderCard: {
     width: tokens.screenconstants.cardwidth,
@@ -727,13 +727,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   orderImg: { borderRadius: 16 },
-  cardGlass: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.15)" },
-  orderCardBottom: { padding: 12 },
-  orderTitle: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  cardGlass: { ...StyleSheet.absoluteFillObject, backgroundColor: tokens.colors.border },
+  orderCardBottom: { padding: tokens.spacing.sm },
+  orderTitle: { color: tokens.colors.bodyBackground, fontSize: 15, fontWeight: "700" },
   orderMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
-  orderMeta: { color: "#fff", fontSize: 12 },
+  orderMeta: { color: tokens.colors.bodyBackground, fontSize: tokens.components.Typography.small.fontSize },
   statusPill: {
-    marginTop: 8,
+    marginTop: tokens.spacing.xs,
     alignSelf: "flex-start",
     backgroundColor: "#E6ECE1",
     borderRadius: 12,
@@ -743,23 +743,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  statusPillText: { color: "#3C4234", fontSize: 12, fontWeight: "600" },
+  statusPillText: { color: tokens.colors.darkText, fontSize: tokens.components.Typography.small.fontSize, fontWeight: "600" },
 
-  laundryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: 12 },
+  laundryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: tokens.screenconstants.cardgap },
   laundryImg: { width: 54, height: 54, borderRadius: 12, backgroundColor: "#eee" },
-  laundryName: { color: "#3C4234", fontSize: 14, fontWeight: "600" },
-  laundryLoc: { color: "#98A29D", fontSize: 12, marginTop: 2 },
-  ratingWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontSize: 12, color: "#3C4234" },
+  laundryName: { color: tokens.colors.darkText, fontSize: 14, fontWeight: "600" },
+  laundryLoc: { color: "#98A29D", fontSize: tokens.components.Typography.small.fontSize, marginTop: 2 },
+  ratingWrap: { flexDirection: "row", alignItems: "center", gap: tokens.spacing.xxs },
+  ratingText: { fontSize: tokens.components.Typography.small.fontSize, color: tokens.colors.darkText },
 
   loginButton: {
     width: "75%",
     height: 42,
-    backgroundColor: "#A3AE95",
+    backgroundColor: tokens.colors.greenButton,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginTop: 12,
+    marginTop: tokens.spacing.sm,
   },
 });

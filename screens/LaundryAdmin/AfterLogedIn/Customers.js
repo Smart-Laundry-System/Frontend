@@ -46,7 +46,7 @@ export default function Customers({ navigation }) {
         try {
           const t = await getAccessToken();
           if (mounted) setToken(t);
-        } catch { /* ignore */ }
+        } catch { }
       })();
     }
     return () => { mounted = false; };
