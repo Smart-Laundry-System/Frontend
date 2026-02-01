@@ -4,11 +4,11 @@
     "slug": "SmartLaundry",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/loding.gif",
+    "icon": "./assets/loaundrycom.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/loding.gif",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -22,12 +22,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/loding.gif",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#EFEFEF"
       }
     },
     "web": {
-      "favicon": "./assets/loding.gif"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "API_URL": "http://172.20.10.3:8082",

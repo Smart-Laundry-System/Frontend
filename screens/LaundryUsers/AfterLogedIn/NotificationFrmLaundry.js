@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,16 +12,19 @@ import {
   Pressable,
   TouchableOpacity,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
 import { api, IMG_URL } from "../../../Services/api";
 import DropDown from "../../../components/Menu/DropDown";
 import Vector from "../../../assets/Vector.png";
+import { getAccessToken } from "../../../Services/tokenStorage";
 
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
 const BG = "#FFFFFF";
+const PAGE_SIZE = 10;
+
 
 const FILTER_OPTIONS = [
   { label: "All", value: "" },
@@ -35,7 +38,7 @@ export default function NotificationFrmLaundry() {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const token = route?.params?.token ?? "";
+  const [token, setToken] = useState(route?.params?.token ?? "");
   const email = route?.params?.email ?? "";
   const setUnseenBadge = route?.params?.setUnseen;
 
@@ -47,6 +50,11 @@ export default function NotificationFrmLaundry() {
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState(FILTER_OPTIONS[0]);
+
+  const [paging, setPaging] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(true);
+
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
@@ -59,62 +67,67 @@ export default function NotificationFrmLaundry() {
     return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-const mapApiNotifToUi = useCallback((n) => {
-  const when =
-    n?.createdAt ||
-    (n?.date && n?.time ? `${n.date} ${n.time}` : n?.date || n?.time || null);
-  const [timeLabel, dateLabel] = formatDateTime(when);
+  const mapApiNotifToUi = useCallback((n) => {
+    const when =
+      n?.createdAt ||
+      (n?.date && n?.time ? `${n.date} ${n.time}` : n?.date || n?.time || null);
+    const [timeLabel, dateLabel] = formatDateTime(when);
 
-  const relImg = n?.laundryImg || n?.avatar || n?.image || n?.icon || n?.thumbnail;
-  const img = relImg
-    ? toAbsImage(relImg)
-    : "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=256";
+    const relImg = n?.laundryImg || n?.avatar || n?.image || n?.icon || n?.thumbnail;
+    const img = relImg
+      ? toAbsImage(relImg)
+      : "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=256";
 
-  return {
-    id: String(n?.id ?? n?.notificationId ?? n?._id ?? Math.random()),
-    name: n?.laundryName || n?.title || "Name of the Laundry",
-    address: n?.laundryAddress || n?.address || "",
-    subject: n?.subject ?? "",                   
-    message: n?.message || n?.subject || "Message",
-    timeLabel,
-    dateLabel,
-    services: Array.isArray(n?.services) ? n.services : [],
-    img,
-    raw: n,
-  };
-}, []);
+    return {
+      id: String(n?.id ?? n?.notificationId ?? n?._id ?? Math.random()),
+      name: n?.laundryName || n?.title || "Name of the Laundry",
+      address: n?.laundryAddress || n?.address || "",
+      subject: n?.subject ?? "",
+      message: n?.message || n?.subject || "Message",
+      timeLabel,
+      dateLabel,
+      services: Array.isArray(n?.services) ? n.services : [],
+      img,
+      raw: n,
+    };
+  }, []);
 
-
-  const loadNotifications = useCallback(async () => {
+  const fetchPage = useCallback(async (pageToLoad, append) => {
     try {
       setError("");
-      if (!refreshing) setLoading(true);
       if (!email) throw new Error("Missing email for notifications");
       if (!token) throw new Error("Missing auth token");
 
-      const res = await api.get("/api/auth/retrieveUserNotifications", {
-        params: { email },
+      if (append) setPaging(true);
+      else if (!refreshing) setLoading(true);
+      const res = await api.get("/api/auth/retrieveAllUserNotifications", {
+        params: { email, page: pageToLoad, size: PAGE_SIZE },
         headers: { Authorization: `Bearer ${token}` },
       });
-
+      
       const payload = res?.data;
-      const list = Array.isArray(payload)
+      const content = Array.isArray(payload)
         ? payload
-        : payload?.notifications || payload?.content || payload?.data || [];
+        : (Array.isArray(payload?.content) ? payload.content
+          : (payload?.notifications || payload?.data || []));
+      const last = Boolean(payload?.last); 
 
-      if (mountedRef.current) setItems(list.map(mapApiNotifToUi));
+      const rows = content.map(mapApiNotifToUi);
+      if (!mountedRef.current) return;
+      setItems(prev => (append ? [...prev, ...rows] : rows));
+      setHasNext(!last && rows.length >= PAGE_SIZE);
+      setPage(pageToLoad);
     } catch (e) {
       if (mountedRef.current)
         setError(e?.response?.data?.message || e?.message || "Failed to load updates");
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      if (!mountedRef.current) return;
+      setPaging(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   }, [email, token, refreshing, mapApiNotifToUi]);
 
-  // PUT /api/auth/notifications/seen-all?email=...
   const markAllSeen = useCallback(async () => {
     if (!email || !token) return;
     try {
@@ -124,11 +137,9 @@ const mapApiNotifToUi = useCallback((n) => {
       });
       if (typeof setUnseenBadge === "function") setUnseenBadge(0);
     } catch {
-      // ignore
     }
   }, [email, token, setUnseenBadge]);
 
-  // (optional) GET unseen count for parent badge
   const syncUnseenCount = useCallback(async () => {
     if (!email || !token || typeof setUnseenBadge !== "function") return;
     try {
@@ -139,26 +150,36 @@ const mapApiNotifToUi = useCallback((n) => {
       const c = Number(r?.data?.unseen ?? 0);
       setUnseenBadge(isNaN(c) ? 0 : c);
     } catch {
-      // ignore
     }
   }, [email, token, setUnseenBadge]);
 
-  // Focus: mark seen → load list → sync badge
   useFocusEffect(
     useCallback(() => {
       mountedRef.current = true;
       (async () => {
         await markAllSeen();
-        await loadNotifications();
+        await fetchPage(0, false);
         await syncUnseenCount();
       })();
       return () => {
         mountedRef.current = false;
       };
-    }, [markAllSeen, loadNotifications, syncUnseenCount])
+    }, [markAllSeen, fetchPage, syncUnseenCount])
   );
 
-  // live search
+  useEffect(() => {
+    let mounted = true;
+    if (!token) {
+      (async () => {
+        try {
+          const t = await getAccessToken();
+          if (mounted) setToken(t);
+        } catch { }
+      })();
+    }
+    return () => { mounted = false; };
+  }, [token]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
@@ -169,11 +190,11 @@ const mapApiNotifToUi = useCallback((n) => {
       case "name":
         return items.filter((x) => has(x.name));
       case "time":
-        return items.filter((x) => has(x.timeLabel));           // ← handle time
+        return items.filter((x) => has(x.timeLabel));           
       case "date":
         return items.filter((x) => has(x.dateLabel));
       case "subject":
-        return items.filter((x) => has(x.subject) || has(x.message)); // ← handle subject
+        return items.filter((x) => has(x.subject) || has(x.message));
       default:
         return items.filter(
           (x) =>
@@ -212,10 +233,33 @@ const mapApiNotifToUi = useCallback((n) => {
     </TouchableOpacity>
   );
 
+   const ListFooter = () => {
+   if (!hasNext || search.trim()) return null;
+   return (
+     <View style={{ paddingVertical: 16, alignItems: "center" }}>
+       {paging ? (
+         <ActivityIndicator />
+       ) : (
+         <TouchableOpacity
+           style={{
+             paddingHorizontal: 16,
+             paddingVertical: 10,
+             borderRadius: 12,
+             backgroundColor: "#D2E3D1",
+           }}
+           onPress={() => fetchPage(page + 1, true)}
+         >
+           <Text style={{ color: TEXT, fontWeight: "700" }}>Load more</Text>
+         </TouchableOpacity>
+       )}
+     </View>
+   );
+ };
+
+
   return (
     <PaperProvider>
       <View style={styles.screen}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Image source={Vector} />
@@ -224,7 +268,6 @@ const mapApiNotifToUi = useCallback((n) => {
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Search + Filter */}
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
@@ -260,7 +303,6 @@ const mapApiNotifToUi = useCallback((n) => {
           />
         </View>
 
-        {/* List */}
         {loading ? (
           <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
         ) : error ? (
@@ -270,7 +312,9 @@ const mapApiNotifToUi = useCallback((n) => {
               style={styles.retry}
               onPress={() => {
                 setRefreshing(true);
-                markAllSeen().finally(loadNotifications).finally(syncUnseenCount);
+                markAllSeen()
+                  .finally(() => fetchPage(0, false))
+                  .finally(syncUnseenCount);
               }}
             >
               <Text style={styles.retryText}>Retry</Text>
@@ -283,12 +327,15 @@ const mapApiNotifToUi = useCallback((n) => {
             renderItem={renderRow}
             ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
             contentContainerStyle={{ paddingBottom: 24 }}
+            ListFooterComponent={ListFooter}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => {
                   setRefreshing(true);
-                  markAllSeen().finally(loadNotifications).finally(syncUnseenCount);
+                  markAllSeen()
+                    .finally(() => fetchPage(0, false))
+                    .finally(syncUnseenCount);
                 }}
               />
             }
@@ -299,7 +346,6 @@ const mapApiNotifToUi = useCallback((n) => {
         )}
       </View>
 
-      {/* Detail Modal */}
       <Portal>
         <Modal
           visible={detailOpen}
@@ -370,7 +416,6 @@ const mapApiNotifToUi = useCallback((n) => {
   );
 }
 
-/* -------- helpers -------- */
 function pad2(n) {
   const s = String(n);
   return s.length === 1 ? `0${s}` : s;
@@ -387,7 +432,6 @@ function formatDateTime(d) {
   return [time, day];
 }
 
-/* -------- styles -------- */
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -449,7 +493,6 @@ const styles = StyleSheet.create({
   retry: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#FFECEC", borderRadius: 10 },
   retryText: { color: "#B00020", fontWeight: "700" },
 
-  /* modal */
   detailCard: {
     marginHorizontal: 16,
     backgroundColor: "#fff",

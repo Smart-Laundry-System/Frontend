@@ -1,5 +1,4 @@
-// screens/complaints/ComplaintsList.js
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,40 +13,73 @@ import {
   TouchableOpacity,
   Keyboard,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
-import { api, IMG_URL } from "../../../Services/api";
-import Vector from "../../../assets/Vector.png";
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
+import { api } from "../../../Services/api";
+import Vector from "../../../assets/Vector.png";
 import DropDown from "../../../components/Menu/DropDown";
+import { getAccessToken } from "../../../Services/tokenStorage";
+import { useRegistration } from "../../../context/RegistrationContext";
 
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
 const BG = "#FFFFFF";
 const GREEN = "#A3AE95";
 
+const PAGE_SIZE = 10;
+
 const FILTER_OPTIONS = [
   { label: "All", value: "" },
-  { label: "Name", value: "name" },
-  { label: "Address", value: "address" },
-  { label: "Phone", value: "phone" },
+  { label: "Customer", value: "customer" },
+  { label: "Subject", value: "subject" },
   { label: "Email", value: "email" },
+  { label: "Order Status", value: "status" },
 ];
 
-const ENDPOINTS = {
-  complaints: "/api/auth/retrieveComplaints", 
+const AVATAR_COLORS = ["#444", "#666", "#a3ae95", "#555", "#3C4234", "#A3AE95"];
+const getInitials = (name = "") =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => (p[0] || "").toUpperCase())
+    .join("") || "U";
+
+const colorFor = (name = "") => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
+function pad2(n) {
+  const s = String(n);
+  return s.length === 1 ? `0${s}` : s;
+}
+
+function formatDateLabel(dateStr) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-");
+  if (!y || !m || !d) return "";
+  return `${pad2(Number(d))}/${pad2(Number(m))}/${y}`;
+}
+
 export default function ComplaintsList() {
+  const { laundryId } = useRegistration();
   const navigation = useNavigation();
   const route = useRoute();
-  const token = route?.params?.token ?? "";
-  const email = route?.params?.email ?? "";
 
-  const [items, setItems] = useState([]);
+  const [token, setToken] = useState(route?.params?.token ?? "");
+  const laundryid = route?.params?.laundryId ?? route?.params?.id ?? laundryId ?? "";
+
+  const [items, setItems] = useState([]);      
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [paging, setPaging] = useState(false); 
   const [error, setError] = useState("");
+
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(true);
 
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -55,82 +87,132 @@ export default function ComplaintsList() {
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [activeItem, setActiveItem] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
 
-  const toAbsImage = (rel) => {
-    if (!rel) return null;
-    const base = (IMG_URL || "").replace(/\/$/, "");
-    return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
-  };
 
   const mapApiToUi = useCallback((c) => {
-    const when = c?.createdAt || (c?.date && c?.time ? `${c.date} ${c.time}` : c?.date || c?.time || null);
-    const [timeLabel, dateLabel] = formatDateTime(when);
+    const customerName = c?.customerName || "Customer";
+    const timeLabel = c?.time || "";              
+    const dateLabel = formatDateLabel(c?.date);  
 
-    const imgRel = c?.laundryImg || c?.image || c?.avatar;
     return {
-      id: String(c?.id ?? c?._id ?? Math.random()),
+      id: String(c?.id ?? Math.random()),
       subject: c?.subject || "Subject",
-      message: c?.message || c?.body || "-",
-      name: c?.laundryName || c?.name || "Laundry",
-      address: c?.laundryAddress || c?.address || "",
-      phone: c?.laundryPhone || c?.phone || "",
-      email: c?.laundryEmail || c?.email || "",
-      dateLabel,
+      message: c?.message || "-",
+      customerName,
+      customerEmail: c?.customerEmail || "",
+      laundryName: c?.laundryName || "",
+      orderStatus: c?.orderStatus || "",
+      orderId: c?.orderId ?? null,
+
       timeLabel,
-      img: imgRel ? toAbsImage(imgRel) : "https://images.unsplash.com/photo-1581578731508-23341e0dd4bc?q=80&w=256",
+      dateLabel,
+
+      color: colorFor(customerName),
+      initials: getInitials(customerName),
       raw: c,
     };
   }, []);
 
-  const loadComplaints = useCallback(async () => {
-    try {
-      setError("");
-      if (!refreshing) setLoading(true);
-      if (!token || !email) throw new Error("Missing auth/email");
+  const fetchPage = useCallback(
+    async (pageToLoad, append) => {
+      try {
+        setError("");
+        if (!laundryid) throw new Error("Missing laundryId");
+        if (!token) throw new Error("Missing auth token");
 
-      const res = await api.get(ENDPOINTS.complaints, {
-        params: { email },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = res?.data;
-      const list = Array.isArray(payload)
-        ? payload
-        : payload?.complaints || payload?.content || payload?.data || [];
-      if (mountedRef.current) setItems(list.map(mapApiToUi));
-    } catch (e) {
-      if (mountedRef.current) setError(e?.response?.data?.message || e?.message || "Failed to load complaints");
-    } finally {
-      if (mountedRef.current) {
+        if (append) setPaging(true);
+        else if (!refreshing) setLoading(true);
+
+        const res = await api.get("/api/auth/getAllComplain", {
+          params: { laundryId: laundryid, page: pageToLoad, size: PAGE_SIZE },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const payload = res?.data;
+        const content = Array.isArray(payload?.content) ? payload.content : [];
+        const last = Boolean(payload?.last);
+
+        const rows = content.map(mapApiToUi);
+        if (!mountedRef.current) return;
+
+        setItems((prev) => (append ? [...prev, ...rows] : rows));
+        setHasNext(!last && rows.length >= PAGE_SIZE);
+        setPage(pageToLoad);
+      } catch (e) {
+        if (mountedRef.current)
+          setError(e?.response?.data || e?.message || "Failed to load complaints");
+      } finally {
+        if (!mountedRef.current) return;
+        setPaging(false);
         setLoading(false);
         setRefreshing(false);
       }
+    },
+    [laundryid, token, refreshing, mapApiToUi]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    if (!token) {
+      (async () => {
+        try {
+          const t = await getAccessToken();
+          if (mounted) setToken(t);
+        } catch {
+        }
+      })();
     }
-  }, [email, token, refreshing, mapApiToUi]);
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
       mountedRef.current = true;
-      loadComplaints();
-      return () => { mountedRef.current = false; };
-    }, [loadComplaints])
+      fetchPage(0, false);
+      return () => {
+        mountedRef.current = false;
+      };
+    }, [fetchPage])
   );
 
-  // search/filter
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setHasNext(true);
+    fetchPage(0, false);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(() => {
+    if (!hasNext || paging || loading) return;
+    fetchPage(page + 1, true);
+  }, [hasNext, paging, loading, page, fetchPage]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     const has = (v) => (v || "").toString().toLowerCase().includes(q);
 
     switch (selectedFilter.value) {
-      case "name": return items.filter((x) => has(x.name));
-      case "address": return items.filter((x) => has(x.address));
-      case "phone": return items.filter((x) => has(x.phone));
-      case "email": return items.filter((x) => has(x.email));
+      case "customer":
+        return items.filter((x) => has(x.customerName) || has(x.customerEmail));
+      case "subject":
+        return items.filter((x) => has(x.subject) || has(x.message));
+      case "email":
+        return items.filter((x) => has(x.customerEmail));
+      case "status":
+        return items.filter((x) => has(x.orderStatus));
       default:
         return items.filter(
-          (x) => has(x.name) || has(x.address) || has(x.phone) || has(x.email) || has(x.subject) || has(x.message)
+          (x) =>
+            has(x.customerName) ||
+            has(x.customerEmail) ||
+            has(x.subject) ||
+            has(x.message) ||
+            has(x.orderStatus) ||
+            has(x.laundryName)
         );
     }
   }, [items, search, selectedFilter]);
@@ -138,29 +220,55 @@ export default function ComplaintsList() {
   const openModal = (item) => {
     if (filterOpen) setFilterOpen(false);
     Keyboard.dismiss();
-    setActiveItem(item);
-    setModalVisible(true);
+    setDetailItem(item);
+    setDetailOpen(true);
   };
   const closeModal = () => {
-    setModalVisible(false);
-    setActiveItem(null);
+    setDetailOpen(false);
+    setDetailItem(null);
   };
 
   const renderRow = ({ item }) => (
     <TouchableOpacity style={styles.row} activeOpacity={0.9} onPress={() => openModal(item)}>
-      <Image source={{ uri: item.img }} style={styles.avatar} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title} numberOfLines={1}>{item.subject}</Text>
-        <Text style={styles.subtitle} numberOfLines={1}>{item.dateLabel}</Text>
+      <View style={[styles.avatar, { backgroundColor: item.color }]}>
+        <Text style={styles.avatarText}>{item.initials}</Text>
       </View>
-      <Text style={styles.time}>{item.timeLabel}</Text>
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.title} numberOfLines={1}>
+          {item.subject}
+        </Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {item.customerName}
+          {item.orderStatus ? `  •  ${item.orderStatus}` : ""}
+        </Text>
+      </View>
+
+      <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+        {!!item.timeLabel && <Text style={styles.time}>{item.timeLabel}</Text>}
+        {!!item.dateLabel && <Text style={styles.date}>{item.dateLabel}</Text>}
+      </View>
     </TouchableOpacity>
   );
+
+  const ListFooter = () => {
+    if (!hasNext || search.trim()) return null;
+    return (
+      <View style={{ paddingVertical: 16, alignItems: "center" }}>
+        {paging ? (
+          <ActivityIndicator />
+        ) : (
+          <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
+            <Text style={styles.loadMoreText}>Load more</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   return (
     <PaperProvider>
       <View style={styles.screen}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Image source={Vector} />
@@ -169,14 +277,13 @@ export default function ComplaintsList() {
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Search + Filter */}
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Search complaint..."
+              placeholder="Search complaints..."
               placeholderTextColor={MUTED}
               style={styles.input}
               returnKeyType="search"
@@ -191,20 +298,33 @@ export default function ComplaintsList() {
             visible={filterOpen}
             anchorRef={filterBtnRef}
             options={FILTER_OPTIONS}
-            onSelect={(opt) => { setSelectedFilter(opt); setFilterOpen(false); }}
+            onSelect={(opt) => {
+              setSelectedFilter(opt);
+              setFilterOpen(false);
+            }}
             onRequestClose={() => setFilterOpen(false)}
             width={220}
             offsetY={8}
           />
         </View>
 
-        <Text style={styles.section}>Your complaints</Text>
-
-        {/* List */}
         {loading ? (
-          <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={TEXT} />
+          </View>
         ) : error ? (
-          <View style={styles.center}><Text style={styles.error}>{error}</Text></View>
+          <View style={styles.center}>
+            <Text style={styles.error}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retry}
+              onPress={() => {
+                setRefreshing(true);
+                fetchPage(0, false);
+              }}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={filtered}
@@ -212,74 +332,75 @@ export default function ComplaintsList() {
             renderItem={renderRow}
             ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
             contentContainerStyle={{ paddingBottom: 24 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadComplaints(); }} />
-            }
+            ListFooterComponent={ListFooter}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             keyboardShouldPersistTaps="always"
-            ListEmptyComponent={<View style={styles.center}><Text style={{ color: MUTED }}>No complaints</Text></View>}
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <Text style={{ color: MUTED }}>No complaints</Text>
+              </View>
+            }
+            removeClippedSubviews
+            initialNumToRender={10}
           />
         )}
 
         <Portal>
-          <Modal visible={modalVisible} onDismiss={closeModal} dismissable contentContainerStyle={styles.sheet}>
-            <Text style={styles.modalTitle}>{activeItem?.subject || "Complaint"}</Text>
-            <View style={styles.sheetInner}>
-              <View style={styles.infoRow}>
-                <Ionicons name="person-outline" size={16} color={TEXT} />
-                <Text style={styles.infoText}>{activeItem?.name}</Text>
-              </View>
-              {!!activeItem?.address && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="location-outline" size={16} color={TEXT} />
-                  <Text style={styles.infoText}>{activeItem?.address}</Text>
+          <Modal
+            visible={detailOpen}
+            onDismiss={closeModal}
+            dismissable
+            contentContainerStyle={styles.detailCard}
+          >
+            {detailItem && (
+              <View>
+                <View style={styles.detailHeader}>
+                  <View style={[styles.detailAvatar, { backgroundColor: detailItem.color }]}>
+                    <Text style={styles.detailAvatarText}>{detailItem.initials}</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.detailTitle} numberOfLines={1}>
+                      {detailItem.customerName}
+                    </Text>
+                    <Text style={styles.detailMeta}>
+                      {(detailItem.timeLabel || "—")}
+                      {detailItem.dateLabel ? `  ·  ${detailItem.dateLabel}` : ""}
+                    </Text>
+                    {!!detailItem.customerEmail && (
+                      <Text style={styles.detailAddress} numberOfLines={1}>
+                        {detailItem.customerEmail}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-              )}
-              {!!activeItem?.phone && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="call-outline" size={16} color={TEXT} />
-                  <Text style={styles.infoText}>{activeItem?.phone}</Text>
-                </View>
-              )}
-              {!!activeItem?.email && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="mail-outline" size={16} color={TEXT} />
-                  <Text style={styles.infoText}>{activeItem?.email}</Text>
-                </View>
-              )}
-              <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={16} color={TEXT} />
-                <Text style={styles.infoText}>
-                  {activeItem?.dateLabel}  •  {activeItem?.timeLabel}
-                </Text>
-              </View>
 
-              <View style={[styles.infoRow, { alignItems: "flex-start" }]}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color={TEXT} style={{ marginTop: 2 }} />
-                <Text style={[styles.infoText, { flex: 1 }]}>{activeItem?.message}</Text>
-              </View>
+                <View style={styles.detailBody}>
+                  <Text style={styles.detailLabel}>Subject</Text>
+                  <Text style={styles.detailValue}>{detailItem.subject || "—"}</Text>
 
-              <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
-                <Text style={styles.closeBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+                  <Text style={[styles.detailLabel, { marginTop: 12 }]}>Message</Text>
+                  <Text style={styles.detailValue}>{detailItem.message || "—"}</Text>
+
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.detailLabel}>Order No</Text>
+                    <Text style={styles.detailValue}>
+                      {detailItem.orderId != null ? `#${detailItem.orderId}` : "—"}
+                      {detailItem.orderStatus ? `  :-  ${detailItem.orderStatus} status` : ""}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.closeBtn} onPress={closeModal}>
+                  <Text style={styles.closeBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </Modal>
         </Portal>
+
       </View>
     </PaperProvider>
   );
-}
-
-function pad2(n) {
-  const s = String(n);
-  return s.length === 1 ? `0${s}` : s;
-}
-function formatDateTime(d) {
-  if (!d) return ["", ""];
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return ["", ""];
-  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).toLowerCase();
-  const day = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
-  return [time, day];
 }
 
 const styles = StyleSheet.create({
@@ -290,20 +411,95 @@ const styles = StyleSheet.create({
   searchBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#F1F3F1", borderRadius: 14, paddingHorizontal: 12, height: 44 },
   input: { flex: 1, color: TEXT, fontSize: 14 },
   filterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#D2E3D1", alignItems: "center", justifyContent: "center" },
-  section: { marginTop: 16, marginBottom: 8, color: TEXT, fontWeight: "700" },
+
   row: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 14, padding: 10, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 1 },
-  avatar: { width: 48, height: 48, borderRadius: 10, marginRight: 10, backgroundColor: "#eee" },
+  avatar: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  avatarText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   title: { color: TEXT, fontWeight: "700", fontSize: 14 },
   subtitle: { color: MUTED, fontSize: 12, marginTop: 2 },
   time: { color: MUTED, fontSize: 12 },
+  date: { color: MUTED, fontSize: 12, marginTop: 2 },
+
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  error: { color: "#B00020" },
+  error: { color: "#B00020", marginBottom: 8 },
+  retry: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#FFECEC", borderRadius: 10 },
+  retryText: { color: "#B00020", fontWeight: "700" },
+
+  loadMoreBtn: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: "#D2E3D1" },
+  loadMoreText: { color: TEXT, fontWeight: "700" },
 
   sheet: { marginHorizontal: 16, borderRadius: 16, backgroundColor: GREEN, padding: 20 },
-  modalTitle: { fontSize: 18, marginBottom: 10, color: TEXT, fontWeight: "700" },
-  sheetInner: { backgroundColor: "rgba(242,235,188,0.4)", borderRadius: 10, paddingVertical: 12, paddingHorizontal: 10 },
-  infoRow: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 6 },
-  infoText: { color: TEXT, fontSize: 14, flexShrink: 1 },
-  closeBtn: { alignSelf: "center", marginTop: 16, height: 42, borderRadius: 10, borderColor: "#000", borderWidth: 1, paddingHorizontal: 24, alignItems: "center", justifyContent: "center" },
-  closeBtnText: { color: TEXT, fontWeight: "700" },
+
+  detailCard: {
+    marginHorizontal: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  detailAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,      
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailAvatarText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  detailTitle: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: 16,
+  },
+  detailMeta: {
+    color: MUTED,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detailAddress: {
+    color: MUTED,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detailBody: {
+    marginTop: 14,
+  },
+  detailLabel: {
+    color: TEXT,
+    fontWeight: "700",
+    marginBottom: 6,
+    fontSize: 13,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    color: TEXT,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  closeBtn: {
+    alignSelf: "center",
+    marginTop: 16,
+    height: 42,
+    borderRadius: 10,
+    borderColor: TEXT,
+    borderWidth: 1.5,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeBtnText: {
+    color: TEXT,
+    fontWeight: "700",
+  },
 });

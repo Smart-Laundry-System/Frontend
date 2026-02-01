@@ -1,4 +1,3 @@
-// FilterDropdown.js
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -13,12 +12,12 @@ const SCREEN = Dimensions.get('window');
 
 export default function DropDown({
   visible,
-  anchorRef,            // ref of the button to anchor to
-  options = [],          // [{ label, value }]
+  anchorRef,          
+  options = [],          
   onSelect = () => {},
   onRequestClose = () => {},
   width = 220,
-  offsetY = 8,           // space below the icon
+  offsetY = 8,         
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
@@ -39,12 +38,10 @@ export default function DropDown({
       animationType="fade"
       onRequestClose={onRequestClose}
     >
-      {/* backdrop to close when tapping outside */}
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onRequestClose}>
         <View />
       </TouchableOpacity>
 
-      {/* dropdown card */}
       <View style={[styles.card, { width, top: pos.top, left: pos.left }]}>
         {options.map((opt, idx) => (
           <TouchableOpacity

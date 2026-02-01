@@ -20,6 +20,7 @@ const FILTERS = [
   { label: "Address", value: "address" },
   { label: "Phone", value: "phone" },
   { label: "Email", value: "email" },
+  { label: "Relation", value: "relationRole" },
 ];
 
 const AVATAR_COLORS = ["#444", "#666", "#a3ae95", "#555", "#3C4234", "#A3AE95"];
@@ -31,11 +32,13 @@ const colorFor = (name = "") => {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
-export default function Employees({ navigation }) {
-  const { laundryId } = useRegistration();
+export default function Customers({ navigation }) {
+  const { userEmail } = useRegistration();
   const route = useRoute();
 
   const [token, setToken] = useState(route?.params?.token || null);
+  const email = route?.params?.email || userEmail || "";
+
   useEffect(() => {
     let mounted = true;
     if (!token) {
@@ -48,9 +51,6 @@ export default function Employees({ navigation }) {
     }
     return () => { mounted = false; };
   }, [token]);
-
-  const id = route?.params?.id || laundryId || "";
-  const refreshKey = route?.params?.refresh;
 
   const [list, setList] = useState([]);
   const [page, setPage] = useState(0);
@@ -66,50 +66,50 @@ export default function Employees({ navigation }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
-  const mapRow = (e, idx) => ({
-    id: e?.id?.toString?.() ?? `${idx}`,
-    name: e?.name || [e?.firstName, e?.lastName].filter(Boolean).join(" ") || e?.email || "Employee",
-    address: e?.address || "",
-    phone: e?.phone || "",
-    email: e?.email || "",
-    role: (e?.role || "").toString(),
-    serviceIds: Array.isArray(e?.serviceIds) ? e.serviceIds : [],
+  const mapRow = (c, idx) => ({
+    id: c?.id?.toString?.() ?? `${idx}`,
+    name: c?.name || c?.fullName || c?.email || "Customer",
+    address: c?.address || "",
+    phone: c?.phone || "",
+    email: c?.email || "",
+    relationRole: (c?.relationRole || "").toString(),
   });
 
   const fetchPage = useCallback(async (pageToLoad, append) => {
-    if (!id || !token) return;
+    if (!email) return;
     try {
       append ? setLoading(true) : setRefreshing(true);
 
       const res = await api.get(
-        `/api/auth/laundries/${id}/allEmployees`,
+        `/api/auth/allDetails`,
         {
-          params: { page: pageToLoad, size: PAGE_SIZE },
+          params: { email, page: pageToLoad, size: PAGE_SIZE },
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         }
       );
 
-      const content = Array.isArray(res?.data?.content) ? res.data.content : [];
-      const last = res?.data?.last === true;
+      const usersPage = res?.data?.usersPage || {};
+      const content = Array.isArray(usersPage?.content) ? usersPage.content : [];
+      const totalPages = Number.isFinite(usersPage?.totalPages) ? usersPage.totalPages : 0;
       const rows = content.map(mapRow);
 
       setList(prev => (append ? [...prev, ...rows] : rows));
-      setHasNext(!last);
+      setHasNext(pageToLoad + 1 < totalPages);
       setPage(pageToLoad);
     } catch (e) {
       Toast.show({
         type: "error",
-        text1: "Failed to load employees",
+        text1: "Failed to load customers",
         text2: e?.response?.data || e?.message || "Network error",
       });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id, token]);
+  }, [email, token]);
 
   useFocusEffect(
-    useCallback(() => { fetchPage(0, false); }, [fetchPage, refreshKey])
+    useCallback(() => { fetchPage(0, false); }, [fetchPage])
   );
 
   const loadMore = useCallback(() => {
@@ -127,19 +127,23 @@ export default function Employees({ navigation }) {
     if (!q) return list;
     const by = filter.value;
     return list.filter((e) => {
-      const field = by === "address" ? e.address : by === "phone" ? e.phone : by === "email" ? e.email : e.name;
+      const field =
+        by === "address" ? e.address
+          : by === "phone" ? e.phone
+            : by === "email" ? e.email
+              : by === "relationRole" ? e.relationRole
+                : e.name;
       return (field || "").toLowerCase().includes(q);
     });
   }, [list, search, filter]);
 
-  const openDetails = useCallback((emp) => {
-    setSelected(emp);
+  const openDetails = useCallback((row) => {
+    setSelected(row);
     setDetailsOpen(true);
   }, []);
-
   const closeDetails = useCallback(() => {
-    setDetailsOpen(false);
     setSelected(null);
+    setDetailsOpen(false);
   }, []);
 
   const renderRow = ({ item }) => (
@@ -180,10 +184,8 @@ export default function Employees({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color="#3C4234" />
         </TouchableOpacity>
-        <Text style={styles.h1}>Employees</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("AddEmployee", { token, laundryId: id })}>
-          <Ionicons name="add" size={24} color="#3C4234" />
-        </TouchableOpacity>
+        <Text style={styles.h1}>Customers</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.searchRow}>
@@ -191,7 +193,7 @@ export default function Employees({ navigation }) {
           <Ionicons name="search" size={18} color="#98A29D" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search employees..."
+            placeholder="Search customers..."
             placeholderTextColor="#98A29D"
             value={search}
             onChangeText={setSearch}
@@ -235,7 +237,7 @@ export default function Employees({ navigation }) {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Employee details</Text>
+              <Text style={styles.modalTitle}>Customer details</Text>
               <TouchableOpacity onPress={closeDetails}>
                 <Ionicons name="close" size={22} color="#3C4234" />
               </TouchableOpacity>
@@ -252,12 +254,14 @@ export default function Employees({ navigation }) {
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.empTitle}>{selected.name}</Text>
-                    <View style={styles.rolePill}>
-                      <Ionicons name="briefcase-outline" size={13} color="#3C4234" />
-                      <Text style={styles.rolePillText}>
-                        {(selected.role || "").toString().replace(/_/g, " ")}
-                      </Text>
-                    </View>
+                    {selected.relationRole ? (
+                      <View style={styles.rolePill}>
+                        <Ionicons name="people-outline" size={13} color="#3C4234" />
+                        <Text style={styles.rolePillText}>
+                          {selected.relationRole.replace(/_/g, " ")}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
 
@@ -283,21 +287,6 @@ export default function Employees({ navigation }) {
                     <Ionicons name="location-outline" size={18} color="#98A29D" />
                     <Text style={styles.fieldValue}>{selected.address || "—"}</Text>
                   </View>
-                </View>
-
-                <View style={styles.fieldBlock}>
-                  <Text style={styles.fieldLabel}>Service IDs</Text>
-                  {Array.isArray(selected.serviceIds) && selected.serviceIds.length ? (
-                    <View style={styles.chipsWrap}>
-                      {selected.serviceIds.map((sid) => (
-                        <View key={String(sid)} style={styles.chip}>
-                          <Text style={styles.chipText}>#{sid}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text style={[styles.fieldValue, { opacity: 0.6 }]}>No services</Text>
-                  )}
                 </View>
 
                 <TouchableOpacity style={styles.closeBtn} onPress={closeDetails}>
@@ -412,17 +401,6 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
   fieldValue: { color: "#3C4234", fontSize: 14, flexShrink: 1 },
-
-  chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    backgroundColor: "#F1F3F1",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E6EAE6",
-  },
-  chipText: { color: "#3C4234", fontWeight: "700", fontSize: 12 },
 
   closeBtn: {
     marginTop: 16,

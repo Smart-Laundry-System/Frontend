@@ -1,492 +1,336 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Image, StyleSheet, Keyboard, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView } from 'react-native';
-import registeroverlay from '../../assets/backReg.png';
-import inerbutton from '../../assets/Vector1.png';
-import overlap from '../../assets/registeroverlay.png';
-import { BlurView } from 'expo-blur'
-import { Icon, Switch } from 'react-native-paper';
-import IconOpen from '../../assets/icon.png'
-import IconClose from '../../assets/iconopen.png'
-import CreateAc from '../../components/Button/CreateAc';
-import RegistreTop from '../../components/UserTop/RegistreTop';
-import Or from '../../components/Button/Or';
+import {
+  Image,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Toast from 'react-native-toast-message';
+import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 
-function HotelRegFinal({ navigation }) {
+import { api } from '../../../Services/api';
+import { TOAST, tokens } from '../../../styles/theme';
 
-  const [isSwitchOn, setIsSwitchOn] = React.useState(false);
-  const [keyboardVisible, setKeyboardVisible] = React.useState(false);
+import StartImage from '../../../assets/startimage.png';
+import { getAccessToken } from '../../Services/tokenStorage';
 
-  const [selectedOptions, setSelectedOptions] = React.useState([]);
-  const [selectedTypes, setSelectedTypes] = React.useState([]);
-  // const [selectedCloths, setSelectedCloths] = React.useState([]);
-  const [isDropdownVisible, setDropdownVisible] = React.useState(false);
-  const [isDropdownVisiblet, setDropdownVisiblet] = React.useState(false);
+const ROLES = [
+  { label: 'Admin', value: 'ADMIN' },
+  { label: 'Delivery person', value: 'DELIVERY' },
+];
 
-  const options = ['Ironing', 'Dry Clean', 'Detergent Wash'];
-  const clothes = ['Jackets', 'Veshti', 'Others(Upload an image)'];
+export default function AddEmployee({ navigation }) {
+  const route = useRoute();
+  const token = route?.params?.token || getAccessToken() || null;
+  const laundryEmail = route?.params?.email || '';
 
-  const types = ['Carpet', 'Curtain']
-  const toggleOption = (option) => {
-    setSelectedOptions((prev) =>
-      prev.includes(option)
-        ? prev.filter((item) => item !== option)
-        : [...prev, option]
-    );
-  };
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState(ROLES[0]);
+  const [roleOpen, setRoleOpen] = useState(false);
 
-  // const toggleCloths = (option) => {
-  //   setSelectedCloths((prev) =>
-  //     prev.includes(option)
-  //       ? prev.filter((item) => item !== option)
-  //       : [...prev, option]
-  //   );
-  // };
-
-  const toggleTypes = (option) => {
-    setSelectedTypes((prev) =>
-      prev.includes(option)
-        ? prev.filter((item) => item !== option)
-        : [...prev, option]
-    );
-  };
-
-
-  const controlLogin = () => {
-    // if (isSwitchOn) {
-    //   navigation.navigate('Login');
-    // } else if (!isSwitchOn) {
-    navigation.navigate('HotelRegisterFinal');
-    // }
-  }
-
-  const toggleDropdown = () => {
-    setDropdownVisible(!isDropdownVisible);
-  };
-
-  const toggleDropdownt = () => {
-    setDropdownVisiblet(!isDropdownVisiblet);
-  };
-
-  const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
   }, []);
 
+  const resetForm = () => {
+    setFirstName('');
+    setLastName('');
+    setAddress('');
+    setPhone('');
+    setEmail('');
+    setRole(ROLES[0]);
+    setRoleOpen(false);
+  };
+
+  const onAddEmployee = async () => {
+    if (submitting) return;
+
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !address.trim() ||
+      !phone.trim() ||
+      !email.trim() ||
+      !role?.value
+    ) {
+      Toast.show(TOAST.errorBottom('Missing info', 'Please fill all fields'));
+      return;
+    }
+
+    const payload = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      address: address.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      role: role.value,
+      laundryEmail,
+    };
+
+    try {
+      setSubmitting(true);
+      await api.post(
+        '/api/auth/addEmployee',
+        payload,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
+
+      Toast.show(TOAST.success('Employee added', `${firstName} ${lastName} created`));
+      resetForm();
+
+      navigation.navigate('Employees', { token, email: laundryEmail, refresh: Date.now() });
+    } catch (err) {
+      const msg = err?.response?.data;
+      Toast.show(
+        TOAST.errorBottom(
+          'Failed to add employee',
+          (typeof msg === 'string' && msg) || err?.message || 'Server error'
+        )
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-
-      <Image source={registeroverlay} style={styles.image} />
-      <View style={styles.switchset}>
-        <Text style={styles.switchText}>
-          {!isSwitchOn && "Hotel Admin"}
-          {isSwitchOn && "Personal"}
-        </Text>
-        <View style={[styles.switch, { backgroundColor: isSwitchOn ? '#F2EBBC' : 'rgba(0,0,0,0.8)' }]}>
-          <Switch
-            trackColor={{ false: 'rgba(0,0,0,0.8)', true: '#F2EBBC' }}
-            thumbColor={isSwitchOn ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)'}
-            value={isSwitchOn}
-            onValueChange={onToggleSwitch}
-          />
-
-        </View>
-      </View>
-      <View style={styles.backtop}></View>
-
-      <TouchableOpacity onPress={() => navigation.navigate("UserRegistration")}>
-        <Image source={inerbutton} style={styles.imagein} />
-      </TouchableOpacity>
-      <Image source={overlap} style={styles.regback} />
-      <Text style={styles.text}>
-        The Smart Laundry.
-      </Text>
-      <Text style={styles.textsub}>
-        Create Account
-      </Text>
-
-      <BlurView style={{ marginTop: keyboardVisible ? '-35%' : '' }} intensity={keyboardVisible ? 20 : 0}>
-        <TouchableOpacity activeOpacity={1} onPress={() => setDropdownVisible(false)}>
-          {isSwitchOn && <RegistreTop navigation={navigation} />}
-
-          {!isSwitchOn && <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.fields}>
-
-              <TextInput
-                style={styles.input}
-
-                placeholder="Available Item"
-                keyboardType="default"
-                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <View style={styles.dropdownContainer}>
-                <View style={styles.dropdownMenu}>
-                  {types.map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      style={styles.dropdownItem}
-                      onPress={() => toggleTypes(option)}
-                    >
-                      <Text
-                        style={[
-                          styles.checkbox,
-                          selectedTypes.includes(option) && styles.checked,
-                        ]}
-                      >
-                        {selectedTypes.includes(option) ? '✓' : ' '}
-                      </Text>
-                      <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
-                    </TouchableOpacity>
-
-                  ))}
-                  <TouchableOpacity onPress={toggleDropdownt} style={[styles.dropdownItem, { flexDirection: 'row' }]}>
-                    <Text style={{ color: keyboardVisible ? 'black' : '#999' }}>Clothes Item (KG)</Text>
-                    <Image source={IconOpen} style={{ marginLeft: '30%', opacity: '0.6', display: isDropdownVisiblet ? 'none' : 'flex' }} />
-                    <Image source={IconClose} style={{ marginLeft: '30%', display: isDropdownVisiblet ? 'flex' : 'none' }} />
-                  </TouchableOpacity>
-                </View>
-
-                {isDropdownVisiblet && (
-                  <View style={styles.dropdownMenuc}>
-                    {clothes.map((optionc) => (
-                      <TouchableOpacity
-                        key={optionc}
-                        style={styles.dropdownItem}
-                        onPress={() => toggleCloths(optionc)}
-                      >
-                        <Text
-                          style={[
-                            styles.checkbox,
-                            selectedOptions.includes(optionc) && styles.checked,
-                          ]}
-                        >
-                          {selectedOptions.includes(optionc) ? '✓' : ' '}
-                        </Text>
-                        <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{optionc}</Text>
-
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Phone"
-                keyboardType='phone-pad'
-                // secureTextEntry={true}
-                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                keyboardType='email-address'
-                // secureTextEntry={true}
-                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                secureTextEntry={true}
-                placeholderTextColor={keyboardVisible ? "black" : '#999'}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity style={styles.dropdownHeader} onPress={toggleDropdown}>
-                  <Text style={[styles.dropdownHeaderText, { color: keyboardVisible ? 'black' : '#999' }]}>
-                    Services Type
-                  </Text>
-                </TouchableOpacity>
-
-                {isDropdownVisible && (
-                  <View style={styles.dropdownMenu}>
-                    {options.map((option) => (
-                      <TouchableOpacity
-                        key={option}
-                        style={styles.dropdownItem}
-                        onPress={() => toggleOption(option)}
-                      >
-                        <Text
-                          style={[
-                            styles.checkbox,
-                            selectedOptions.includes(option) && styles.checked,
-                          ]}
-                        >
-                          {selectedOptions.includes(option) ? '✓' : ' '}
-                        </Text>
-                        <Text style={[styles.dropdownItemText, { color: keyboardVisible ? 'black' : '#999' }]}>{option}</Text>
-
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            </View>
-          </ScrollView>}
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={styles.heroWrap}>
+        <Image source={StartImage} style={styles.heroImg} resizeMode="cover" />
+        <View style={styles.heroOverlay} />
+        <Text style={styles.heroTitle}>The Smart Laundry.</Text>
+        <Text style={styles.heroSub}>Create Employee Account</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={20} color="#E8EAAD" />
         </TouchableOpacity>
-      </BlurView>
+      </View>
 
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.fields}>
+          <View style={styles.inputRow}>
+            <Ionicons name="person-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="First Name"
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          </View>
 
-      <TouchableOpacity style={styles.loginButton} onPress={controlLogin}>
-        <Text style={styles.loginButtonText}>
-          Next
-        </Text>
-      </TouchableOpacity>
+          <View style={styles.inputRow}>
+            <Ionicons name="person-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Last Name"
+              value={lastName}
+              onChangeText={setLastName}
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          </View>
 
-      <Or />
-      <CreateAc butname="For Login" navigation={navigation} path="Login" />
+          <View style={styles.inputRow}>
+            <Ionicons name="location-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Address"
+              value={address}
+              onChangeText={setAddress}
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
+              autoCapitalize="sentences"
+              returnKeyType="next"
+            />
+          </View>
 
-    </View >
+          <View style={styles.inputRow}>
+            <Ionicons name="call-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
+              autoCapitalize="none"
+              returnKeyType="next"
+            />
+          </View>
+
+          <View style={styles.inputRow}>
+            <Ionicons name="mail-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              placeholderTextColor={keyboardVisible ? tokens.colors.shadow : undefined}
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
+          </View>
+
+          <Pressable style={styles.inputRow} onPress={() => setRoleOpen((v) => !v)}>
+            <Ionicons name="briefcase-outline" size={18} color="#98A29D" style={styles.leftIcon} />
+            <Text style={[styles.input, { paddingTop: 14 }]}>
+              {role?.label || 'Designation'}
+            </Text>
+            <Ionicons
+              name={roleOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#98A29D"
+              style={styles.rightIcon}
+            />
+          </Pressable>
+
+          {roleOpen && (
+            <View style={styles.dropdown}>
+              {ROLES.map((r) => (
+                <TouchableOpacity
+                  key={r.value}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setRole(r);
+                    setRoleOpen(false);
+                  }}
+                >
+                  <Text style={{ color: '#3C4234' }}>{r.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.primaryBtn,
+            { opacity: submitting ? tokens.opacities.disabled : tokens.opacities.fullscreen },
+          ]}
+          onPress={onAddEmployee}
+          disabled={submitting}
+        >
+          <Text style={styles.primaryBtnText}>{submitting ? 'Adding…' : 'Add Employee'}</Text>
+        </TouchableOpacity>
+
+        <View style={{ alignItems: 'center', marginVertical: 12 }}>
+          <Text style={{ color: '#98A29D' }}>or</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => navigation.navigate('LaundryHome', { token, email: laundryEmail })}
+        >
+          <Text style={styles.secondaryBtnText}>For Home Page</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  icon: {
-    margin: '100%',
-  },
-  dropdownContainer: {
-    marginBottom: 15
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 3,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  checked: {
-    backgroundColor: '#3E4B1F',
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  dropdownMenu: {
-    borderWidth: 0.3,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginTop: 5,
-    marginBottom: '-15',
-    backgroundColor: '#fff',
-    maxHeight: 150,
-    overflow: 'scroll',
-    // zIndex: 1010
-  },
-  dropdownMenuc: {
-    borderWidth: 0.3,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginTop: 20,
-    marginBottom: '-15',
-    backgroundColor: '#fff',
-    maxHeight: 150,
-    overflow: 'scroll',
-    // zIndex: 1010
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    // color: '#999',
-    marginLeft: 10,
-  },
-  dropdownHeader: {
-    // borderWidth: 1,
-    // borderColor: '#ccc',
-    // borderRadius: 5,
-    padding: 15,
-    // backgroundColor: '#f9f9f9',
-    height: 50,
+  heroWrap: { height: 200, position: 'relative' },
+  heroImg: { position: 'absolute', width: '100%', height: '100%' },
+  heroOverlay: {
+    position: 'absolute',
     width: '100%',
-    borderBottomWidth: 1, // Thickness of the underline
-    borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
-  dropdownHeaderText: {
-    fontSize: 16,
-  },
-  textArea: {
-    height: 80,  // Adjusted height for multi-line text box
-    textAlignVertical: 'top',  // Ensures the text starts from the top
-  },
-  switch: {
+  heroTitle: {
     position: 'absolute',
-    right: '30',
-    top: '50',
-    zIndex: '100',
-    borderRadius: 50
+    left: 16,
+    top: 48,
+    fontSize: 28,
+    color: '#E8EAAD',
+    fontWeight: '800',
   },
-  switchText: {
-    fontSize: 15,
+  heroSub: {
     position: 'absolute',
-    right: '85',
-    top: '58',
-    zIndex: '90',
-    color: '#F2EBBC'
+    left: 16,
+    top: 84,
+    color: '#F1F3D1',
+    fontWeight: '600',
   },
-  switchset: {
-    flexDirection: 'row',
-    // position:'absolute'
-  },
-  loginButton: {
-    width: '75%',
-    height: 42,
-    backgroundColor: '#A3AE95', // Green color
-    borderRadius: 10,
+  backBtn: { position: 'absolute', left: 8, top: 12, padding: 8 },
+
+  scrollContainer: { paddingBottom: 28 },
+  fields: { width: '80%', alignSelf: 'center', marginTop: '10%' },
+  inputRow: {
+    height: tokens.sizes.inputHeight,
+    width: '100%',
+    borderBottomWidth: tokens.components.Input.borderBottomWidth,
+    borderBottomColor: tokens.colors.bottomBorder,
+    marginBottom: tokens.spacing.sm,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: '35',
-    alignSelf: 'center',
-  },
-  loginButtonText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#3C4234',
-  },
-  linedecr: {
-    textDecorationLine: "underline",
-    // justifyContent:'center',
-    textAlign: 'center',
-    borderBottomWidth: 1,
-    // paddingBottom: 1,
-    // marginRight: '21%',
-    marginLeft: '2.5%',
-    width: '34%'
-    // position:'absolute'
-  },
-  linedecl: {
-    textDecorationLine: "underline",
-    // justifyContent:'center',
-    textAlign: 'center',
-    borderBottomWidth: 1,
-    // paddingBottom: 1,
-    // marginLeft: '21%',
-    marginRight: '2.5%',
-    width: '34%'
-    // position: 'relative'
-  },
-  createac: {
-    width: '75%',
-    height: 42,
-    // backgroundColor: 'red',
-    borderRadius: 10,
-    borderColor: 'black', // Set the border color to black
-    borderWidth: 1,       // Add border width to make the line visible
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    alignSelf: 'center',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: '10%',
-    // marginTop:'35%'
-  },
-  regback: {
-    bottom: 0,
-    width: '100%',
-    height: '53%',
-    position: 'absolute',
-    marginBottom: '21%'
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffff', // Light background
-  },
-  image: {
-    position: 'absolute',
-    width: '100%',
-    height: '40%',
-    // opacity: '0.9'
-  },
-  imagein: {
-    marginTop: '15%',
-    marginLeft: '5%',
-    // width: '10%',
-    // height: '20%',
-    // resizeMode: 'contain', // Maintain aspect ratio
-  },
-  text: {
-    fontSize: 35,
-    color: '#F2EBBC',
-    fontWeight: 'bold',
-    top: '8%',
-    marginLeft: '10%' // Adds space between text and other elements
-  },
-  backtop: {
-    position: 'absolute',
-    top: 0,
-    backgroundColor: 'rgba(60,66,52,0.7)',
-    width: '100%',
-    height: '40%',
-  },
-  textsub: {
-    fontSize: 15,
-    color: '#F2EBBC',
-    fontWeight: '500',
-    top: '8%',
-    marginLeft: '10%'
-  },
-  fields: {
-    width: '80%',
-    alignSelf: 'center',
-    marginTop: '45%',
   },
   input: {
-    height: 50,
+    paddingLeft: tokens.components.Input.paddingLeft + 20,
+    paddingRight: 28,
+    fontSize: tokens.components.Input.fontSize,
+    color: '#3C4234',
+  },
+  leftIcon: { position: 'absolute', left: 0, top: 14 },
+  rightIcon: { position: 'absolute', right: 0, top: 14 },
+
+  dropdown: {
     width: '100%',
-    borderBottomWidth: 1, // Thickness of the underline
-    borderBottomColor: 'rgba(0,0,0,0.3)', // Color of the underline
-    // borderWidth: 1,
-    // borderRadius: 15,
-    // borderColor: 'rgba(0,0,0,0.3)',
-    marginBottom: 15,
-    paddingLeft: 15,
-    fontSize: 16,
+    alignSelf: 'center',
+    backgroundColor: '#F7F8F7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E6EAE6',
+    paddingVertical: 6,
+    marginTop: -8,
+    marginBottom: 8,
   },
-  forget: {
-    flexDirection: 'row',
+  dropdownItem: { paddingVertical: 12, paddingHorizontal: 10 },
+
+  primaryBtn: {
+    width: '75%',
+    height: tokens.sizes.buttonHeight,
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: tokens.radius.md,
     justifyContent: 'center',
-    marginTop: '10',
-    marginTop: '-2',
-    gap: 3,
-    marginBottom: '20'
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: tokens.spacing.xl,
   },
-  forgetfont: {
-    fontSize: 15,
-    color: '#FF0000',
-    fontWeight: 'bold'
-  }
+  primaryBtnText: {
+    fontSize: tokens.components.Typography.body.fontSize,
+    ...tokens.components.Button.text.style,
+    color: tokens.components.Button.text.color,
+  },
+  secondaryBtn: {
+    width: '75%',
+    height: tokens.sizes.buttonHeight,
+    borderRadius: tokens.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#CFCFCF',
+  },
+  secondaryBtnText: { color: '#3C4234', fontWeight: '700' },
 });
-
-
-export default HotelRegFinal

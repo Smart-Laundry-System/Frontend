@@ -16,25 +16,17 @@ function Or() {
 const styles = StyleSheet.create({
   linedecl: {
     textDecorationLine: "underline",
-    // justifyContent:'center',
     textAlign: 'center',
     borderBottomWidth: 1,
-    // paddingBottom: 1,
-    // marginLeft: '21%',
     marginRight: '2.5%',
     width: '34%'
-    // position: 'relative'
   },
   linedecr: {
     textDecorationLine: "underline",
-    // justifyContent:'center',
     textAlign: 'center',
     borderBottomWidth: 1,
-    // paddingBottom: 1,
-    // marginRight: '21%',
     marginLeft: '2.5%',
     width: '34%'
-    // position:'absolute'
   }
 })
 

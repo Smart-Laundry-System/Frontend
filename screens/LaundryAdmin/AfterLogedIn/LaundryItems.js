@@ -1,4 +1,3 @@
-// screens/items/LaundryItems.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -12,11 +11,13 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import BackLogin from "../../../assets/backLogin.png";
+import { getAccessToken } from "../../../Services/tokenStorage";
+import { useRegistration } from "../../../context/RegistrationContext";
 
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
@@ -24,19 +25,21 @@ const BG = "#FFFFFF";
 const GREEN = "#A3AE95";
 
 const ENDPOINTS = {
-  items: "/api/auth/retrieveLaundryItems", // expects ?email=... (laundry)
+  items: "/api/auth/retrieveLaundryItems", 
 };
 
 export default function LaundryItems() {
+
+  const { userEmail } = useRegistration();
   const navigation = useNavigation();
   const route = useRoute();
-  const token = route?.params?.token ?? "";
-  const email = route?.params?.email ?? ""; // laundry email (owner)
+  const email = route?.params?.email ?? userEmail ?? "";
+  const [token, setToken] = useState(route?.params?.token ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [categories, setCategories] = useState([]); // ["Service 1","Service 2",...]
+  const [categories, setCategories] = useState([]);
   const [selectedCat, setSelectedCat] = useState(null);
   const [items, setItems] = useState([]);
 
@@ -80,6 +83,19 @@ export default function LaundryItems() {
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
+  useEffect(() => {
+    let mounted = true;
+    if (!token) {
+      (async () => {
+        try {
+          const t = await getAccessToken();
+          if (mounted) setToken(t);
+        } catch { }
+      })();
+    }
+    return () => { mounted = false; };
+  }, [token]);
+
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     let arr = items;
@@ -105,7 +121,6 @@ export default function LaundryItems() {
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ImageBackground source={Vector} style={{ width: 24, height: 24 }} />
@@ -116,7 +131,6 @@ export default function LaundryItems() {
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
@@ -131,7 +145,6 @@ export default function LaundryItems() {
         </View>
       </View>
 
-      {/* Categories Tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -148,7 +161,6 @@ export default function LaundryItems() {
         })}
       </ScrollView>
 
-      {/* Content */}
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
       ) : error ? (

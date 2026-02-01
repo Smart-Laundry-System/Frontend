@@ -1,4 +1,3 @@
-// screens/orders/OrderPage.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -13,12 +12,14 @@ import {
   Platform,
   Pressable,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Debounce } from "../../../utils/Debounce";
 import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import DropDown from "../../../components/Menu/DropDown";
+import { getAccessToken } from "../../../Services/tokenStorage";
+import { useRegistration } from "../../../context/RegistrationContext";
 
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
@@ -36,6 +37,7 @@ const FILTER_OPTIONS = [
 
 export default function UserOrders() {
   const navigation = useNavigation();
+  const { userEmail } = useRegistration();
   const route = useRoute();
 
   const [orders, setOrders] = useState([]);
@@ -50,14 +52,14 @@ export default function UserOrders() {
   const [selectedFilter, setSelectedFilter] = useState(FILTER_OPTIONS[0]);
   const filterBtnRef = useRef(null);
 
-  const token = route?.params?.token ?? "";
-  const email = route?.params?.email ?? "";
+  const token = route?.params?.token ?? getAccessToken() ?? "";
+  const email = route?.params?.email ?? userEmail ?? "";
   const name = route?.params?.name ?? "";
+  const customerId = route?.params?.customerId ?? "";
   const mountedRef = useRef(true);
 
-  // ---------- API → UI map ----------
   const mapApiOrderToUi = useCallback((o) => {
-    const relImg = o?.laundryImg; // e.g. "/files/1756...png"
+    const relImg = o?.laundryImg; 
     const img = relImg
       ? `${(IMG_URL || "").replace(/\/$/, "")}${relImg.startsWith("/") ? "" : "/"}${relImg}`
       : Image.resolveAssetSource(require("../../../assets/backLogin.png")).uri;
@@ -76,7 +78,6 @@ export default function UserOrders() {
     };
   }, []);
 
-  // ---------- Fetch ----------
   const fetchOrders = useCallback(async () => {
     try {
       setError("");
@@ -150,7 +151,6 @@ export default function UserOrders() {
     }
   }, [orders, query, selectedFilter]);
 
-  // ---------- UI ----------
   const renderCard = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
@@ -158,8 +158,8 @@ export default function UserOrders() {
       onPress={() =>
         navigation.navigate("OrderDetails", {
           token,
-          orderId: item.id,        // unique id -> open detail screen
-          laundryEmail: item.laundryEmail,                   // laundry owner email
+          orderId: item.id,     
+          customerId: customerId,           
           role: "CUSTOMER",
         })
       }
@@ -179,7 +179,6 @@ export default function UserOrders() {
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
       <View style={styles.topRow}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image source={Vector} />
@@ -197,7 +196,6 @@ export default function UserOrders() {
 
       <Text style={styles.title}>Welcome to{"\n"}The Smart Laundry</Text>
 
-      {/* Search + DropDown filter */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
@@ -235,7 +233,6 @@ export default function UserOrders() {
 
       <Text style={styles.sectionLabel}>My orders</Text>
 
-      {/* List */}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={TEXT} />
@@ -275,7 +272,6 @@ export default function UserOrders() {
   );
 }
 
-/* ------------------------ helpers ------------------------ */
 function formatDate(d) {
   if (!d) return "";
   try {
@@ -291,7 +287,6 @@ function formatDate(d) {
   }
 }
 
-/* ------------------------ styles ------------------------ */
 const styles = StyleSheet.create({
   screen: {
     flex: 1,

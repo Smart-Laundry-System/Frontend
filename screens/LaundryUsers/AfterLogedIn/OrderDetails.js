@@ -1,4 +1,3 @@
-// screens/orders/OrderDetails.js
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -7,15 +6,15 @@ import {
   TouchableOpacity,
   ImageBackground,
   TextInput,
-  SafeAreaView,
   Platform,
   ActivityIndicator,
   ScrollView,
   Image,
-  Pressable, // <-- added
+  Pressable,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from "@react-navigation/native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Toast from "react-native-toast-message";
@@ -23,8 +22,9 @@ import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import UserComplainModel from "../../../components/Notification/UserComplainModel";
 import { TOAST } from "../../../styles/theme";
+import { useRegistration } from "../../../context/RegistrationContext";
+import { getAccessToken } from "../../../Services/tokenStorage";
 
-/* ----------------------------- design tokens ----------------------------- */
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
@@ -48,7 +48,6 @@ const STATUS_COLORS = {
   DEFAULT: "#CDE8CF",
 };
 
-/* -------------------------------- endpoints ------------------------------- */
 const ENDPOINTS = {
   orderById: "/api/auth/retriveOrderById",
   servicesByIds: "/api/auth/retriveServiceById",
@@ -56,10 +55,12 @@ const ENDPOINTS = {
 };
 
 export default function OrderDetails() {
+  const { customerId } = useRegistration();
   const navigation = useNavigation();
   const route = useRoute();
-  const { token, orderId, email } = route.params || {};
-
+  const orderId = route?.params?.orderId || null;
+  const token = route?.params?.token || getAccessToken();
+  const customerid = route?.params?.customerId || customerId || null;
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
   const [services, setServices] = useState([]);
@@ -68,8 +69,6 @@ export default function OrderDetails() {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingRequestDate, setPendingRequestDate] = useState(null);
-
-  // NEW: temp date that only lives inside the sheet while user scrolls
   const [pickerTempDate, setPickerTempDate] = useState(null);
 
   const [expandedAbout, setExpandedAbout] = useState(false);
@@ -85,7 +84,6 @@ export default function OrderDetails() {
     return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-  // ---- helpers ----
   const isValidDateVal = (d) => {
     if (!d) return false;
     const dt = d instanceof Date ? d : new Date(d);
@@ -102,10 +100,10 @@ export default function OrderDetails() {
     });
   };
 
-  // Normalize API → UI (requestDate → customerInterestDate)
   const mapToUi = (o) => ({
     id: String(o?.id ?? orderId),
     serviceIds: Array.isArray(o?.serviceIds) ? o.serviceIds : [],
+    laundryId: Number(o?.laundryId),
     customerName: o?.laundryName || "Laundry name",
     laundryAddress: o?.laundryAddress || "Location",
     laundryImg: o?.laundryImg || "",
@@ -113,7 +111,7 @@ export default function OrderDetails() {
     status: (o?.status || "PICKUP").toString(),
     estimatedDate: o?.estimatedCompletedDate || o?.estimatedDate || null,
     customerInterestDate: o?.requestDate || o?.customerInterestDate || null,
-    aboutLaundry: o?.aboutLaundry || "", // fallback
+    aboutLaundry: o?.aboutLaundry || "",
   });
 
   const buildIdsParams = (key, arr) => {
@@ -142,8 +140,6 @@ export default function OrderDetails() {
 
       const mapped = mapToUi(o);
       setOrder(mapped);
-      console.log(mapped);
-      // reset any unstaged selection when fresh data loads
       setPendingRequestDate(null);
 
       if (mapped.serviceIds.length) {
@@ -173,7 +169,7 @@ export default function OrderDetails() {
     if (s.includes("REACHED")) return 3;
     if (s.includes("ON") || s.includes("WAY")) return 2;
     if (s.includes("WASH")) return 1;
-    return 0; // PICKUP
+    return 0;
   }, [order?.status]);
 
   const pillBg = useMemo(() => {
@@ -194,15 +190,12 @@ export default function OrderDetails() {
     [services]
   );
 
-  const shown = serviceNames.slice(0, 2); // now an array of strings
+  const shown = serviceNames.slice(0, 2);
   const hasMore = serviceNames.length > 2;
 
   const servicesTitle =
     shown.length ? `${shown.join(", ")}${hasMore ? "…" : ""}` : "Ordered Service";
 
-  /* ------------------------ date picking & confirm ------------------------ */
-
-  // start of local “today” to avoid timezone/time-of-day issues
   const startOfToday = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -210,9 +203,8 @@ export default function OrderDetails() {
   }, []);
 
   const onOpenPicker = () => {
-    // base the picker on what the UI currently shows
     setPickerTempDate(basePickerDate);
-    setPendingRequestDate(null); // clear old preview so the field is honest
+    setPendingRequestDate(null);
     setShowDatePicker(true);
   };
 
@@ -224,7 +216,6 @@ export default function OrderDetails() {
         params: { orderID: order.id, date: pendingRequestDate.toISOString() },
         headers: authHeader,
       });
-      // Clear preview immediately; fetch will also refresh the server values
       setPendingRequestDate(null);
       Toast.show(TOAST.success("Smart Laundry", "Requested estimated date sent."));
       await fetchOrder();
@@ -236,7 +227,6 @@ export default function OrderDetails() {
     }
   };
 
-  /* ---------------------------- loading/empty UI ---------------------------- */
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -264,17 +254,15 @@ export default function OrderDetails() {
     (hasRequest
       ? new Date(order.customerInterestDate)
       : isValidDateVal(order.estimatedDate)
-      ? new Date(order.estimatedDate)
-      : null);
+        ? new Date(order.estimatedDate)
+        : null);
 
   const basePickerDate = displayDate || new Date();
   const pickerKey = (basePickerDate && basePickerDate.toDateString()) || "now";
 
-  /* ---------------------------------- UI ---------------------------------- */
   return (
     <PaperProvider>
       <SafeAreaView style={styles.safe}>
-        {/* Press anywhere outside About to collapse it */}
         <Pressable
           style={{ flex: 1 }}
           onPress={() => {
@@ -291,7 +279,6 @@ export default function OrderDetails() {
                 <Image source={Vector} />
               </TouchableOpacity>
 
-              {/* Confirm Request: enabled only when a date was requsted with customer via update button */}
               <TouchableOpacity
                 style={[
                   styles.badgePill,
@@ -307,10 +294,8 @@ export default function OrderDetails() {
               </TouchableOpacity>
             </View>
 
-            {/* Laundry name */}
             <Text style={styles.title}>{order.customerName}</Text>
 
-            {/* Top pard card with laundry image */}
             <ImageBackground
               source={{ uri: toAbs(order.laundryImg) }}
               style={styles.banner}
@@ -340,7 +325,6 @@ export default function OrderDetails() {
               </View>
             </ImageBackground>
 
-            {/* Status customer only can view */}
             <Text style={styles.sectionTitle}>Status</Text>
             <View style={styles.statusRow}>
               <StatusBox label="Pick up" icon="hand-left" active={statusIndex >= 0} />
@@ -352,18 +336,15 @@ export default function OrderDetails() {
               <StatusBox label="Reached" icon="home" active={statusIndex >= 3} />
             </View>
 
-            {/* Total price*/}
             <View style={styles.sumRow}>
               <Text style={[styles.sumLabel, { fontWeight: "700" }]}>Total:</Text>
               <Text style={[styles.sumValue, { opacity: 0.7 }]}>{priceLabel}</Text>
             </View>
 
-            {/* Title switches based on having a request date */}
             <Text style={[styles.sectionTitle, { marginTop: 6 }]}>
               {hasRequest ? "Requested Completed Date" : "Estimated Completed Date"}
             </Text>
 
-            {/* Date for customer request */}
             <View
               style={{
                 flexDirection: "row",
@@ -394,18 +375,15 @@ export default function OrderDetails() {
                 : "Before update check the notification"}
             </Text>
 
-            {/* About the laundry */}
             <View style={styles.aboutHeaderRow}>
               <Text style={styles.sectionTitle}>About {order.customerName}</Text>
             </View>
 
-            {/* Rating part */}
             <View style={styles.aboutRow}>
               <Ionicons name="star" size={14} color={YELLOW} />
               <Text style={styles.aboutRating}> 4.3</Text>
             </View>
 
-            {/* See more with about part */}
             <View onStartShouldSetResponder={() => true} style={{ marginTop: 6 }}>
               <Text
                 style={styles.aboutText}
@@ -413,7 +391,6 @@ export default function OrderDetails() {
                 onTextLayout={(e) => {
                   if (!expandedAbout) {
                     const lines = e?.nativeEvent?.lines || [];
-                    // show "See more" only if we have more than 3 lines
                     setAboutOverflows(lines.length > 3);
                   }
                 }}
@@ -443,28 +420,28 @@ export default function OrderDetails() {
 
             <UserComplainModel
               visible={modalVisiblec}
-              email={email}
+              customerId={customerid}
+              orderId={orderId}
+              laundryId={order.laundryId}
               onClose={() => setModalVisiblec(false)}
               token={token}
-              // laundrtId={id}
             />
           </ScrollView>
         </Pressable>
 
         <Portal>
-          {/* Date picker */}
           <Modal
             visible={showDatePicker}
             onDismiss={() => {
               setShowDatePicker(false);
               setPickerTempDate(null);
-              setPendingRequestDate(null); // also clear on dismiss
+              setPendingRequestDate(null);
             }}
             dismissable
             contentContainerStyle={styles.datePickerSheet}
           >
             <DateTimePicker
-              key={pickerKey} // <- force re-mount when base date changes
+              key={pickerKey}
               value={pickerTempDate || basePickerDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -479,7 +456,6 @@ export default function OrderDetails() {
               minimumDate={startOfToday}
               style={{ backgroundColor: WHITE, borderRadius: 10 }}
             />
-            {/* Action row */}
             <View style={{ flexDirection: "row", marginTop: 12, gap: 10 }}>
               <TouchableOpacity
                 style={[styles.assignBack, { flex: 1, borderColor: MUTED }]}
@@ -498,7 +474,6 @@ export default function OrderDetails() {
                 style={[styles.assignBack, { flex: 1 }]}
                 onPress={() => {
                   if (!pickerTempDate) return;
-                  // Stage preview for the UI; user must still tap "Confirm Request"
                   setPendingRequestDate(pickerTempDate);
                   setShowDatePicker(false);
                   setPickerTempDate(null);
@@ -546,14 +521,13 @@ export default function OrderDetails() {
   );
 }
 
-/* ------------------------------- status parts ------------------------------- */
 function StatusBox({ label, icon, active }) {
   return (
     <View style={[styles.statusBox, active && styles.statusBoxActive]}>
       <Ionicons
         name={icon}
         size={18}
-        color={active ? BLACK : BLACKOP} // was {BLACK}/{BLACKOP}
+        color={active ? BLACK : BLACKOP}
       />
       <Text style={[styles.statusLabel, active && { color: BLACK }]}>{label}</Text>
     </View>
@@ -564,7 +538,6 @@ function StatusConnector() {
   return <View style={styles.connector} />;
 }
 
-/* --------------------------------- styles --------------------------------- */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: WHITE },
   container: { flex: 1, backgroundColor: WHITE, paddingHorizontal: 16 },
@@ -632,7 +605,7 @@ const styles = StyleSheet.create({
   statusBox: {
     width: 64,
     height: 64,
-    backgroundColor: STATUSBOX, // was {STATUSBOX}
+    backgroundColor: STATUSBOX,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",

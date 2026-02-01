@@ -1,4 +1,3 @@
-// components/PublicNotificationModal.js
 import { BlurView } from 'expo-blur';
 import React, { useState } from 'react';
 import {
@@ -10,7 +9,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { api } from '../../Services/api';
 import Toast from 'react-native-toast-message';
 import { TOAST, tokens } from '../../styles/theme';
@@ -46,7 +45,6 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
     try {
       setSubmitting(true);
 
-      // IMPORTANT: send JSON body as 2nd arg; headers go in 3rd arg
       const res = await api.post('/api/auth/addNotification', payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -55,7 +53,6 @@ const PublicNotificationModal = ({ visible, email, onClose, token, onSent }) => 
         Toast.show(
           TOAST.success("Notification sent", "Your public message has been posted.")
         );
-        // optionally notify parent & close/reset
         onSent?.(res.data);
         setSubject('');
         setMessage('');

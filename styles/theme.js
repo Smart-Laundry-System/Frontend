@@ -250,21 +250,18 @@ export const TOAST = {
         type: "success",
         text1, text2,
         position: "top",
-        visibilityTime: tokens.durations.toast,
-        zIndex: 9999
+        visibilityTime: tokens.durations.toast
     }),
     errorTop: (text1 = "Smart Laundry", text2 = "Something went wrong") => ({
         type: "error",
         text1, text2,
         position: "top",
-        visibilityTime: tokens.durations.toast,
-        zIndex: 9999
+        visibilityTime: tokens.durations.toast
     }),
     errorBottom: (text1 = "Smart Laundry", text2 = "Something went wrong") => ({
         type: "error",
         text1, text2,
         position: "bottom",
-        visibilityTime: tokens.durations.toast,
-        zIndex: 9999
+        visibilityTime: tokens.durations.toast
     }),
 };

@@ -1,7 +1,5 @@
-// components/UserComplainModel.js
-// components/PublicNotificationModal.js
 import { BlurView } from 'expo-blur';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,71 +8,82 @@ import {
   StyleSheet,
   Modal,
   Platform,
+  ScrollView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Pressable,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { api } from '../../Services/api';
 import Toast from 'react-native-toast-message';
 import { TOAST } from '../../styles/theme';
 
-
-const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
-
+const UserComplainModel = ({
+  visible,
+  customerId,
+  onClose,
+  token,
+  laundryId,
+  orderId,
+  onSent,
+}) => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const hide = Keyboard.addListener(hideEvt, () => { });
+    return () => hide.remove();
+  }, []);
+
   const sendNotifications = async () => {
+
     if (submitting) return;
 
     if (!subject.trim() || !message.trim()) {
-      Toast.show(
-        TOAST.errorBottom("Missing fields", "Please fill Subject and Message.")
-      );
+      Toast.show(TOAST.errorBottom('Missing fields', 'Please fill Subject and Message.'));
       return;
     }
 
-    if (!email) {
-      Toast.show(
-        TOAST.errorBottom("Missing email", "Laundry email is required.")
-      );
+    if (!customerId || !laundryId || !orderId) {
+      Toast.show(TOAST.errorBottom('Missing IDs', 'Customer, Laundry and Order are required.'));
       return;
     }
 
     const payload = {
-      customerEmail: email,
-      laundryId: laundrtId,
-      subject,
-      message,
+      orderId: Number(orderId),
+      customerId: Number(customerId),
+      laundryId: Number(laundryId),
+      subject: subject.trim(),
+      message: message.trim(),
     };
+
+
 
     try {
       setSubmitting(true);
-
-      // IMPORTANT: send JSON body as 2nd arg; headers go in 3rd arg
       const res = await api.post('/api/auth/addComplain', payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res?.status === 200 && res?.data) {
-        Toast.show(
-          TOAST.success("Notification sent", "Your public message has been posted.")
-        );
-        // optionally notify parent & close/reset
+        Toast.show(TOAST.success('Submitted', 'Your complaint has been posted.'));
         onSent?.(res.data);
         setSubject('');
         setMessage('');
+        Keyboard.dismiss();
         onClose?.();
       } else {
-        Toast.show(
-          TOAST.errorBottom("Send failed", "Unexpected server response.")
-        );
+        Toast.show(TOAST.errorBottom('Send failed', 'Unexpected server response.'));
       }
     } catch (err) {
       const serverMsg = err?.response?.data;
       Toast.show(
-        TOAST.errorBottom("Send failed",(typeof serverMsg === 'string' && serverMsg) ||
-          err?.message ||
-          'Network/server error')
+        TOAST.errorBottom(
+          'Send failed',
+          (typeof serverMsg === 'string' && serverMsg) || err?.message || 'Network/server error'
+        )
       );
     } finally {
       setSubmitting(false);
@@ -86,57 +95,71 @@ const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={onClose} // Android back button
+      onRequestClose={onClose}
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
     >
-      <View style={styles.overlay}>
+      <Pressable style={styles.overlay} onPress={() => Keyboard.dismiss()}>
         <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={styles.modalContent}>
-          <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
-            <Icon name="close" size={28} color="#000" />
-          </TouchableOpacity>
 
-          <Text style={styles.header}>Enter your public message here</Text>
+        <KeyboardAvoidingView
+          style={styles.centerWrap}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.select({ ios: 32, android: 0 })}
+        >
+          <Pressable onPress={() => { }} style={styles.modalCard}>
+            <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
+              <Icon name="close" size={28} color="#000" />
+            </TouchableOpacity>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Subject</Text>
-            <View style={styles.inputWrapper}>
-              <Icon name="create-outline" size={16} style={styles.icon} />
-              <TextInput
-                style={styles.inputl}
-                placeholder="Subject"
-                placeholderTextColor="rgba(117, 114, 90, 0.38)"
-                value={subject}
-                onChangeText={setSubject}
-                editable={!submitting}
-              />
-            </View>
+            <Text style={styles.header}>Enter your public message here</Text>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Content</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Message"
-              placeholderTextColor="rgba(117, 114, 90, 0.38)"
-              multiline
-              numberOfLines={6}
-              value={message}
-              onChangeText={setMessage}
-              editable={!submitting}
-            />
-          </View>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollInner}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Subject</Text>
+                <View style={styles.inputWrapper}>
+                  <Icon name="create-outline" size={16} style={styles.icon} />
+                  <TextInput
+                    style={styles.inputl}
+                    placeholder="Subject"
+                    placeholderTextColor="rgba(117, 114, 90, 0.38)"
+                    value={subject}
+                    onChangeText={setSubject}
+                    editable={!submitting}
+                    returnKeyType="next"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
 
-          <TouchableOpacity
-            style={[styles.sendButton, submitting && { opacity: 0.6 }]}
-            onPress={sendNotifications}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <Text style={styles.sendButtonText}>Submitting...</Text>
-            ) : (
-              <Text style={styles.sendButtonText}>Send</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+                <Text style={[styles.label, { marginTop: 12 }]}>Content</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Message"
+                  placeholderTextColor="rgba(117, 114, 90, 0.38)"
+                  multiline
+                  numberOfLines={6}
+                  value={message}
+                  onChangeText={setMessage}
+                  editable={!submitting}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.sendButton, submitting && { opacity: 0.6 }]}
+                onPress={sendNotifications}
+                disabled={submitting}
+              >
+                <Text style={styles.sendButtonText}>
+                  {submitting ? 'Submitting...' : 'Send'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Pressable>
     </Modal>
   );
 };
@@ -144,6 +167,48 @@ const UserComplainModel = ({ visible, email, onClose, token, laundrtId }) => {
 export default UserComplainModel;
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: '#00000080',
+  },
+  centerWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#a3ae95',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  closeIcon: {
+    position: 'absolute',
+    right: 10,
+    top: Platform.select({ ios: 10, android: 10 }),
+    zIndex: 1,
+  },
+  header: {
+    fontSize: 16,
+    color: '#000',
+    padding: 12,
+    paddingRight: 42, 
+  },
+  scrollInner: {
+    paddingBottom: 16,
+  },
+  inputContainer: {
+    marginTop: 8,
+    padding: 20,
+    backgroundColor: 'rgba(242,235,188,0.4)',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: 'rgba(60,66,52,0.7)',
+    marginBottom: 4,
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,50 +222,13 @@ const styles = StyleSheet.create({
     opacity: 0.36,
     marginLeft: -8,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: '#00000080',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#a3ae95',
-    marginRight: -20,
-    marginLeft: -20,
-    position: 'relative',
-    paddingBottom: 12,
-  },
-  closeIcon: {
-    position: 'absolute',
-    right: 10,
-    top: Platform.select({ ios: 10, android: 10 }),
-    zIndex: 1,
-  },
-  header: {
-    fontSize: 16,
-    marginBottom: 16,
-    color: '#000',
-    padding: 12,
-    // removed invalid negative padding
-  },
-  inputContainer: {
-    marginTop: 8,
-    padding: 20,
-    backgroundColor: 'rgba(242,235,188,0.4)',
-    margin: 30,
-    borderRadius: 8,
-  },
-  label: {
-    fontSize: 14,
-    color: 'rgba(60,66,52,0.7)',
-    marginBottom: 4,
-  },
   input: {
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.4)',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    color: '#3C4234',
   },
   inputl: {
     flex: 1,
@@ -211,10 +239,11 @@ const styles = StyleSheet.create({
   textArea: {
     height: 120,
     textAlignVertical: 'top',
+    marginTop: 6,
   },
   sendButton: {
     backgroundColor: '#3C4234',
-    marginTop: 12,
+    marginTop: 8,
     paddingVertical: 12,
     marginHorizontal: 20,
     borderRadius: 8,

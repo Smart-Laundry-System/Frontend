@@ -1,5 +1,4 @@
-// screens/orders/CustomerOrder.js
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -7,14 +6,15 @@ import {
   TouchableOpacity,
   ImageBackground,
   TextInput,
-  SafeAreaView,
   Platform,
   ActivityIndicator,
   Image,
   ScrollView,
+  FlatList,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from "@react-navigation/native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { Provider as PaperProvider, Portal, Modal } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Toast from "react-native-toast-message";
@@ -22,7 +22,6 @@ import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import { TOAST, tokens } from "../../../styles/theme";
 
-// ---- design tokens ----
 const GREEN = "#A3AE95";
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
@@ -30,58 +29,54 @@ const CARD_BG = "#FFFBEA";
 const PLACE_IMG =
   "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?q=80&w=1200";
 
-// Distinct pill colors per status (tweak to taste)
 const STATUS_COLORS = {
   PICKUP: "#C6CEBB",
-  WASHING: "#CDE8CF",    // amber-ish
-  ON_THE_WAY: "#CDE8CF", // light blue
-  REACHED: "#CDE8CF",    // soft green
+  WASHING: "#CDE8CF",
+  ON_THE_WAY: "#CDE8CF",
+  REACHED: "#CDE8CF",
   DEFAULT: "#CDE8CF",
 };
 
-// ---- endpoints ----
 const ENDPOINTS = {
-  orderById: "/api/auth/retriveOrderById",         // GET ?orderID=<id>
-  servicesByIds: "/api/auth/retriveServiceById",   // GET ?ids=1&ids=2
-  updateStatus: "/api/auth/updateStatus",          // PUT ?orderID=&status=
-  acceptDate: "/api/auth/order/acceptNewDate",     // POST ?orderID=
-  rejectDate: "/api/auth/order/rejectNewDate",     // POST ?orderID=
-  updateEstimatedDate: "/api/auth/order/updateEstimatedDate", // PUT ?orderID=&date=ISO
+  orderById: "/api/auth/retriveOrderById",
+  servicesByIds: "/api/auth/retriveServiceById",
+  updateStatus: "/api/auth/updateStatus",
+  acceptDate: "/api/auth/order/acceptNewDate",
+  rejectDate: "/api/auth/order/rejectNewDate",
+  updateEstimatedDate: "/api/auth/order/updateEstimatedDate",
+  employeesPaged: (laundryId) => `/api/auth/laundries/${laundryId}/allEmployees`,
+  assignTask: "/api/auth/assignTask",
 };
 
 export default function CustomerOrder() {
   const navigation = useNavigation();
   const route = useRoute();
   const routeToken = route?.params?.token ?? null;
-
   const { orderId } = route.params || {};
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
   const [assignOpen, setAssignOpen] = useState(false);
-  const [services, setServices] = useState([]); // [{id,title,price,category}]
+  const [services, setServices] = useState([]);
   const [busyAction, setBusyAction] = useState(false);
 
-  // UI extras
   const [showServicesSheet, setShowServicesSheet] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // NEW: stage picker selection before committing
   const [pickerTempDate, setPickerTempDate] = useState(null);
-
   const [token, setToken] = useState(routeToken || null);
 
-  // treat null/undefined/""/invalid as "no proposed date"
-  const hasCustomerInterest = useMemo(() => {
-    const v = order?.customerInterestDate;
-    if (v === null || v === undefined) return false;
-    if (typeof v === "string" && v.trim() === "") return false;
-    const dt = new Date(v);
-    return !isNaN(dt.getTime());
-  }, [order?.customerInterestDate]);
+  const [laundryId, setLaundryId] = useState(route?.params?.laundryId || null);
 
-  // ---- helpers ----
+  const [empLoading, setEmpLoading] = useState(false);
+  const [empPage, setEmpPage] = useState(0);
+  const [empHasNext, setEmpHasNext] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [empError, setEmpError] = useState("");
+  const PAGE_SIZE = 10;
+  const empListRef = useRef(null);
+
   const authHeader = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
     [token]
@@ -104,15 +99,13 @@ export default function CustomerOrder() {
     laundryName: o?.laundryName || "Laundry",
     laundryAddress: o?.laundryAddress || "Location",
     laundryImg: o?.laundryImg || "",
+    laundryId: o?.laundryId ?? null,
     totPrice: Number(o?.totPrice ?? 0),
     status: (o?.status || "PICKUP").toString(),
     paymentMethod: o?.paymentMethod || "By card",
     estimatedDate: o?.estimatedCompletedDate || o?.estimatedDate || null,
-
-    customerInterestDate:
-      o?.customerInterestDate || o?.requestDate || null,
+    customerInterestDate: o?.customerInterestDate || o?.requestDate || null,
   });
-
 
   const buildIdsParams = (key, arr) => {
     const p = new URLSearchParams();
@@ -132,8 +125,10 @@ export default function CustomerOrder() {
       const o =
         Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data;
       if (!o) throw new Error("Order not found");
+
       const mapped = mapToUi(o);
       setOrder(mapped);
+      setLaundryId((prev) => prev ?? mapped.laundryId ?? null);
 
       if (mapped.serviceIds.length) {
         const qs = buildIdsParams("ids", mapped.serviceIds);
@@ -153,19 +148,16 @@ export default function CustomerOrder() {
     }
   }, [orderId, token, authHeader]);
 
-  // start of local “today” to avoid timezone/time-of-day glitches
   const startOfToday = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
 
-  // Base date to show: if we have an estimated date, use it; else now
   const basePickerDate = useMemo(() => {
     return order?.estimatedDate ? new Date(order.estimatedDate) : new Date();
   }, [order?.estimatedDate]);
 
-  // remount native picker when base date changes
   const pickerKey = useMemo(
     () => (basePickerDate && basePickerDate.toDateString()) || "now",
     [basePickerDate]
@@ -173,49 +165,34 @@ export default function CustomerOrder() {
 
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       if (!routeToken) {
-        // NOTE: your original code references getAccessToken() but doesn't import it here.
-        // Keeping behavior unchanged per your request.
         try {
           const { getAccessToken } = await import("../../../Services/tokenStorage");
           const t = await getAccessToken().catch(() => null);
           if (mounted && t) setToken(t);
-        } catch (_) {
-          // ignore if not available; you already pass token by route sometimes
-        }
+        } catch (_) { }
       }
     })();
 
     fetchOrder();
+    return () => { mounted = false; };
+  }, [routeToken, fetchOrder]);
 
-    return () => {
-      mounted = false;
+  const statusIndex = useMemo(() => {
+    const norm = String(order?.status || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+    switch (norm) {
+      case "PICKUP": return 0;
+      case "WASHING": return 1;
+      case "ON_THE_WAY": return 2;
+      case "REACHED": return 3;
+      default: return -1;
     }
-  }, [routeToken, fetchOrder, /* leaving actOnDate as-is in your deps */]);
-
-const statusIndex = useMemo(() => {
-  const norm = String(order?.status || "")
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_|_$/g, "");
-
-  switch (norm) {
-    case "PICKUP":
-      return 0;
-    case "WASHING":
-      return 1;
-    case "ON_THE_WAY":
-      return 2;
-    case "REACHED":
-      return 3;
-    default:
-      return -1;
-  }
-}, [order?.status]);
-
+  }, [order?.status]);
 
   const isPickup = (order?.status || "").toUpperCase() === "PICKUP";
 
@@ -245,7 +222,7 @@ const statusIndex = useMemo(() => {
     });
   };
 
-  const actOnDate = async (kind /* 'accept' | 'reject' */) => {
+  const actOnDate = async (kind) => {
     if (!order?.id) return;
     const endpoint = kind === "accept" ? ENDPOINTS.acceptDate : ENDPOINTS.rejectDate;
     try {
@@ -282,19 +259,15 @@ const statusIndex = useMemo(() => {
     }
   };
 
-  // Open date picker – now prefill temp date
   const onPickEstimatedDate = () => {
     if (!isPickup) return;
     setPickerTempDate(basePickerDate);
     setShowDatePicker(true);
   };
 
-  // Top pill pressed: ONLY active/clickable when PICKUP
   const onPressPickupBadge = async () => {
-    if (!order?.id || !isPickup) return; // guard
-
+    if (!order?.id || !isPickup) return;
     if (order?.estimatedDate) {
-      // Already has date -> just ensure status stays PICKUP (no calendar)
       try {
         setBusyAction(true);
         await api.put(ENDPOINTS.updateStatus, null, {
@@ -309,34 +282,23 @@ const statusIndex = useMemo(() => {
         setBusyAction(false);
       }
     } else {
-      // No date yet -> open calendar primed to now/base
       setPickerTempDate(basePickerDate);
       setShowDatePicker(true);
     }
   };
 
-  // Commit function: called from Save button inside the modal
   const commitEstimatedDate = async () => {
     if (!order?.id || !pickerTempDate) return;
-
     try {
       setBusyAction(true);
-
-      // 1) update estimated date
       await api.put(ENDPOINTS.updateEstimatedDate, null, {
-        params: {
-          orderID: order.id,
-          date: pickerTempDate.toISOString(),
-        },
+        params: { orderID: order.id, date: pickerTempDate.toISOString() },
         headers: authHeader,
       });
-
-      // 2) ensure status is PICKUP
       await api.put(ENDPOINTS.updateStatus, null, {
         params: { orderID: order.id, status: "PICKUP" },
         headers: authHeader,
       });
-
       await fetchOrder();
       Toast.show(TOAST.success("Welcome to Smart Laundry", "Pickup scheduled and date updated"));
       setShowDatePicker(false);
@@ -348,7 +310,82 @@ const statusIndex = useMemo(() => {
     }
   };
 
-  // ---- loading / empty ----
+  const hasCustomerInterest = useMemo(() => {
+    const v = order?.customerInterestDate;
+    if (v == null) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    const dt = new Date(v);
+    return !isNaN(dt.getTime());
+  }, [order?.customerInterestDate]);
+
+  const loadEmployeesPage = useCallback(async (nextPage = 0) => {
+    if (!token || !laundryId || empLoading || (!empHasNext && nextPage > 0)) return;
+    try {
+      setEmpLoading(true);
+      setEmpError("");
+
+      const res = await api.get(ENDPOINTS.employeesPaged(laundryId), {
+        params: { page: nextPage, size: PAGE_SIZE },
+        headers: authHeader,
+      });
+
+      const pageObj = res?.data;
+      let list = [];
+      let last = true;
+      let number = nextPage;
+
+      if (Array.isArray(pageObj?.content)) {
+        list = pageObj.content;
+        last = !!pageObj.last;
+        number = Number.isFinite(pageObj.number) ? pageObj.number : nextPage;
+      } else if (Array.isArray(pageObj)) {
+        list = pageObj;
+        last = pageObj.length < PAGE_SIZE;
+        number = nextPage;
+      }
+
+      setEmployees((prev) => (nextPage === 0 ? list : [...prev, ...list]));
+      setEmpHasNext(!last);
+      setEmpPage(number);
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || "Failed to load employees";
+      setEmpError(msg);
+      Toast.show(TOAST.errorBottom("Smart Laundry", msg));
+    } finally {
+      setEmpLoading(false);
+    }
+  }, [token, laundryId, empLoading, empHasNext, authHeader]);
+
+  const openAssignModal = useCallback(() => {
+    setAssignOpen(true);
+    setEmployees([]);
+    setEmpHasNext(true);
+    setEmpPage(0);
+    setTimeout(() => loadEmployeesPage(0), 0);
+  }, [loadEmployeesPage]);
+
+  const onEndReached = () => {
+    if (!empLoading && empHasNext) loadEmployeesPage(empPage + 1);
+  };
+
+  const doAssign = async (employeeId) => {
+    if (!employeeId || !order?.id) return;
+    try {
+      setBusyAction(true);
+      await api.put(ENDPOINTS.assignTask, null, {
+        params: { employeeId, orderId: order.id },
+        headers: authHeader,
+      });
+      Toast.show(TOAST.success("Smart Laundry", "Task assigned to employee"));
+      setAssignOpen(false);
+    } catch (e) {
+      Toast.show(TOAST.errorBottom("Smart Laundry", e?.response?.data || e?.message || "Could not assign"));
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -372,19 +409,15 @@ const statusIndex = useMemo(() => {
     );
   }
 
-  // ---- UI ----
   return (
     <PaperProvider>
       <SafeAreaView style={styles.safe}>
-        {/* SCROLL VIEW */}
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 28 }}>
-          {/* Header */}
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Image source={Vector} />
             </TouchableOpacity>
 
-            {/* Clickable ONLY when PICKUP */}
             <TouchableOpacity
               style={[styles.badgePill, { backgroundColor: pillBg }, !isPickup && styles.badgeDisabled]}
               onPress={onPressPickupBadge}
@@ -399,7 +432,6 @@ const statusIndex = useMemo(() => {
 
           <Text style={styles.title}>{order.customerName}</Text>
 
-          {/* Banner card */}
           <ImageBackground
             source={{ uri: toAbs(order.laundryImg) }}
             style={styles.banner}
@@ -436,7 +468,7 @@ const statusIndex = useMemo(() => {
               active={statusIndex >= 0}
               onPress={() => {
                 onAdvanceStatus("PICKUP");
-                setAssignOpen(true);
+                openAssignModal();
               }}
             />
             <StatusConnector />
@@ -453,7 +485,7 @@ const statusIndex = useMemo(() => {
               active={statusIndex >= 2}
               onPress={() => {
                 onAdvanceStatus("ON_THE_WAY");
-                setAssignOpen(true);
+                openAssignModal();
               }}
             />
             <StatusConnector />
@@ -465,7 +497,6 @@ const statusIndex = useMemo(() => {
             />
           </View>
 
-          {/* Estimated Completed Date */}
           <Text style={[styles.sectionTitle, { marginTop: 14 }]}>
             Estimated Completed Date
           </Text>
@@ -509,7 +540,6 @@ const statusIndex = useMemo(() => {
             </View>
           </View>
 
-          {/* Payment + Total */}
           <Text style={styles.payNote}>(By card)</Text>
           <View style={styles.sumRow}>
             <Text style={[styles.sumLabel, { fontWeight: "700" }]}>Total:</Text>
@@ -541,7 +571,7 @@ const statusIndex = useMemo(() => {
               </TouchableOpacity>
             </>
           )}
-          {/* Order Summary */}
+
           <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Order Summary</Text>
           <View style={styles.sumRow}>
             <Text style={styles.sumLabel}>Services</Text>
@@ -550,7 +580,6 @@ const statusIndex = useMemo(() => {
             </Text>
           </View>
 
-          {/* Customer Bio */}
           <View style={styles.bioCard}>
             <Text style={styles.bioTitle}>Customer Bio</Text>
 
@@ -592,7 +621,6 @@ const statusIndex = useMemo(() => {
           </View>
         </ScrollView>
 
-        {/* Modals */}
         <Portal>
           <Modal
             visible={assignOpen}
@@ -600,22 +628,79 @@ const statusIndex = useMemo(() => {
             dismissable
             contentContainerStyle={styles.assignSheet}
           >
-            <Text style={styles.assignTitle}>Assign employee to customer</Text>
-            <TouchableOpacity
-              style={styles.assignPrimary}
-              onPress={() => {
-                setAssignOpen(false);
-                Toast.show(TOAST.success("Welcome to Smart Laundry", "Open your assign-employee flow here."));
-              }}
-            >
-              <Text style={styles.assignPrimaryText}>Assign an Employee</Text>
-            </TouchableOpacity>
+            <Text style={styles.assignTitle}>Assign employee to this order</Text>
+
+            {!laundryId && (
+              <Text style={{ color: "#B00020", marginBottom: 8 }}>
+                Laundry ID missing. Pass `laundryId` in route params or include in order payload.
+              </Text>
+            )}
+
+            {empError ? (
+              <Text style={{ color: "#B00020", marginBottom: 8 }}>{empError}</Text>
+            ) : null}
+
+            <View style={styles.listWrap}>
+              <FlatList
+                ref={empListRef}
+                data={employees}
+                keyExtractor={(item, idx) => String(item?.id ?? idx)}
+                onEndReached={onEndReached}
+                onEndReachedThreshold={0.6}
+                ListEmptyComponent={
+                  empLoading ? null : (
+                    <Text style={{ color: MUTED, textAlign: "center", paddingVertical: 12 }}>
+                      {laundryId ? "No employees found" : "Cannot load without laundryId"}
+                    </Text>
+                  )
+                }
+                renderItem={({ item }) => {
+                  const initials = (item?.name || item?.fullName || "NA")
+                    .split(" ")
+                    .map((s) => s[0])
+                    .join("")
+                    .substring(0, 2)
+                    .toUpperCase();
+
+                  return (
+                    <View style={styles.empRow}>
+                      <View style={styles.empAvatar}>
+                        <Text style={styles.empAvatarText}>{initials}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.empName} numberOfLines={1}>
+                          {item?.name || item?.fullName || "Employee"}
+                        </Text>
+                        <Text style={styles.empMeta} numberOfLines={1}>
+                          {item?.email || "—"} • {item?.phone || "—"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => doAssign(item?.id)}
+                        style={styles.empAssignBtn}
+                      >
+                        <Text style={styles.empAssignBtnText}>Assign</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+                ListFooterComponent={
+                  empLoading ? (
+                    <View style={{ paddingVertical: 10 }}>
+                      <ActivityIndicator />
+                    </View>
+                  ) : null
+                }
+                contentContainerStyle={{ paddingBottom: 6 }}
+                style={{ maxHeight: 320 }}
+              />
+            </View>
+
             <TouchableOpacity style={styles.assignBack} onPress={() => setAssignOpen(false)}>
               <Text style={styles.assignBackText}>Back</Text>
             </TouchableOpacity>
           </Modal>
 
-          {/* Services sheet */}
           <Modal
             visible={showServicesSheet}
             onDismiss={() => setShowServicesSheet(false)}
@@ -645,7 +730,6 @@ const statusIndex = useMemo(() => {
             </TouchableOpacity>
           </Modal>
 
-          {/* Date picker modal with backdrop (only shown when isPickup triggers it) */}
           <Modal
             visible={showDatePicker}
             onDismiss={() => {
@@ -656,7 +740,7 @@ const statusIndex = useMemo(() => {
             contentContainerStyle={styles.datePickerSheet}
           >
             <DateTimePicker
-              key={pickerKey} // remount when base date changes
+              key={pickerKey}
               value={pickerTempDate || basePickerDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -671,7 +755,6 @@ const statusIndex = useMemo(() => {
               minimumDate={startOfToday}
               style={{ backgroundColor: "#fff", borderRadius: 10 }}
             />
-            {/* Action row */}
             <View style={{ flexDirection: "row", marginTop: 12, gap: 10 }}>
               <TouchableOpacity
                 style={[styles.assignBack, { flex: 1, borderColor: MUTED }]}
@@ -698,7 +781,6 @@ const statusIndex = useMemo(() => {
   );
 }
 
-/* --- small parts --- */
 function StatusBox({ label, icon, active, onPress }) {
   return (
     <TouchableOpacity
@@ -715,7 +797,6 @@ function StatusConnector() {
   return <View style={styles.connector} />;
 }
 
-/* --- styles --- */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 },
@@ -733,9 +814,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 10,
   },
-  badgeDisabled: {
-    opacity: 0.6,
-  },
+  badgeDisabled: { opacity: 0.6 },
   badgePillText: { color: TEXT, fontWeight: "700" },
 
   title: { marginTop: 10, fontSize: 24, color: TEXT, fontWeight: "800" },
@@ -786,18 +865,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 6,
   },
-  statusBoxActive: { backgroundColor: "#C8D2C1" }, // ACTIVE COLOR
+  statusBoxActive: { backgroundColor: "#C8D2C1" },
   statusLabel: { marginTop: 6, fontSize: 10, color: "rgba(0,0,0,0.35)", fontWeight: "600" },
   connector: { width: 22, height: 2, backgroundColor: "#B9C1AF", marginHorizontal: 6 },
-  addBtn: {
-    marginLeft: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#E6ECE1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   smallUpper: { color: MUTED, fontSize: 10, textTransform: "uppercase", marginBottom: 6 },
   dateBox: {
@@ -810,10 +880,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#fff",
   },
-  dateBoxDisabled: {
-    backgroundColor: "#F5F5F2",
-    borderColor: "#E3E3DD",
-  },
+  dateBoxDisabled: { backgroundColor: "#F5F5F2", borderColor: "#E3E3DD" },
   dateText: { color: TEXT, fontWeight: "700" },
 
   payNote: { color: "#D64D55", fontSize: 12, marginTop: 8, marginBottom: 6 },
@@ -868,18 +935,50 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: "#3C4234", paddingVertical: 0 },
 
-  assignSheet: { marginHorizontal: 16, borderRadius: 16, backgroundColor: tokens.colors.background, padding: 20 },
-  assignTitle: { color: tokens.colors.darkText, fontWeight: "700", marginBottom: 10 },
-  assignPrimary: {
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: tokens.colors.greenButton,
-    alignItems: "center",
-    justifyContent: "center",
+  assignSheet: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: tokens.colors.background,
+    padding: 16,
   },
-  assignPrimaryText: { color: TEXT, fontWeight: "700" },
+  assignTitle: { color: tokens.colors.darkText, fontWeight: "700", marginBottom: 10 },
+
+  listWrap: {
+    borderWidth: 1,
+    borderColor: "#E6EAE6",
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  empRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F1EE",
+  },
+  empAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#F2F4F1",
+    alignItems: "center", justifyContent: "center",
+    marginRight: 10,
+  },
+  empAvatarText: { color: TEXT, fontWeight: "800" },
+  empName: { color: TEXT, fontWeight: "700" },
+  empMeta: { color: MUTED, fontSize: 12, marginTop: 2 },
+
+  empAssignBtn: {
+    marginLeft: "auto",
+    backgroundColor: tokens.colors.greenButton,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  empAssignBtnText: { color: TEXT, fontWeight: "700" },
+
   assignBack: {
-    marginTop: 12,
     height: 42,
     borderRadius: 10,
     borderWidth: 1.5,
@@ -890,7 +989,7 @@ const styles = StyleSheet.create({
   assignBackText: { color: TEXT, fontWeight: "700" },
 
   datePickerSheet: {
-    backgroundColor: "#fff", // white card
+    backgroundColor: "#fff",
     padding: 12,
     borderRadius: 16,
     marginHorizontal: 20,

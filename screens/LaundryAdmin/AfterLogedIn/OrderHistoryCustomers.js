@@ -1,5 +1,4 @@
-// screens/orders/OrderHistoryCustomers.js
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,11 +12,13 @@ import {
   Pressable,
   TouchableOpacity,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { api, IMG_URL } from "../../../Services/api";
 import Vector from "../../../assets/Vector.png";
 import DropDown from "../../../components/Menu/DropDown";
+import { useRegistration } from "../../../context/RegistrationContext";
+import { getAccessToken } from "../../../Services/tokenStorage";
 
 const TEXT = "#3C4234";
 const MUTED = "#98A29D";
@@ -32,14 +33,16 @@ const FILTER_OPTIONS = [
 ];
 
 const ENDPOINTS = {
-  orderHistoryCustomers: `/api/auth/retriveLaundryRelatedOrder`, // ?email=<laundryOwnerEmail>
+  orderHistoryCustomers: `/api/auth/retriveLaundryRelatedOrder`,
 };
 
 export default function OrderHistoryCustomers() {
+
+  const { userEmail } = useRegistration();
   const navigation = useNavigation();
   const route = useRoute();
-  const token = route?.params?.token ?? "";
-  const email = route?.params?.email ?? ""; // laundry owner email
+  const [token, setToken] = useState(route?.params?.token ?? "");
+  const email = route?.params?.email ?? userEmail ?? ""; 
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,13 +55,25 @@ export default function OrderHistoryCustomers() {
   const filterBtnRef = useRef(null);
   const mountedRef = useRef(true);
 
+  useEffect(() => {
+    let mounted = true;
+    if (!token) {
+      (async () => {
+        try {
+          const t = await getAccessToken();
+          if (mounted) setToken(t);
+        } catch { }
+      })();
+    }
+    return () => { mounted = false; };
+  }, [token]);
+
   const toAbs = (rel) => {
     if (!rel) return null;
     const base = (IMG_URL || "").replace(/\/$/, "");
     return `${base}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-  // Map API -> UI row (treat each row as an order owned by this laundry)
   const mapRow = (o) => ({
     id: String(o?.id ?? o?.orderId ?? Math.random()),
     name:
@@ -84,7 +99,6 @@ export default function OrderHistoryCustomers() {
       });
 
       const payload = res?.data;
-      // backend can return list of orders or a wrapper
       const list = Array.isArray(payload)
         ? payload
         : payload?.orders || payload?.customers || payload?.content || payload?.data || [];
@@ -108,7 +122,6 @@ export default function OrderHistoryCustomers() {
     }, [loadCustomers])
   );
 
-  // live search
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
@@ -123,7 +136,6 @@ export default function OrderHistoryCustomers() {
     }
   }, [items, search, selectedFilter]);
 
-  // what to show as the main line depending on current filter
   const displayLabel = (item) => {
     switch (selectedFilter.value) {
       case "address": return item.address || item.name;
@@ -141,8 +153,8 @@ export default function OrderHistoryCustomers() {
       onPress={() =>
         navigation.navigate("CustomerOrder", {
           token,
-          orderId: item.id,        // unique id -> open detail screen
-          email,                   // laundry owner email
+          orderId: item.id,   
+          email,              
           role: "LAUNDRY",
         })
       }
@@ -154,7 +166,6 @@ export default function OrderHistoryCustomers() {
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image source={Vector} />
@@ -163,7 +174,6 @@ export default function OrderHistoryCustomers() {
         <View style={{ width: 28 }} />
       </View>
 
-      {/* Search + Filter */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={MUTED} style={{ marginRight: 8 }} />
@@ -192,7 +202,6 @@ export default function OrderHistoryCustomers() {
         />
       </View>
 
-      {/* List */}
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={TEXT} /></View>
       ) : error ? (

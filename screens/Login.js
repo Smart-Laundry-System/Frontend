@@ -36,10 +36,12 @@ import {
 import { saveTokens, deleteTokens } from "../Services/tokenStorage";
 import { useFocusEffect } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
+import { useRegistration } from "../context/RegistrationContext";
 
 const USE_PORTAL = true;
 
 function Login({ navigation }) {
+  const { setCustomerId, setLaundryId, setUserEmail } = useRegistration();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisiblenext, setModalVisiblenext] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -212,10 +214,10 @@ function Login({ navigation }) {
 
       if (!accessToken) throw new Error("No token returned");
 
+
       await deleteTokens();
       await saveTokens({ accessToken, refreshToken });
 
-      // (Optional) decode to branch on role for navigation now
       const decodedToken = jwtDecode(accessToken);
 
       await sleep(200);
@@ -225,7 +227,9 @@ function Login({ navigation }) {
 
       resetFields();
 
+      setUserEmail(decodedToken.email);
       if (decodedToken.role === "CUSTOMER") {
+        setCustomerId(decodedToken.id);
         navigation.reset({
           index: 0,
           routes: [
@@ -234,7 +238,8 @@ function Login({ navigation }) {
               params: {
                 email: decodedToken.email,
                 name: decodedToken.name,
-                token: accessToken
+                token: accessToken,
+                customerId: decodedToken.id
               },
             },
           ],
@@ -242,6 +247,7 @@ function Login({ navigation }) {
 
         Toast.show(TOAST.success("Welcome to Smart Laundry", "Check your notifications first"));
       } else if (decodedToken.role === "LAUNDRY") {
+        setLaundryId(decodedToken.id);
         navigation.reset({
           index: 0,
           routes: [

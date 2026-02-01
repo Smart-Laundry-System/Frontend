@@ -6,11 +6,11 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import PublicNotificationModal from '../Notification/PublicNotificationModal';
 
-const SideMenu = ({ onClose, token, email }) => {
+const SideMenu = ({ onClose, token, email, laundryId }) => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-300)).current;
@@ -50,7 +50,7 @@ const SideMenu = ({ onClose, token, email }) => {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("ComplaintsList")} style={styles.menuRow}>
+        <TouchableOpacity onPress={() => go("ComplaintsList", { token, laundryId })} style={styles.menuRow}>
           <Text style={styles.menuItem}>Complaints</Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>1</Text>
@@ -65,7 +65,7 @@ const SideMenu = ({ onClose, token, email }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      <PublicNotificationModal 
+      <PublicNotificationModal
         visible={modalVisible}
         email={email}
         onClose={() => setModalVisible(false)}
@@ -113,7 +113,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: 20,
     height: 20,
-    // padding: 7,
     alignItems: 'center',
     borderColor: 'red',
     borderWidth: 2

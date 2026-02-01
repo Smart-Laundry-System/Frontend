@@ -7,8 +7,6 @@ import {
   deleteTokens,
 } from "./tokenStorage";
 
-/* ------------------------------ config ------------------------------ */
-
 const extra =
   (Constants.expoConfig && Constants.expoConfig.extra) ||
   (Constants.manifest && Constants.manifest.extra) ||
@@ -20,13 +18,9 @@ const IMAGE_UPLOAD_URL = extra.IMAGE_UPLOAD_URL || "";
 export const STRIPE_PUBLISHABLE_KEY = extra.STRIPE_PUBLISHABLE_KEY || "";
 export const STRIPE_DEFAULT_CURRENCY = (extra.STRIPE_DEFAULT_CURRENCY || "usd").toLowerCase();
 
-// Auth refresh path (adjust in app.json -> expo.extra if needed)
 const REFRESH_PATH = extra.REFRESH_PATH || "/auth/v1/refresh";
 
-// SSE subscribe endpoint (must match your Spring @GetMapping)
 export const SSE_PATH = extra.SSE_PATH || "/api/auth/notifications/subscribe";
-
-/* ------------------------------ axios ------------------------------ */
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -34,11 +28,8 @@ export const api = axios.create({
   headers: { Accept: "application/json" },
 });
 
-/* -------------------------- token helpers -------------------------- */
-/** Keep an in-memory access token for quick header injection */
 let _accessToken = null;
 
-/** Set default auth header on the axios instance */
 const setDefaultAuthHeader = (token, tokenType = "Bearer") => {
   if (token) {
     api.defaults.headers.common.Authorization = `${tokenType} ${token}`;
@@ -47,13 +38,9 @@ const setDefaultAuthHeader = (token, tokenType = "Bearer") => {
   }
 };
 
-/* --------------- request: inject bearer if missing --------------- */
-
 api.interceptors.request.use(async (config) => {
-  // If another layer already set Authorization, keep it
   if (config.headers?.Authorization) return config;
 
-  // Prefer in-memory token, otherwise pull once from SecureStore
   if (!_accessToken) {
     const t = await getAccessToken().catch(() => null);
     if (t) _accessToken = t;
@@ -65,10 +52,8 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-/* --------- response: one-time refresh on 401 then retry --------- */
-
 let isRefreshing = false;
-let waitQueue = []; // { resolve, reject, cfg }
+let waitQueue = []; 
 
 const flushQueue = (error, newToken) => {
   waitQueue.forEach(({ resolve, reject, cfg }) => {
@@ -95,7 +80,6 @@ api.interceptors.response.use(
 
     config._retry = true;
 
-    // If a refresh is already running, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         waitQueue.push({ resolve, reject, cfg: config });
@@ -115,15 +99,10 @@ api.interceptors.response.use(
       const newRT = data?.refreshToken || rt;
       if (!newAT) throw new Error("Refresh failed: no accessToken returned");
 
-      // persist + set defaults + update in-memory
       await saveTokens({ accessToken: newAT, refreshToken: newRT });
       _accessToken = newAT;
       setDefaultAuthHeader(newAT, tokenType);
-
-      // serve queued requests
       flushQueue(null, newAT);
-
-      // retry original
       config.headers = config.headers || {};
       config.headers.Authorization = `${tokenType} ${newAT}`;
       return api(config);
@@ -139,8 +118,6 @@ api.interceptors.response.use(
   }
 );
 
-/* --------------------- convenience HTTP wrappers --------------------- */
-/** token is optional now — if omitted, the interceptor injects from SecureStore */
 
 export const authGet = (url, token, config = {}) =>
   api.get(url, {
@@ -178,13 +155,9 @@ export const authDelete = (url, token, config = {}) =>
     },
   });
 
-/* --------------------------------------------------------------------
-   Live unseen-count subscription with SSE + safe polling fallback
---------------------------------------------------------------------- */
-
 export function connectUnseenCount({
   email,
-  token,              // optional; interceptor can inject too
+  token,         
   onUpdate,
   pollEveryMs = 15000,
 }) {
@@ -232,7 +205,6 @@ export function connectUnseenCount({
     }, pollEveryMs);
   };
 
-  // 1) Web: native EventSource
   if (typeof window !== "undefined" && typeof window.EventSource === "function") {
     try {
       es = new window.EventSource(sseURL, { withCredentials: true });
@@ -254,11 +226,9 @@ export function connectUnseenCount({
         },
       };
     } catch {
-      // fall through
     }
   }
 
-  // 2) React Native: soft-require polyfill (optional dependency)
   try {
     const softRequire = eval("require");
     const RNES = softRequire("react-native-event-source");
@@ -285,7 +255,6 @@ export function connectUnseenCount({
       },
     };
   } catch {
-    // 3) No SSE available -> polling
     startPolling();
     return {
       close: () => {
@@ -295,7 +264,6 @@ export function connectUnseenCount({
   }
 }
 
-/* ----------------- Payments ----------------- */
 export async function createPaymentIntent({
   violationId,
   amountMinor,
@@ -308,7 +276,7 @@ export async function createPaymentIntent({
       "/api/payments/create-intent",
       {
         violationId,
-        amount: amountMinor, // backend expects "amount"
+        amount: amountMinor,
         currency,
         description,
       },
@@ -325,7 +293,6 @@ export async function createPaymentIntent({
     };
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Request failed";
-    // throw (so caller can show toast and bail cleanly)
     throw new Error(msg);
   }
 }
@@ -346,7 +313,6 @@ export async function updateViolationStatus({
   return res?.data;
 }
 
-/* --------------------- IMAGE UPLOAD HELPER (added) -------------------- */
 export async function uploadImageFile(localUri) {
   if (!localUri) throw new Error("No localUri provided");
   if (!IMAGE_UPLOAD_URL) {

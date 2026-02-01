@@ -1,4 +1,3 @@
-// UserHome.js
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
@@ -10,12 +9,13 @@ import {
   FlatList,
   ImageBackground,
   Pressable,
-  SafeAreaView,
   Platform,
   AppState,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import Vector from "../../assets/Vector.png";
 import BackLogin from "../../assets/backLogin.png";
@@ -25,15 +25,12 @@ import DropDown from "../../components/Menu/DropDown";
 import { api, authGet, IMG_URL, connectUnseenCount } from "../../Services/api";
 import { getAccessToken } from "../../Services/tokenStorage";
 import { tokens } from "../../styles/theme";
+import { useRegistration } from "../../context/RegistrationContext";
+
+const PAGE_SIZE = 10;
 
 const ORDERS = [
-  {
-    id: "o1",
-    title: "Empty Orders",
-    location: "N/A",
-    status: "N/A",
-    laundryImg: "",
-  },
+  { id: "o1", title: "Empty Orders", location: "N/A", status: "N/A", laundryImg: "" },
 ];
 
 const FILTER_OPTIONS = [
@@ -46,22 +43,26 @@ const FILTER_OPTIONS = [
 
 export default function UserHome({ navigation }) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const { userEmail } = useRegistration();
   const [orders, setOrders] = useState([]);
+  const [laundries, setLaundries] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState(FILTER_OPTIONS[0]);
   const filterBtnRef = useRef(null);
 
   const [notifCount, setNotifCount] = useState(0);
-  const [laundries, setLaundries] = useState([]);
 
   const route = useRoute();
-  const routeToken = route?.params?.token ?? null; // ✅ define routeToken from route
-
+  const routeToken = route?.params?.token ?? null;
   const [token, setToken] = useState(routeToken || null);
 
-  const { name = "First Name", email } = route.params ?? {};
-  const userEmail = route?.params?.email || route?.params?.userEmail || email || "";
+  const { name = "First Name", email, customerId } = route.params ?? {};
+  const customerEmail = route?.params?.email || route?.params?.customerEmail || email || userEmail || "";
 
   const itemlength = tokens.screenconstants.cardwidth + tokens.screenconstants.cardgap;
 
@@ -89,7 +90,7 @@ export default function UserHome({ navigation }) {
     const imgPath = u?.laundryImg || u?.image || "";
 
     return {
-      id: u?.id || u?.userId || u?.email || String(Math.random()),
+      id: u?.id || u?.userId || String(Math.random()),
       name: fullName,
       address,
       phone,
@@ -105,24 +106,21 @@ export default function UserHome({ navigation }) {
     location: o?.laundryAddress || o?.address || "Location",
     status: o?.status || "Booked for Laundry",
     laundryImg: o?.laundryImg || "",
-    laundryEmail: o?.laundryEmail, // used for navigation
+    laundryEmail: o?.laundryEmail,
   });
 
   const showOrders = search.trim().length === 0;
 
-  const refreshNotifications = useCallback(
-    async () => {
-      if (!token || !userEmail) return;
-      try {
-        const res = await authGet("/api/auth/unseenCount", token, {
-          params: { email: userEmail },
-        });
-        const payload = res?.data || {};
-        setNotifCount(Number(payload?.unseen || 0));
-      } catch { }
-    },
-    [token, userEmail]
-  );
+  const refreshNotifications = useCallback(async () => {
+    if (!token || !customerEmail) return;
+    try {
+      const res = await authGet("/api/auth/unseenCount", token, {
+        params: { email: customerEmail },
+      });
+      const payload = res?.data || {};
+      setNotifCount(Number(payload?.unseen || 0));
+    } catch { }
+  }, [token, customerEmail]);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,38 +130,23 @@ export default function UserHome({ navigation }) {
 
   useEffect(() => {
     let mounted = true;
-    if (!token || !userEmail) return;
+
+    (async () => {
+      if (!routeToken) {
+        const t = await getAccessToken().catch(() => null);
+        if (mounted && t) setToken(t);
+      }
+    })();
 
     const sub1 = AppState.addEventListener("change", (state) => {
       if (state === "active") refreshNotifications();
     });
 
-    async function fetchUsers() {
-      try {
-        const res = await authGet("/api/auth/retriveLaundries", token);
-        if (!mounted) return;
-        const payload = res?.data;
-        const rawList = Array.isArray(payload)
-          ? payload
-          : payload?.users || payload?.content || payload?.data || [];
-        setLaundries(rawList.map(mapUserToLaundry));
-      } catch {
-        try {
-          const res2 = await api.get("/api/auth/retriveLaundries");
-          if (!mounted) return;
-          const p2 = res2?.data;
-          const raw2 = Array.isArray(p2)
-            ? p2
-            : p2?.users || p2?.content || p2?.data || [];
-          setLaundries(raw2.map(mapUserToLaundry));
-        } catch { }
-      }
-    }
-
     async function fetchOrders() {
+      if (!token || !customerEmail) return;
       try {
         const res = await authGet("/api/auth/retriveCustomerRelatedOrder", token, {
-          params: { email: userEmail },
+          params: { email: customerEmail },
         });
         if (!mounted) return;
         const payload = res?.data;
@@ -174,61 +157,188 @@ export default function UserHome({ navigation }) {
       } catch { }
     }
 
-    async function fetchNotifications() {
-      try {
-        const res = await authGet("/api/auth/unseenCount", token, {
-          params: { email: userEmail },
-        });
-        if (!mounted) return;
-        const payload = res?.data;
-        setNotifCount(Number(payload?.unseen || 0));
-      } catch { }
-    }
+    if (token) fetchLaundriesPage(0, false);
 
-    (async () => {
-      if (!routeToken) {
-        const t = await getAccessToken().catch(() => null);
-        if (mounted && t) setToken(t);
-      }
-    })();
-
-    fetchUsers();
     fetchOrders();
-    fetchNotifications();
 
-    const sub = connectUnseenCount({
-      email: userEmail,
+    const ws = connectUnseenCount({
+      email: customerEmail,
       token,
       onUpdate: (n) => setNotifCount(Number(n) || 0),
     });
 
     return () => {
-      sub1.remove();
       mounted = false;
-      sub?.close?.();
+      sub1.remove();
+      ws?.close?.();
     };
-  }, [routeToken, userEmail, refreshNotifications, token]);
+  }, [routeToken, token, customerEmail, refreshNotifications]);
 
-  const filteredLaundries = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return laundries;
+  const [allCache, setAllCache] = useState([]);
+  const [allLoaded, setAllLoaded] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [searchPage, setSearchPage] = useState(0);
 
-    switch (selectedFilter.value) {
-      case "address":
-        return laundries.filter((l) => (l.address || "").toLowerCase().includes(q));
-      case "phone":
-        return laundries.filter((l) => (l.phone || "").toLowerCase().includes(q));
-      case "services":
-        return laundries.filter((l) =>
-          (l.services || []).join(" ").toLowerCase().includes(q)
-        );
-      case "name":
-      default:
-        return laundries.filter((l) => (l.name || "").toLowerCase().includes(q));
+  const dedupeById = (rows) => {
+    const seen = new Set();
+    const out = [];
+    for (const r of rows) {
+      const id = String(r.id);
+      if (!seen.has(id)) { seen.add(id); out.push(r); }
     }
-  }, [laundries, search, selectedFilter]);
+    return out;
+  };
 
-  // ========= FlatList autoplay (auto movement) =========
+  const normalize = (v) => (v ?? "").toString().toLowerCase();
+
+  const matchesFilter = (l, q, by) => {
+    if (!q) return true;
+    const fields = {
+      name: normalize(l.name),
+      address: normalize(l.address),
+      phone: normalize(l.phone),
+      services: normalize(Array.isArray(l.services) ? l.services.join(" ") : l.services),
+    };
+    if (!by || by === "") {
+      return (
+        fields.name.includes(q) ||
+        fields.address.includes(q) ||
+        fields.phone.includes(q) ||
+        fields.services.includes(q)
+      );
+    }
+    return fields[by]?.includes(q);
+  };
+
+  const fetchLaundriesPage = useCallback(
+    async (pageToLoad, append) => {
+      if (!token) return;
+      try {
+        append ? setLoadingMore(true) : setRefreshing(true);
+        const res = await authGet("/api/auth/retrieveAllLaundries", token, {
+          params: { page: pageToLoad, size: PAGE_SIZE },
+        });
+
+        const data = res?.data;
+        const content = Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data)
+            ? data.slice(pageToLoad * PAGE_SIZE, (pageToLoad + 1) * PAGE_SIZE)
+            : data?.users || data?.data || [];
+
+        const rows = content.map(mapUserToLaundry);
+
+        setLaundries((prev) => (append ? [...prev, ...rows] : rows));
+        setAllCache((prev) => dedupeById([...prev, ...rows]));
+
+        if (typeof data?.last === "boolean") {
+          setHasNext(!data.last);
+        } else if (typeof data?.totalPages === "number") {
+          setHasNext(pageToLoad + 1 < data.totalPages);
+        } else {
+          setHasNext(rows.length === PAGE_SIZE);
+        }
+
+        setPage(pageToLoad);
+      } catch (e) {
+        try {
+          const res2 = await api.get("/api/auth/retriveLaundries", {
+            params: { page: pageToLoad, size: PAGE_SIZE },
+          });
+          const d2 = res2?.data;
+          const content2 = Array.isArray(d2?.content)
+            ? d2.content
+            : Array.isArray(d2)
+              ? d2.slice(pageToLoad * PAGE_SIZE, (pageToLoad + 1) * PAGE_SIZE)
+              : d2?.users || d2?.data || [];
+
+          const rows = content2.map(mapUserToLaundry);
+          setLaundries((prev) => (append ? [...prev, ...rows] : rows));
+          setAllCache((prev) => dedupeById([...prev, ...rows]));
+
+          if (typeof d2?.last === "boolean") {
+            setHasNext(!d2.last);
+          } else if (typeof d2?.totalPages === "number") {
+            setHasNext(pageToLoad + 1 < d2.totalPages);
+          } else {
+            setHasNext(rows.length === PAGE_SIZE);
+          }
+          setPage(pageToLoad);
+        } catch { }
+      } finally {
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
+    },
+    [token]
+  );
+
+  const onRefresh = useCallback(() => {
+    setHasNext(true);
+    setSearchPage(0);
+    fetchLaundriesPage(0, false);
+  }, [fetchLaundriesPage]);
+
+  const loadMoreLaundries = useCallback(() => {
+    if (search.trim()) return;
+    if (!hasNext || loadingMore) return;
+    fetchLaundriesPage(page + 1, true);
+  }, [hasNext, loadingMore, page, fetchLaundriesPage, search]);
+
+  const ensureAllLoaded = useCallback(async () => {
+    if (allLoaded || loadingAll || !token) return;
+    setLoadingAll(true);
+    try {
+      let p = 0;
+      let keepGoing = true;
+      const acc = [];
+
+      while (keepGoing) {
+        const res = await authGet("/api/auth/retrieveAllLaundries", token, {
+          params: { page: p, size: PAGE_SIZE },
+        });
+        const data = res?.data;
+        const content = Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data)
+            ? data.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE)
+            : data?.users || data?.data || [];
+
+        const rows = content.map(mapUserToLaundry);
+        acc.push(...rows);
+
+        if (typeof data?.last === "boolean") {
+          keepGoing = !data.last;
+        } else if (typeof data?.totalPages === "number") {
+          keepGoing = p + 1 < data.totalPages;
+        } else {
+          keepGoing = rows.length === PAGE_SIZE;
+        }
+        p += 1;
+      }
+
+      setAllCache((prev) => dedupeById([...prev, ...acc]));
+      setAllLoaded(true);
+    } catch {
+    } finally {
+      setLoadingAll(false);
+    }
+  }, [token, allLoaded, loadingAll]);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) {
+      setSearchPage(0);
+      return;
+    }
+    ensureAllLoaded();
+    setSearchPage(0);
+  }, [search, ensureAllLoaded]);
+
+  useEffect(() => {
+    setSearchPage(0);
+  }, [selectedFilter]);
+
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const autoTimerRef = useRef(null);
@@ -246,21 +356,17 @@ export default function UserHome({ navigation }) {
   const startAutoplay = useCallback(() => {
     clearInterval(autoTimerRef.current);
     autoTimerRef.current = setInterval(() => {
-      if (isTouchingRef.current) return; // don't advance while user is interacting
-      const next = (currentIndex + 1) % ordersData.length;
+      if (isTouchingRef.current) return;
+      const n = (currentIndex + 1) % ordersData.length;
       try {
-        flatListRef.current?.scrollToIndex({ index: next, animated: true });
-        setCurrentIndex(next);
+        flatListRef.current?.scrollToIndex({ index: n, animated: true });
+        setCurrentIndex(n);
       } catch {
-        // fallback if initial layout not ready
-        flatListRef.current?.scrollToOffset({
-          offset: next * itemlength,
-          animated: true,
-        });
-        setCurrentIndex(next);
+        flatListRef.current?.scrollToOffset({ offset: n * itemlength, animated: true });
+        setCurrentIndex(n);
       }
-    }, 3000); // 3s per card (tweak as you like)
-  }, [currentIndex, ordersData.length]);
+    }, 3000);
+  }, [currentIndex, ordersData.length, itemlength]);
 
   const stopAutoplay = useCallback(() => {
     clearInterval(autoTimerRef.current);
@@ -268,17 +374,12 @@ export default function UserHome({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      const onBackPress = () => {
-        return true;
-      };
-
-      navigation.addListener('beforeRemove', onBackPress);
-
-      return () => navigation.removeListener('beforeRemove', onBackPress);
+      const onBackPress = () => true;
+      navigation.addListener("beforeRemove", onBackPress);
+      return () => navigation.removeListener("beforeRemove", onBackPress);
     }, [navigation])
   );
 
-  // restart autoplay whenever data length changes or index updates
   useEffect(() => {
     if (!showOrders || ordersData.length <= 1) {
       stopAutoplay();
@@ -295,11 +396,28 @@ export default function UserHome({ navigation }) {
     }
   }).current;
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 60,
-  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
 
-  // ========= Render =========
+  const q = search.trim().toLowerCase();
+  const by = selectedFilter.value;
+
+  const filteredAll = useMemo(() => {
+    if (!q) return [];
+    return (allCache || []).filter((l) => matchesFilter(l, q, by));
+  }, [allCache, q, by]);
+
+  const searchVisible = useMemo(() => {
+    const end = (searchPage + 1) * PAGE_SIZE;
+    return filteredAll.slice(0, end);
+  }, [filteredAll, searchPage]);
+
+  const searchHasNext = searchVisible.length < filteredAll.length;
+  const loadMoreSearch = useCallback(() => {
+    if (searchHasNext) setSearchPage((p) => p + 1);
+  }, [searchHasNext]);
+
+  const listToRender = q ? searchVisible : laundries;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -310,13 +428,12 @@ export default function UserHome({ navigation }) {
           <Text style={styles.greeting}>Hi {name}</Text>
           <TouchableOpacity
             style={styles.profileBtn}
-            onPress={() => navigation.navigate("ProfileUser", { email, token })}
+            onPress={() => navigation.navigate("ProfileUser", { email: customerEmail, token })}
           >
             <Ionicons name="person-circle" size={28} color={tokens.colors.darkText} />
           </TouchableOpacity>
         </View>
 
-        {/* Left hamburger with tiny ringed badge */}
         <View>
           <TouchableOpacity
             style={styles.notificationWrapper}
@@ -331,13 +448,7 @@ export default function UserHome({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* put the whole content in a vertical scroller to prevent overlap */}
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }} // ⬅️ added
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Welcome */}
+        <ScrollView contentContainerStyle={[styles.srollesty, { paddingBottom: 32 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.welcomeWrap}>
             <View style={{ flex: 1 }}>
               <Text style={styles.welcome1}>Welcome to</Text>
@@ -349,8 +460,8 @@ export default function UserHome({ navigation }) {
           </View>
 
           <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={tokens.colors.placeholder} style={{ marginRight: 8 }} />
+            <View className="searchBox" style={styles.searchBox}>
+              <Ionicons name="search" size={18} color={tokens.colors.placeholder} style={{ marginRight: tokens.spacing.xs }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search Laundry..."
@@ -361,11 +472,7 @@ export default function UserHome({ navigation }) {
               />
             </View>
 
-            <Pressable
-              ref={filterBtnRef}
-              onPress={() => setFilterOpen(true)}
-              style={styles.filterBtn}
-            >
+            <Pressable ref={filterBtnRef} onPress={() => setFilterOpen(true)} style={styles.filterBtn}>
               <Ionicons name="options-outline" size={20} color={tokens.colors.darkText} />
             </Pressable>
 
@@ -380,7 +487,6 @@ export default function UserHome({ navigation }) {
             />
           </View>
 
-          {/* Orders carousel */}
           {showOrders && (
             <>
               <Text style={styles.sectionTitle}>Your orders</Text>
@@ -391,7 +497,7 @@ export default function UserHome({ navigation }) {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 12 }} // ⬅️ added bottom space
+                contentContainerStyle={{ paddingHorizontal: tokens.spacing.xs, paddingBottom: tokens.spacing.sm }}
                 getItemLayout={getItemLayout}
                 initialScrollIndex={0}
                 onViewableItemsChanged={onViewableItemsChanged}
@@ -399,11 +505,7 @@ export default function UserHome({ navigation }) {
                 renderItem={({ item }) => {
                   const card = (
                     <ImageBackground
-                      source={
-                        item?.laundryImg
-                          ? { uri: `${IMG_URL}${item.laundryImg}` }
-                          : BackLogin
-                      }
+                      source={item?.laundryImg ? { uri: `${IMG_URL}${item.laundryImg}` } : BackLogin}
                       imageStyle={styles.orderImg}
                       style={styles.orderCard}
                       resizeMode="cover"
@@ -412,7 +514,7 @@ export default function UserHome({ navigation }) {
                       <View style={styles.orderCardBottom}>
                         <Text style={styles.orderTitle}>{item.title}</Text>
                         <View style={styles.orderMetaRow}>
-                          <Ionicons name="location-outline" size={14} color="#fff" />
+                          <Ionicons name="location-outline" size={14} color={tokens.colors.bodyBackground} />
                           <Text style={styles.orderMeta}>{item.location}</Text>
                         </View>
 
@@ -430,19 +532,18 @@ export default function UserHome({ navigation }) {
                         navigation.navigate("OrderDetails", {
                           token,
                           orderId: item.id,
-                          laundryEmail: item.laundryEmail,
+                          customerId: customerId,
                           role: "CUSTOMER",
                         }),
                     }
-                    : { activeOpacity: 0.9 };
+                    : { activeOpacity: tokens.opacities.overlay };
 
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      activeOpacity={0.9}
+                      activeOpacity={tokens.opacities.overlay}
                       style={{ marginRight: tokens.screenconstants.cardgap }}
                       {...wrapperProps}
-                      // pause autoplay while touching
                       onPressIn={() => {
                         isTouchingRef.current = true;
                         stopAutoplay();
@@ -456,7 +557,6 @@ export default function UserHome({ navigation }) {
                     </TouchableOpacity>
                   );
                 }}
-                // also pause while dragging/swiping
                 onScrollBeginDrag={() => {
                   isTouchingRef.current = true;
                   stopAutoplay();
@@ -469,28 +569,35 @@ export default function UserHome({ navigation }) {
             </>
           )}
 
-          {/* Orders button (now with normal spacing so it won't overlap) */}
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={() => navigation.navigate("UserOrders", { token, email, name })}
+            onPress={() => navigation.navigate("UserOrders", { token, email: customerEmail, name, customerId })}
           >
             <Text>Orders</Text>
           </TouchableOpacity>
 
-          {/* Laundries */}
-          <View style={{ marginBottom: 8 }}>
+          <View style={{ marginBottom: tokens.spacing.xs }}>
             <Text style={[styles.sectionTitle, { marginTop: 38 }]}>Laundries</Text>
-            {filteredLaundries.map((l) => (
+
+            {(!q && refreshing && laundries.length === 0) ? (
+              <ActivityIndicator style={{ marginTop: tokens.spacing.sm }} />
+            ) : null}
+
+            {(q && loadingAll && allCache.length === 0) ? (
+              <ActivityIndicator style={{ marginTop: tokens.spacing.sm }} />
+            ) : null}
+
+            {listToRender.map((l) => (
               <TouchableOpacity
                 key={l.id}
                 style={styles.laundryRow}
-                onPress={() => {
+                onPress={() =>
                   navigation.navigate("UserLaundry", {
                     token,
                     id: l.id,
-                    userEmail,
-                  });
-                }}
+                    customerEmail: customerEmail,
+                  })
+                }
               >
                 <Image
                   source={l?.laundryImg ? { uri: `${IMG_URL}${l.laundryImg}` } : BackLogin}
@@ -506,28 +613,43 @@ export default function UserHome({ navigation }) {
                 </View>
               </TouchableOpacity>
             ))}
+
+            {!q && hasNext ? (
+              <View style={{ paddingVertical: tokens.spacing.md }}>
+                {loadingMore ? (
+                  <ActivityIndicator />
+                ) : (
+                  <TouchableOpacity style={styles.loginButton} onPress={loadMoreLaundries}>
+                    <Text>Load more</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
+
+            {q && searchHasNext ? (
+              <View style={{ paddingVertical: tokens.spacing.md }}>
+                <TouchableOpacity style={styles.loginButton} onPress={loadMoreSearch}>
+                  <Text>Load more results</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
         </ScrollView>
       </View>
 
       {isMenuVisible && (
-        <SideMenuUser
-          onClose={() => setIsMenuVisible(false)}
-          token={token}
-          email={email}
-          name={name}
-        />
+        <SideMenuUser onClose={() => setIsMenuVisible(false)} token={token} email={customerEmail} name={name} />
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  safe: { flex: 1, backgroundColor: tokens.colors.bodyBackground },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    backgroundColor: tokens.colors.bodyBackground,
+    paddingHorizontal: tokens.spacing.md,
     paddingTop: Platform.select({ ios: 4, android: 8 }),
   },
   topRow: {
@@ -538,7 +660,6 @@ const styles = StyleSheet.create({
   },
   notificationWrapper: { position: "absolute", zIndex: 100 },
   badge: {
-    // position: "relative",
     zIndex: 100,
     top: 34,
     right: -13,
@@ -550,63 +671,53 @@ const styles = StyleSheet.create({
     borderColor: "red",
     borderWidth: 2,
   },
-  badgeText: { fontSize: 12, marginTop: 2 },
+  badgeText: { fontSize: tokens.components.Typography.small.fontSize, marginTop: 2 },
   menuicon: {
-    color: "#3C4234",
+    color: tokens.colors.darkText,
     top: 20,
-    backgroundColor: "#a3ae95",
+    backgroundColor: tokens.colors.greenButton,
     paddingRight: 10,
     paddingLeft: 30,
     marginLeft: -35,
     borderRadius: 20,
   },
   profileBtn: { padding: 2, borderRadius: 16 },
-  greeting: { fontSize: 18, color: "#3C4234", fontWeight: "600" },
+  greeting: { fontSize: 18, color: tokens.colors.darkText, fontWeight: "600" },
 
   welcomeWrap: { marginTop: 75, flexDirection: "row", alignItems: "center" },
-  welcome1: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
-  welcome2: { fontSize: 22, color: "#3C4234", fontWeight: "700" },
+  srollesty: { marginBottom: tokens.spacing.md },
+  welcome1: { fontSize: 22, color: tokens.colors.darkText, fontWeight: "700" },
+  welcome2: { fontSize: 22, color: tokens.colors.darkText, fontWeight: "700" },
   illustration: {
     width: 54,
     height: 54,
-    borderRadius: 12,
+    borderRadius: tokens.spacing.sm,
     backgroundColor: "#f8f8f8",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  searchRow: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  searchRow: { marginTop: tokens.spacing.md, flexDirection: "row", alignItems: "center", gap: tokens.screenconstants.cardgap },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F1F3F1",
     borderRadius: 14,
-    paddingHorizontal: 12,
+    paddingHorizontal: tokens.spacing.sm,
     height: 44,
   },
-  searchInput: { flex: 1, color: "#3C4234", paddingVertical: 0 },
+  searchInput: { flex: 1, color: tokens.colors.darkText, paddingVertical: 0 },
   filterBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#A3AE95",
+    backgroundColor: tokens.colors.greenButton,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  sectionTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-    color: "#3C4234",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  sectionTitle: { marginTop: tokens.spacing.md, marginBottom: tokens.spacing.xs, color: tokens.colors.darkText, fontSize: 16, fontWeight: "600" },
 
   orderCard: {
     width: tokens.screenconstants.cardwidth,
@@ -616,21 +727,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   orderImg: { borderRadius: 16 },
-  cardGlass: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.15)",
-  },
-  orderCardBottom: { padding: 12 },
-  orderTitle: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  orderMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 2,
-  },
-  orderMeta: { color: "#fff", fontSize: 12 },
+  cardGlass: { ...StyleSheet.absoluteFillObject, backgroundColor: tokens.colors.border },
+  orderCardBottom: { padding: tokens.spacing.sm },
+  orderTitle: { color: tokens.colors.bodyBackground, fontSize: 15, fontWeight: "700" },
+  orderMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  orderMeta: { color: tokens.colors.bodyBackground, fontSize: tokens.components.Typography.small.fontSize },
   statusPill: {
-    marginTop: 8,
+    marginTop: tokens.spacing.xs,
     alignSelf: "flex-start",
     backgroundColor: "#E6ECE1",
     borderRadius: 12,
@@ -640,33 +743,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  statusPillText: { color: "#3C4234", fontSize: 12, fontWeight: "600" },
+  statusPillText: { color: tokens.colors.darkText, fontSize: tokens.components.Typography.small.fontSize, fontWeight: "600" },
 
-  laundryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    gap: 12,
-  },
-  laundryImg: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: "#eee",
-  },
-  laundryName: { color: "#3C4234", fontSize: 14, fontWeight: "600" },
-  laundryLoc: { color: "#98A29D", fontSize: 12, marginTop: 2 },
-  ratingWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontSize: 12, color: "#3C4234" },
+  laundryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: tokens.screenconstants.cardgap },
+  laundryImg: { width: 54, height: 54, borderRadius: 12, backgroundColor: "#eee" },
+  laundryName: { color: tokens.colors.darkText, fontSize: 14, fontWeight: "600" },
+  laundryLoc: { color: "#98A29D", fontSize: tokens.components.Typography.small.fontSize, marginTop: 2 },
+  ratingWrap: { flexDirection: "row", alignItems: "center", gap: tokens.spacing.xxs },
+  ratingText: { fontSize: tokens.components.Typography.small.fontSize, color: tokens.colors.darkText },
 
   loginButton: {
     width: "75%",
     height: 42,
-    backgroundColor: "#A3AE95",
+    backgroundColor: tokens.colors.greenButton,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginTop: 12, // ⬅️ changed (replaces old negative margin)
+    marginTop: tokens.spacing.sm,
   },
 });
